@@ -26,6 +26,11 @@ export type OverlayReadback = {
   dependencyErrors?: string[]
   processorInstanceId?: string
   sidecarBundleDigest?: string
+  // 上面的 sidecarBundleDigest 是「上一次证明声称的」,下面两个是「当前这一代
+  // 要求的」。两者不同,正是处理器在服务陈旧内容的时刻——也就是最值得显示的
+  // 那一刻。把它们并列渲染,操作员不必去比对日志才能看出来。
+  activeSidecarBundleDigest?: string
+  activeCertificateHostSetDigest?: string
   capabilitySetDigest?: string
   leaseState: 'none' | 'valid' | 'expired'
   leaseExpiresAt?: number
