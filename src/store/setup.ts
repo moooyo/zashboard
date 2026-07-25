@@ -25,6 +25,7 @@ const migrateBackendList = (list: LegacyBackend[]): Backend[] => {
     migrated.push({
       ...base,
       type: base.type ?? 'clash',
+      authMode: base.authMode ?? 'secret',
     })
 
     if (channel?.host) {

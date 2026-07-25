@@ -205,7 +205,18 @@ export const createClashWebSocket = <T>(url: string, searchParams?: Record<strin
   const backend = activeBackend.value!
   const resurl = new URL(`${getUrlFromBackend(backend).replace('http', 'ws')}/${url}`)
 
-  resurl.searchParams.append('token', backend.password || '')
+  // Only send the query token when the password really is the credential.
+  //
+  // mihomo's authentication middleware short-circuits on a non-empty `token`
+  // query parameter and never reads the Authorization header (hub/route/server.go).
+  // Behind a reverse proxy that strips the browser's credential and injects the
+  // real one, the stored password is a placeholder — sending it makes every
+  // WebSocket stream fail the comparison and 401 forever, which
+  // ReconnectingWebSocket then retries silently. Omitting it lets the proxy's
+  // injected header be the thing that authenticates, which is the point.
+  if (backend.password && backend.authMode !== 'proxy') {
+    resurl.searchParams.append('token', backend.password)
+  }
 
   if (searchParams) {
     Object.entries(searchParams).forEach(([key, value]) => {

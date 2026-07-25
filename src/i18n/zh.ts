@@ -560,6 +560,31 @@ const zh: LANG_MESSAGE = {
   folder_preview: '自动匹配的代理组',
   folder_no_matches: '没有匹配的代理组',
   folder_delete_confirm: '确认删除文件夹「{name}」？',
+
+  // Runtime overlay
+  settingsMenuOverlay: '覆盖层',
+  overlaySettings: '运行时覆盖层',
+  overlayProcessorState: '处理器状态',
+  overlayGeneration: '生效代',
+  overlayNoGeneration: '无',
+  overlayPersisted: '已持久化代',
+  overlayDigest: '摘要',
+  overlayLease: '就绪租约',
+  overlayLeaseValid: '有效',
+  overlayLeaseExpired: '已过期',
+  overlayLeaseNone: '从未上报',
+  overlayDraining: '排空中',
+  overlayPrepared: '已准备',
+  overlayRevision: '核心修订 / 解析器纪元',
+  overlayRefresh: '刷新',
+  overlayDependencyErrors: '依赖缺失 —— 捕获流量正在按失败关闭处理',
+  overlayUnavailable: '覆盖层接口暂时不可达，正在重试。',
+  overlayReadOnlyNotice: '只读。变更须经协调器，由它保证审阅、证书与 DNS 的先后顺序。',
+  overlayStateDisabled: '未启用',
+  overlayStateQuarantined: '隔离中',
+  overlayStateNotReady: '未就绪',
+  overlayStateDegraded: '降级',
+  overlayStateReady: '就绪',
 }
 
 export default zh

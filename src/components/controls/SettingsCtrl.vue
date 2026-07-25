@@ -64,6 +64,7 @@ const segmentLabelMap: Record<SETTINGS_MENU_KEY, string> = {
   [SETTINGS_MENU_KEY.proxies]: 'settingsMenuProxies',
   [SETTINGS_MENU_KEY.connections]: 'settingsMenuConnections',
   [SETTINGS_MENU_KEY.overview]: 'settingsMenuOverview',
+  [SETTINGS_MENU_KEY.overlay]: 'settingsMenuOverlay',
 }
 
 const segmentOptions = computed<SegmentOption[]>(() =>

@@ -16,7 +16,17 @@ axios.interceptors.request.use((config) => {
   return config
 })
 
-const ignoreNotificationUrls = ['/delay', '/healthcheck', '/weights', '/storage/zashboard']
+const ignoreNotificationUrls = [
+  '/delay',
+  '/healthcheck',
+  '/weights',
+  '/storage/zashboard',
+  // Capability discovery probes endpoints a stock core does not have. A 404 is
+  // the expected answer there, not something to raise a toast about — and
+  // resolving instead of rejecting is what lets the caller branch on `status`.
+  '/capabilities',
+  '/runtime-overlays',
+]
 
 axios.interceptors.response.use(
   null,
@@ -41,7 +51,10 @@ axios.interceptors.response.use(
 
       showNotification({
         key: errorMessage,
-        content: `${decodeURIComponent(error.config?.url || '')} \n${errorMessage}`,
+        // `raw`, not `content`: both halves are server-controlled — the URL is
+        // echoed back and errorMessage is the response body's message field —
+        // so neither may reach the translator or a markup sink.
+        raw: `${decodeURIComponent(error.config?.url || '')} \n${errorMessage}`,
         type: 'alert-error',
       })
       return Promise.reject(error)

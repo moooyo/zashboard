@@ -13,6 +13,21 @@ export type SettingsCategory = {
 
 export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   {
+    key: SETTINGS_MENU_KEY.overlay,
+    label: 'overlaySettings',
+    items: [
+      { key: `${SETTINGS_MENU_KEY.overlay}.overlayProcessorState`, label: 'overlayProcessorState' },
+      { key: `${SETTINGS_MENU_KEY.overlay}.overlayGeneration`, label: 'overlayGeneration' },
+      { key: `${SETTINGS_MENU_KEY.overlay}.overlayPersisted`, label: 'overlayPersisted' },
+      { key: `${SETTINGS_MENU_KEY.overlay}.overlayDigest`, label: 'overlayDigest' },
+      { key: `${SETTINGS_MENU_KEY.overlay}.overlayLease`, label: 'overlayLease' },
+      { key: `${SETTINGS_MENU_KEY.overlay}.overlayDraining`, label: 'overlayDraining' },
+      { key: `${SETTINGS_MENU_KEY.overlay}.overlayPrepared`, label: 'overlayPrepared' },
+      { key: `${SETTINGS_MENU_KEY.overlay}.overlayRevision`, label: 'overlayRevision' },
+      { key: `${SETTINGS_MENU_KEY.overlay}.overlayRefresh`, label: 'overlayRefresh' },
+    ],
+  },
+  {
     key: SETTINGS_MENU_KEY.backend,
     label: 'backendSettings',
     items: [
@@ -228,6 +243,8 @@ export const BACKEND_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.backend)
 export const PROXIES_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.proxies)
 /** Key map for connections settings. */
 export const CONNECTIONS_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.connections)
+/** Key map for runtime overlay settings. */
+export const OVERLAY_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.overlay)
 
 function keyMapByLabel(categoryKey: SETTINGS_MENU_KEY): Record<string, string> {
   const category = SETTINGS_CATEGORIES.find((c) => c.key === categoryKey)

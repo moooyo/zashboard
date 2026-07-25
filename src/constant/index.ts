@@ -307,6 +307,7 @@ export enum SETTINGS_MENU_KEY {
   proxies = 'proxySettings',
   connections = 'connectionSettings',
   overview = 'overviewSettings',
+  overlay = 'overlaySettings',
 }
 
 export enum OVERVIEW_CARD {

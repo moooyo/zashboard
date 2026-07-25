@@ -144,6 +144,9 @@ export const getBackendFromUrl = () => {
       host: query.get('hostname') as string,
       port: query.get('port') as string,
       password: query.get('secret') || '',
+      // proxyAuth=1 表示 secret 只是占位符,真实凭据由反向代理注入 Authorization。
+      // 这样交接方可以显式声明「代理替我鉴权」,而不是靠塞一个假 secret 蒙混过去。
+      authMode: (query.get('proxyAuth') === '1' ? 'proxy' : 'secret') as 'secret' | 'proxy',
       label: query.get('label') || '',
       disableUpgradeCore:
         query.get('disableUpgradeCore') === '1' || query.get('disableUpgradeCore') === 'core',

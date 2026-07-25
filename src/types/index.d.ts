@@ -15,6 +15,11 @@ export type Backend = {
   label?: string
   disableUpgradeCore?: boolean // 仅 clash
   disableTunMode?: boolean // 仅 clash
+  // 认证方式:'secret' 表示 password 是真实凭据;'proxy' 表示由反向代理注入
+  // Authorization,password 只是占位符。区别很关键:mihomo 的鉴权中间件一旦看到
+  // 非空的 ?token= 就短路,再也不读被代理注入的 Authorization 头,于是占位符会让
+  // 所有 WebSocket 流永久 401。缺省按 'secret' 迁移。
+  authMode?: 'secret' | 'proxy' // 仅 clash
 }
 
 export type Config = {

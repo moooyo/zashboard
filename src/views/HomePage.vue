@@ -101,6 +101,7 @@
 
 <script setup lang="ts">
 import { isBackendAvailable } from '@/assembly/backend'
+import { initOverlayDiscovery, stopOverlayDiscovery } from '@/assembly/overlay'
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
 import SideBar from '@/components/sidebar/SideBar.vue'
 import { dockTop } from '@/composables/paddingViews'
@@ -169,6 +170,7 @@ watch(
       stopConnections()
       stopLogs()
       stopSatistic()
+      stopOverlayDiscovery()
       return
     }
     rulesTabShow.value = RULE_TAB_TYPE.RULES
@@ -179,6 +181,9 @@ watch(
     initConnections()
     initLogs()
     initSatistic()
+    // 每次切换后端都要重新发现:overlay 是 fork 私有能力,上一个后端的结论
+    // 对新后端毫无意义。discovery 内部按 uuid + 代数护栏丢弃迟到响应。
+    void initOverlayDiscovery()
   },
   {
     immediate: true,

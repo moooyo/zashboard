@@ -6,7 +6,7 @@
 import { fetchClashVersion, restartCoreAPI, upgradeCoreAPI, upgradeUIAPI } from '@/api/clash'
 import { MIHOMO, MIHOMO_CHANNEL } from '@/constant'
 import { autoUpgradeCore, autoUpgradeDashboard, checkUpgradeCore } from '@/store/settings'
-import { activeBackend } from '@/store/setup'
+import { activeBackend, activeUuid } from '@/store/setup'
 import { computed, ref, watch } from 'vue'
 import { isSingboxBackend } from './backend'
 
@@ -73,13 +73,27 @@ watch(
   activeBackend,
   async (val) => {
     if (val) {
+      // 每次 await 后都要重新确认后端没有被切换。否则上一个后端的慢响应会覆盖
+      // 新后端的版本号,而 mihomo 那个正则(isSingBoxCore / mihomo computed)
+      // 直接建立在 version 之上 —— 能力发现的结论一旦与版本串相关,这条竞态就
+      // 会把结论也带偏。用 uuid 而不是 activeBackend 对象:后者是 computed,
+      // 列表被编辑时对象身份就会变。
+      const uuid = activeUuid.value
+      const stale = () => uuid !== activeUuid.value
+
       const { data } = await fetchVersionAPI()
+      if (stale()) return
 
       version.value = data?.version || ''
-      startedAt.value = isSingboxBackend.value ? await fetchSingboxStartedAt() : 0
+      const started = isSingboxBackend.value ? await fetchSingboxStartedAt() : 0
+      if (stale()) return
+      startedAt.value = started
+
       if (isSingBoxCore.value || !checkUpgradeCore.value || activeBackend.value?.disableUpgradeCore)
         return
-      isCoreUpdateAvailable.value = await fetchBackendUpdateAvailableAPI()
+      const updateAvailable = await fetchBackendUpdateAvailableAPI()
+      if (stale()) return
+      isCoreUpdateAvailable.value = updateAvailable
 
       if (isCoreUpdateAvailable.value && autoUpgradeCore.value) {
         upgradeCoreAPI('auto')

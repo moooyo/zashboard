@@ -572,6 +572,31 @@ const ru: LANG_MESSAGE = {
   folder_preview: 'Автоматически подобранные группы',
   folder_no_matches: 'Нет подходящих групп',
   folder_delete_confirm: 'Удалить папку «{name}»?',
+
+  // Runtime overlay
+  settingsMenuOverlay: 'Оверлей',
+  overlaySettings: 'Оверлей среды выполнения',
+  overlayProcessorState: 'Состояние обработчика',
+  overlayGeneration: 'Активное поколение',
+  overlayNoGeneration: 'нет',
+  overlayPersisted: 'Сохранённое поколение',
+  overlayDigest: 'Дайджест',
+  overlayLease: 'Аренда готовности',
+  overlayLeaseValid: 'действительна',
+  overlayLeaseExpired: 'истекла',
+  overlayLeaseNone: 'никогда не подтверждалась',
+  overlayDraining: 'Завершаются',
+  overlayPrepared: 'Подготовлены',
+  overlayRevision: 'Ревизия ядра / эпоха резолвера',
+  overlayRefresh: 'Обновить',
+  overlayDependencyErrors: 'Отсутствуют зависимости — перехват закрывается',
+  overlayUnavailable: 'Точка оверлея временно недоступна. Повтор.',
+  overlayReadOnlyNotice: 'Только чтение. Изменения идут через координатор.',
+  overlayStateDisabled: 'отключён',
+  overlayStateQuarantined: 'карантин',
+  overlayStateNotReady: 'не готов',
+  overlayStateDegraded: 'деградация',
+  overlayStateReady: 'готов',
 }
 
 export default ru

@@ -93,12 +93,21 @@ const setAlert = (
   params: Record<string, string>,
   type: string,
   alertKey: string,
+  raw?: string,
 ): HTMLElement | null => {
   alert.className = `alert flex p-2 pr-5 relative ${type}`
 
   const contentDiv = document.createElement('div')
   contentDiv.className = 'break-all whitespace-pre-wrap'
-  contentDiv.innerHTML = t(content, params)
+  // textContent, never innerHTML. Notification text reaches here from the
+  // backend — an error body's `message` field and proxy-group names both flow
+  // through showNotification — and this origin holds the controller secret in
+  // localStorage, so a reflected string executing here hands it over.
+  //
+  // `raw` bypasses translation entirely. Server-supplied strings must not reach
+  // vue-i18n's message compiler either: `{`, `}` and `@:` are message-format
+  // syntax there, so a hostile message can at minimum break rendering.
+  contentDiv.textContent = raw !== undefined ? raw : t(content, params)
 
   const closeButton = document.createElement('button')
   closeButton.className = 'absolute top-0 right-0 btn btn-xs btn-circle btn-ghost'
@@ -132,31 +141,36 @@ const setAlert = (
 
 export const showNotification = ({
   content,
+  raw,
   params = {},
   key,
   type = 'alert-warning',
   timeout = 3000,
 }: {
-  content: string
+  /** A translation key. Never pass server-controlled text here. */
+  content?: string
+  /** Literal text shown verbatim, untranslated. Use this for anything the
+   * backend supplied. */
+  raw?: string
   params?: Record<string, string>
   key?: string
   type?: 'alert-warning' | 'alert-success' | 'alert-error' | 'alert-info' | ''
   timeout?: number
 }) => {
-  const alertKey = key || content
+  const alertKey = key || content || raw || ''
 
   if (alertKey && alertMap.has(alertKey)) {
     const { alert, timer } = alertMap.get(alertKey)!
     clearTimeout(timer)
 
-    const progressBar = setAlert(alert, content, params, type, alertKey)
+    const progressBar = setAlert(alert, content ?? '', params, type, alertKey, raw)
     setTimer(alert, timeout, alertKey, progressBar)
     return
   }
 
   const alert = document.createElement('div')
 
-  const progressBar = setAlert(alert, content, params, type, alertKey)
+  const progressBar = setAlert(alert, content ?? '', params, type, alertKey, raw)
   toastRef?.value?.insertBefore(alert, toastRef?.value?.firstChild)
   setTimer(alert, timeout, alertKey, progressBar)
 }

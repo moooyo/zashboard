@@ -102,9 +102,11 @@ import SettingsCtrl from '@/components/controls/SettingsCtrl.vue'
 import BackendSettings from '@/components/settings/backend/BackendSettings.vue'
 import ConnectionsSettings from '@/components/settings/connections/ConnectionsSettings.vue'
 import ZashboardSettings from '@/components/settings/general/ZashboardSettings.vue'
+import OverlaySettings from '@/components/settings/overlay/OverlaySettings.vue'
 import OverviewSettings from '@/components/settings/overview/OverviewSettings.vue'
 import ProxiesSettings from '@/components/settings/proxies/ProxiesSettings.vue'
 import SettingsCategoryHeader from '@/components/settings/SettingsCategoryHeader.vue'
+import { overlaySupported } from '@/assembly/overlay'
 import { usePaddingForViews } from '@/composables/paddingViews'
 import {
   applyMinimalPreset,
@@ -123,6 +125,7 @@ import {
   GlobeAltIcon,
   HomeIcon,
   ServerIcon,
+  ShieldCheckIcon,
 } from '@heroicons/vue/24/outline'
 import { useElementSize } from '@vueuse/core'
 import { throttle } from 'lodash'
@@ -197,8 +200,25 @@ const menuItems = computed<MenuItem[]>(() => {
     ],
   ])
 
-  // 根据 settingsMenuOrder 排序，并过滤隐藏的项
-  return settingsMenuOrder.value
+  // overlay 面板只在能力发现给出肯定结论后出现。'unknown' 期间不渲染,
+  // 否则连着普通 mihomo 的用户会先看到一个面板再看到它消失。
+  if (overlaySupported.value) {
+    itemsMap.set(SETTINGS_MENU_KEY.overlay, {
+      key: SETTINGS_MENU_KEY.overlay,
+      label: 'overlaySettings',
+      icon: ShieldCheckIcon,
+      component: OverlaySettings,
+    })
+  }
+
+  // 根据 settingsMenuOrder 排序，并过滤隐藏的项。
+  // settingsMenuOrder 是持久化的,旧记录里不会有新加的分类,所以要把 itemsMap
+  // 里有、顺序表里没有的补在末尾 —— 否则新分类永远不显示。
+  const order = [...settingsMenuOrder.value]
+  for (const key of itemsMap.keys()) {
+    if (!order.includes(key)) order.push(key)
+  }
+  return order
     .map((key) => itemsMap.get(key))
     .filter((item): item is MenuItem => item !== undefined && isSettingVisible(item.key))
 })

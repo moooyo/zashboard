@@ -560,6 +560,31 @@ const zhTW: LANG_MESSAGE = {
   folder_preview: '自動匹配的代理組',
   folder_no_matches: '沒有符合的代理組',
   folder_delete_confirm: '確認刪除資料夾「{name}」？',
+
+  // Runtime overlay
+  settingsMenuOverlay: '覆蓋層',
+  overlaySettings: '執行時覆蓋層',
+  overlayProcessorState: '處理器狀態',
+  overlayGeneration: '生效代',
+  overlayNoGeneration: '無',
+  overlayPersisted: '已持久化代',
+  overlayDigest: '摘要',
+  overlayLease: '就緒租約',
+  overlayLeaseValid: '有效',
+  overlayLeaseExpired: '已過期',
+  overlayLeaseNone: '從未回報',
+  overlayDraining: '排空中',
+  overlayPrepared: '已準備',
+  overlayRevision: '核心修訂 / 解析器紀元',
+  overlayRefresh: '重新整理',
+  overlayDependencyErrors: '依賴缺失 —— 擷取流量正依失敗關閉處理',
+  overlayUnavailable: '覆蓋層介面暫時無法連線，正在重試。',
+  overlayReadOnlyNotice: '唯讀。變更須經協調器，由它保證審閱、憑證與 DNS 的先後順序。',
+  overlayStateDisabled: '未啟用',
+  overlayStateQuarantined: '隔離中',
+  overlayStateNotReady: '未就緒',
+  overlayStateDegraded: '降級',
+  overlayStateReady: '就緒',
 }
 
 export default zhTW
