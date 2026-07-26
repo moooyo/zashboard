@@ -579,6 +579,7 @@ const en = {
   overlayNoGeneration: 'none',
   overlayPersisted: 'Persisted generation',
   overlayDigest: 'Digest',
+  overlayProjection: 'Policy projection',
   overlayLease: 'Readiness lease',
   overlayLeaseValid: 'valid',
   overlayLeaseExpired: 'expired',

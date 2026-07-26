@@ -569,6 +569,7 @@ const zh: LANG_MESSAGE = {
   overlayNoGeneration: '无',
   overlayPersisted: '已持久化代',
   overlayDigest: '摘要',
+  overlayProjection: '策略投影',
   overlayLease: '就绪租约',
   overlayLeaseValid: '有效',
   overlayLeaseExpired: '已过期',

@@ -20,6 +20,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
       { key: `${SETTINGS_MENU_KEY.overlay}.overlayGeneration`, label: 'overlayGeneration' },
       { key: `${SETTINGS_MENU_KEY.overlay}.overlayPersisted`, label: 'overlayPersisted' },
       { key: `${SETTINGS_MENU_KEY.overlay}.overlayDigest`, label: 'overlayDigest' },
+      { key: `${SETTINGS_MENU_KEY.overlay}.overlayProjection`, label: 'overlayProjection' },
       { key: `${SETTINGS_MENU_KEY.overlay}.overlayLease`, label: 'overlayLease' },
       { key: `${SETTINGS_MENU_KEY.overlay}.overlayDraining`, label: 'overlayDraining' },
       { key: `${SETTINGS_MENU_KEY.overlay}.overlayPrepared`, label: 'overlayPrepared' },

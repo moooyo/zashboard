@@ -581,6 +581,7 @@ const ru: LANG_MESSAGE = {
   overlayNoGeneration: 'нет',
   overlayPersisted: 'Сохранённое поколение',
   overlayDigest: 'Дайджест',
+  overlayProjection: 'Проекция политики',
   overlayLease: 'Аренда готовности',
   overlayLeaseValid: 'действительна',
   overlayLeaseExpired: 'истекла',

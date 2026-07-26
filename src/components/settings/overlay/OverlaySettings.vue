@@ -46,6 +46,17 @@
           <div class="font-mono text-xs break-all">{{ shortDigest }}</div>
         </SettingItem>
 
+        <!-- 策略投影摘要。核心用 omitempty 输出,不支持的构建上根本没有这个字段,
+             所以按「有才显示」处理:渲染一个空值会让「这个核心不报告投影」看起来
+             和「投影是空的」一样,而后者意味着没有任何规则在被执行。 -->
+        <SettingItem
+          :setting-key="k.overlayProjection"
+          :when="Boolean(readback?.activeProjectionDigest)"
+        >
+          <div class="setting-item-label">{{ $t('overlayProjection') }}</div>
+          <div class="font-mono text-xs break-all">{{ shortProjectionDigest }}</div>
+        </SettingItem>
+
         <SettingItem :setting-key="k.overlayLease">
           <div class="setting-item-label">{{ $t('overlayLease') }}</div>
           <div class="flex items-center gap-2">
@@ -147,6 +158,13 @@ const showsPersistedMismatch = computed(
 )
 
 const shortDigest = computed(() => readback.value?.activeDigest?.slice(0, 16) || '—')
+
+// 与 activeDigest 截取同样长度:两者并排显示,不同的截断宽度会让人以为它们是
+// 不同种类的值。它们确实不同——一个是这一代的摘要,一个是编译出的策略投影的
+// 摘要——但都是 sha256,读法一样。
+const shortProjectionDigest = computed(
+  () => readback.value?.activeProjectionDigest?.slice(0, 16) || '—',
+)
 
 const STATE_LABELS: Record<string, string> = {
   disabled: 'overlayStateDisabled',
