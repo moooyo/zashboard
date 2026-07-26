@@ -1,0 +1,58 @@
+name: 5gpn-release
+
+# The fork's own release path, deliberately separate from the inherited
+# deploy.yml.
+#
+# deploy.yml cannot be reused here: it is gated on release-please against
+# `main`, writes upstream's gh-pages CNAME (board.zash.run.place), and pushes
+# ghcr.io/zephyruso images. Running it from this fork would republish upstream's
+# site and images from our tree. This workflow builds the one artifact the 5gpn
+# installer pins — dist.zip — and publishes it as a prerelease. Nothing else.
+#
+# FONT is left unset on purpose: vite.config.ts defaults it to 'all', which is
+# the variant upstream ships as the unsuffixed dist.zip, and the installer pins
+# that name.
+
+on:
+  push:
+    tags:
+      - 'v*-overlay.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v6
+
+      - name: Install and build
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+
+      - name: Archive
+        run: |
+          # Archived as `dist/...` rather than its contents, matching upstream's
+          # layout. The installer unwraps that directory if it is there, so both
+          # shapes work — but only one of them keeps our archive interchangeable
+          # with the upstream release the installer used to pin.
+          test -f dist/index.html
+          zip -qr dist.zip dist
+          sha256sum dist.zip | tee dist.zip.sha256
+
+      - name: Publish prerelease
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            dist.zip
+            dist.zip.sha256
+          tag_name: ${{ github.ref_name }}
+          prerelease: true
+          generate_release_notes: true
