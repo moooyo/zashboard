@@ -1,5 +1,7 @@
 import { capabilities } from '@/assembly/backend'
 import { connectionAccessor } from '@/assembly/connections'
+import { dnsSupported } from '@/assembly/gpn/dns'
+import { interceptionSupported } from '@/assembly/gpn/interception'
 import { hiddenGroupMap, proxyMap } from '@/assembly/proxies'
 import { NOT_CONNECTED, PROXY_CHAIN_DIRECTION, PROXY_TYPE, ROUTE_NAME } from '@/constant'
 import { showNotification } from '@/helper/notification'
@@ -153,6 +155,8 @@ export const renderRoutes = computed(() => {
   const routeCapable: Partial<Record<ROUTE_NAME, boolean>> = {
     [ROUTE_NAME.rules]: caps.rules,
     [ROUTE_NAME.tools]: caps.tools,
+    [ROUTE_NAME.gpnDns]: dnsSupported.value,
+    [ROUTE_NAME.gpnExtensions]: interceptionSupported.value,
   }
   return Object.values(ROUTE_NAME).filter((r) => {
     if (r === ROUTE_NAME.setup) return false

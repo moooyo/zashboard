@@ -4,6 +4,8 @@ import {
   CubeTransparentIcon,
   DocumentTextIcon,
   GlobeAltIcon,
+  PuzzlePieceIcon,
+  SignalIcon,
   SwatchIcon,
   WrenchScrewdriverIcon,
 } from '@heroicons/vue/24/outline'
@@ -154,6 +156,10 @@ export enum ROUTE_NAME {
   connections = 'connections',
   logs = 'logs',
   rules = 'rules',
+  // 5gpn 私有页面。它们与其它页面一样按能力门控,所以一个不是 5gpn 内核的
+  // 后端上它们根本不出现在导航里 —— 而不是出现之后再报错。
+  gpnDns = 'gpnDns',
+  gpnExtensions = 'gpnExtensions',
   tools = 'tools',
   settings = 'settings',
   setup = 'setup',
@@ -165,6 +171,8 @@ export const ROUTE_ICON_MAP = {
   [ROUTE_NAME.connections]: ArrowsRightLeftIcon,
   [ROUTE_NAME.rules]: SwatchIcon,
   [ROUTE_NAME.logs]: DocumentTextIcon,
+  [ROUTE_NAME.gpnDns]: SignalIcon,
+  [ROUTE_NAME.gpnExtensions]: PuzzlePieceIcon,
   [ROUTE_NAME.tools]: WrenchScrewdriverIcon,
   [ROUTE_NAME.settings]: Cog6ToothIcon,
   [ROUTE_NAME.setup]: CubeTransparentIcon,

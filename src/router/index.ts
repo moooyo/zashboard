@@ -43,6 +43,16 @@ const childrenRouter = [
     component: RulesPage,
   },
   {
+    path: 'gpn-dns',
+    name: ROUTE_NAME.gpnDns,
+    component: () => import('@/views/GpnDnsPage.vue'),
+  },
+  {
+    path: 'gpn-extensions',
+    name: ROUTE_NAME.gpnExtensions,
+    component: () => import('@/views/GpnExtensionsPage.vue'),
+  },
+  {
     path: 'tools',
     name: ROUTE_NAME.tools,
     component: () => import('@/views/ToolsPage.vue'),

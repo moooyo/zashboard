@@ -30,6 +30,10 @@ export type Capabilities = {
 export const fetchCapabilitiesAPI = (signal?: AbortSignal, timeout = 5000) =>
   axios.get<Capabilities>('/capabilities', { signal, timeout })
 
+// ---------------------------------------------------------------------------
+// 拦截 / 扩展
+// ---------------------------------------------------------------------------
+
 export type GpnModuleSummary = {
   id: string
   name?: string
@@ -58,9 +62,290 @@ export type GpnInterception = {
   certificate: GpnCertificateState
 }
 
+export type GpnModuleSetting = {
+  key: string
+  type: string
+  label?: string
+  description?: string
+  required: boolean
+  options?: string[]
+  min?: number
+  max?: number
+  default?: unknown
+  value?: unknown
+}
+
+export type GpnActionSummary = {
+  id: string
+  phase: string
+  hosts?: string[]
+  schemes?: string[]
+  methods?: string[]
+  path?: string
+  statuses?: number[]
+  digest?: string
+}
+
+export type GpnMappingSummary = {
+  pattern: string
+  target: string
+  resolver: boolean
+}
+
+export type GpnRoutingRule = {
+  action: string
+  domain?: string
+  domain_suffix?: string
+  domain_keywords?: string[]
+  all_domain_keywords?: string[]
+  ip_cidr?: string
+  network?: string
+  destination_port?: number
+}
+
+export type GpnModuleDetail = GpnModuleSummary & {
+  description?: string
+  imported_at?: string
+  source_url?: string
+  source_digest?: string
+  network: boolean
+  persistent_storage: boolean
+  settings?: GpnModuleSetting[]
+  actions?: GpnActionSummary[]
+  routing_rules?: GpnRoutingRule[]
+  upstream_mappings?: GpnMappingSummary[]
+}
+
+export type GpnCandidate = {
+  detail: GpnModuleDetail
+  digest: string
+  installed?: string
+  installedVersion?: string
+}
+
+/** 每次读和每次写都带回 revision,所以客户端写完不需要再读一次。 */
+export type GpnInterceptionEnvelope = {
+  snapshot: GpnInterception
+  revision: string
+}
+
 /**
  * 503 表示引擎没装上,与 enabled:false 是两回事 —— 后者是一份加载成功并声明
  * 关闭的文档,前者是一份没能加载的文档。调用方必须先看 status。
  */
 export const fetchInterceptionAPI = (signal?: AbortSignal) =>
-  axios.get<GpnInterception>('/gpn/interception', { signal, timeout: 5000 })
+  axios.get<GpnInterceptionEnvelope>('/gpn/interception', { signal, timeout: 5000 })
+
+export const putInterceptionSettingsAPI = (body: {
+  revision: string
+  enabled: boolean
+  http2: boolean
+  quicFallbackProtection: boolean
+}) => axios.put<GpnInterceptionEnvelope>('/gpn/interception/settings', body)
+
+export const putInterceptionOrderAPI = (body: { revision: string; order: string[] }) =>
+  axios.put<GpnInterceptionEnvelope>('/gpn/interception/order', body)
+
+export const fetchExtensionAPI = (id: string, signal?: AbortSignal) =>
+  axios.get<{ extension: GpnModuleDetail; revision: string }>(
+    `/gpn/interception/extensions/${encodeURIComponent(id)}`,
+    { signal },
+  )
+
+export const putExtensionEnabledAPI = (id: string, body: { revision: string; enabled: boolean }) =>
+  axios.put<GpnInterceptionEnvelope>(
+    `/gpn/interception/extensions/${encodeURIComponent(id)}/enabled`,
+    body,
+  )
+
+export const putExtensionEgressAPI = (id: string, body: { revision: string; group: string }) =>
+  axios.put<GpnInterceptionEnvelope>(
+    `/gpn/interception/extensions/${encodeURIComponent(id)}/egress`,
+    body,
+  )
+
+export const putExtensionCaptureDNSAPI = (
+  id: string,
+  body: { revision: string; resolver: string },
+) =>
+  axios.put<GpnInterceptionEnvelope>(
+    `/gpn/interception/extensions/${encodeURIComponent(id)}/capture-dns`,
+    body,
+  )
+
+export const putExtensionSettingAPI = (
+  id: string,
+  key: string,
+  body: { revision: string; value: unknown },
+) =>
+  axios.put<GpnInterceptionEnvelope>(
+    `/gpn/interception/extensions/${encodeURIComponent(id)}/settings/${encodeURIComponent(key)}`,
+    body,
+  )
+
+export const deleteExtensionAPI = (id: string, body: { revision: string }) =>
+  axios.delete<GpnInterceptionEnvelope>(`/gpn/interception/extensions/${encodeURIComponent(id)}`, {
+    data: body,
+  })
+
+/** 审阅只读取,不改任何状态;它返回的 digest 才是安装时要带回来的凭据。 */
+export const reviewExtensionAPI = (body: { url?: string; content?: string }) =>
+  axios.post<{ candidate: GpnCandidate; revision: string }>('/gpn/interception/review', body, {
+    timeout: 120000,
+  })
+
+export const installExtensionAPI = (body: {
+  revision: string
+  digest: string
+  url?: string
+  content?: string
+}) => axios.post<GpnInterceptionEnvelope>('/gpn/interception/extensions', body, { timeout: 120000 })
+
+export const checkExtensionUpdateAPI = (id: string) =>
+  axios.get<{ candidate: GpnCandidate; revision: string }>(
+    `/gpn/interception/extensions/${encodeURIComponent(id)}/update`,
+    { timeout: 120000 },
+  )
+
+export const applyExtensionUpdateAPI = (id: string, body: { revision: string; digest: string }) =>
+  axios.post<GpnInterceptionEnvelope>(
+    `/gpn/interception/extensions/${encodeURIComponent(id)}/update`,
+    body,
+    { timeout: 120000 },
+  )
+
+// ---------------------------------------------------------------------------
+// DNS
+// ---------------------------------------------------------------------------
+
+export type GpnPolicyRule = {
+  id: string
+  kind: 'domain' | 'domain-suffix' | 'domain-keyword' | 'subscription'
+  value: string
+  intent: 'block' | 'direct' | 'proxy'
+  enabled: boolean
+  format?: string
+  intervalSeconds?: number
+}
+
+export type GpnDnsDocument = {
+  listen: {
+    dot: string
+    debug?: string
+    origin?: string
+    certificate?: string
+    privateKey?: string
+  }
+  gateway: string
+  localNames?: string[]
+  upstreams: {
+    china: string[]
+    trust: string[]
+    ecs?: string
+  }
+  policy: {
+    rules: GpnPolicyRule[]
+    fallback: 'auto' | 'direct' | 'gateway'
+  }
+  tuning: {
+    timeoutMs?: number
+    ttlMinSeconds?: number
+    ttlMaxSeconds?: number
+    cacheSize?: number
+    maxInflight?: number
+  }
+}
+
+export type GpnGroupStats = {
+  ok: number
+  err: number
+  p50Ms: number
+  p95Ms: number
+  latencyCount: number
+}
+
+export type GpnDnsStats = {
+  total: number
+  block: number
+  forceDirect: number
+  forceProxy: number
+  chnrouteCn: number
+  chnrouteForeign: number
+  cacheHits: number
+  cacheMisses: number
+  cacheEntries: number
+  refused: number
+  china: GpnGroupStats
+  trust: GpnGroupStats
+  cnRanges: number
+}
+
+export type GpnSubscriptionStatus = {
+  ruleId: string
+  lastAttempt?: string
+  lastSuccess?: string
+  entries: number
+  error?: string
+}
+
+export type GpnDnsEnvelope = {
+  document: GpnDnsDocument
+  revision: string
+  stats: GpnDnsStats
+  subscriptions: GpnSubscriptionStatus[]
+}
+
+export type GpnQueryLogEntry = {
+  time: string
+  client?: string
+  name: string
+  qtype: string
+  verdict?: string
+  reason?: string
+  upstream?: string
+  cacheHit: boolean
+  rcode: string
+  ips?: string[]
+  durationMs: number
+}
+
+export type GpnExplanation = {
+  name: string
+  verdict: { verdict?: string; reason?: string }
+  rule?: { id: string; kind: string; value: string; intent: string; entries: number }
+  capture?: {
+    extensionId: string
+    extensionName?: string
+    pattern?: string
+    resolver?: string
+    ready: boolean
+  }
+  fallback: string
+  gateway?: string
+  rcode: string
+  upstream?: string
+  cacheHit: boolean
+  answers?: string[]
+  origin?: string[]
+}
+
+export const fetchDnsAPI = (signal?: AbortSignal) =>
+  axios.get<GpnDnsEnvelope>('/gpn/dns', { signal, timeout: 5000 })
+
+export const putDnsAPI = (body: { revision: string; document: GpnDnsDocument }) =>
+  axios.put<GpnDnsEnvelope>('/gpn/dns', body)
+
+export const fetchDnsStatsAPI = (signal?: AbortSignal) =>
+  axios.get<GpnDnsStats>('/gpn/dns/stats', { signal, timeout: 5000 })
+
+export const fetchQueryLogAPI = (q: string, limit: number, signal?: AbortSignal) =>
+  axios.get<{ entries: GpnQueryLogEntry[] }>('/gpn/dns/querylog', {
+    params: { q, limit },
+    signal,
+    timeout: 5000,
+  })
+
+export const resolveTestAPI = (name: string) =>
+  axios.get<GpnExplanation>('/gpn/dns/resolve', { params: { name }, timeout: 15000 })
+
+export const flushDnsCacheAPI = () => axios.post('/gpn/dns/flush')
