@@ -574,6 +574,23 @@ const en = {
   // Runtime overlay
   settingsMenuOverlay: 'Overlay',
   overlaySettings: 'Runtime Overlay',
+  gpnInterceptionSettings: 'Interception',
+  settingsMenuGpnInterception: 'Interception',
+  gpnInterceptionAbsent:
+    'The interception engine is not installed. Its document failed to load, so no capture rules are in effect — this is not the same as interception being switched off.',
+  gpnCertificateGap:
+    'The interception certificate does not cover {hosts}. Capture for those hosts will present a certificate that does not name them, which clients reject with a trust error and the gateway does not log.',
+  gpnMitmMaster: 'MITM master',
+  gpnHttp2: 'HTTP/2',
+  gpnQuicFallback: 'QUIC fallback protection',
+  gpnModules: 'Extensions',
+  gpnModuleCount: '{enabled} enabled of {total}',
+  gpnCaptureHosts: 'Hosts being captured',
+  gpnUnboundEgress: 'Missing egress binding',
+  gpnCertificateExpiry: 'Certificate expires',
+  gpnInterceptionRefresh: 'Refresh',
+  gpnEnabled: 'On',
+  gpnDisabled: 'Off',
   overlayProcessorState: 'Processor state',
   overlayGeneration: 'Active generation',
   overlayNoGeneration: 'none',

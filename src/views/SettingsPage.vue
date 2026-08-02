@@ -102,11 +102,13 @@ import SettingsCtrl from '@/components/controls/SettingsCtrl.vue'
 import BackendSettings from '@/components/settings/backend/BackendSettings.vue'
 import ConnectionsSettings from '@/components/settings/connections/ConnectionsSettings.vue'
 import ZashboardSettings from '@/components/settings/general/ZashboardSettings.vue'
+import GpnInterceptionSettings from '@/components/settings/gpn/GpnInterceptionSettings.vue'
 import OverlaySettings from '@/components/settings/overlay/OverlaySettings.vue'
 import OverviewSettings from '@/components/settings/overview/OverviewSettings.vue'
 import ProxiesSettings from '@/components/settings/proxies/ProxiesSettings.vue'
 import SettingsCategoryHeader from '@/components/settings/SettingsCategoryHeader.vue'
 import { overlaySupported } from '@/assembly/overlay'
+import { interceptionSupported, refreshInterception } from '@/assembly/gpn/interception'
 import { usePaddingForViews } from '@/composables/paddingViews'
 import {
   applyMinimalPreset,
@@ -209,6 +211,19 @@ const menuItems = computed<MenuItem[]>(() => {
       icon: ShieldCheckIcon,
       component: OverlaySettings,
     })
+  }
+
+  // 同样只在能力发现给出肯定结论后出现。这个面板还额外要求引擎装上了 ——
+  // 一个 5gpn 内核可以拦截文档加载失败,那时核心返回 503,面板会说明原因,
+  // 而不是把它渲染成「拦截已关闭」。
+  if (interceptionSupported.value) {
+    itemsMap.set(SETTINGS_MENU_KEY.gpnInterception, {
+      key: SETTINGS_MENU_KEY.gpnInterception,
+      label: 'gpnInterceptionSettings',
+      icon: ShieldCheckIcon,
+      component: GpnInterceptionSettings,
+    })
+    void refreshInterception()
   }
 
   // 根据 settingsMenuOrder 排序，并过滤隐藏的项。

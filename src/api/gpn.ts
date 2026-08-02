@@ -29,3 +29,38 @@ export type Capabilities = {
  */
 export const fetchCapabilitiesAPI = (signal?: AbortSignal, timeout = 5000) =>
   axios.get<Capabilities>('/capabilities', { signal, timeout })
+
+export type GpnModuleSummary = {
+  id: string
+  name?: string
+  version?: string
+  enabled: boolean
+  capture_hosts: string[]
+  capture_dns: string
+  egress_group?: string
+  egress_group_required: boolean
+}
+
+export type GpnCertificateState = {
+  loaded: boolean
+  not_after?: number
+  covers_all_capture_hosts: boolean
+  missing_hosts?: string[]
+}
+
+export type GpnInterception = {
+  enabled: boolean
+  http2: boolean
+  quic_fallback_protection: boolean
+  modules: GpnModuleSummary[]
+  execution_order: string[]
+  active_capture_hosts: string[]
+  certificate: GpnCertificateState
+}
+
+/**
+ * 503 表示引擎没装上,与 enabled:false 是两回事 —— 后者是一份加载成功并声明
+ * 关闭的文档,前者是一份没能加载的文档。调用方必须先看 status。
+ */
+export const fetchInterceptionAPI = (signal?: AbortSignal) =>
+  axios.get<GpnInterception>('/gpn/interception', { signal, timeout: 5000 })

@@ -564,6 +564,23 @@ const zhTW: LANG_MESSAGE = {
   // Runtime overlay
   settingsMenuOverlay: '覆蓋層',
   overlaySettings: '執行時覆蓋層',
+  gpnInterceptionSettings: '攝取',
+  settingsMenuGpnInterception: '攝取',
+  gpnInterceptionAbsent:
+    '攝取引擎未載入。它的文件載入失敗，因此沒有任何捕獲規則生效 —— 這與「攝取已關閉」不是一回事。',
+  gpnCertificateGap:
+    '攝取憑證未涵蓋 {hosts}。對這些主機的捕獲會呈上一張不包含它們的憑證，客戶端會以信任錯誤拒絕，而閘道日誌裡什麼都沒有。',
+  gpnMitmMaster: 'MITM 總開關',
+  gpnHttp2: 'HTTP/2',
+  gpnQuicFallback: 'QUIC 回退保護',
+  gpnModules: '擴充',
+  gpnModuleCount: '已啟用 {enabled} / 共 {total}',
+  gpnCaptureHosts: '正在捕獲的主機',
+  gpnUnboundEgress: '缺少出口綁定',
+  gpnCertificateExpiry: '憑證到期',
+  gpnInterceptionRefresh: '重新整理',
+  gpnEnabled: '開',
+  gpnDisabled: '關',
   overlayProcessorState: '處理器狀態',
   overlayGeneration: '生效代',
   overlayNoGeneration: '無',

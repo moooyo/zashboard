@@ -13,6 +13,26 @@ export type SettingsCategory = {
 
 export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   {
+    key: SETTINGS_MENU_KEY.gpnInterception,
+    label: 'gpnInterceptionSettings',
+    items: [
+      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnMitmMaster`, label: 'gpnMitmMaster' },
+      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnHttp2`, label: 'gpnHttp2' },
+      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnQuicFallback`, label: 'gpnQuicFallback' },
+      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnModules`, label: 'gpnModules' },
+      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnCaptureHosts`, label: 'gpnCaptureHosts' },
+      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnUnboundEgress`, label: 'gpnUnboundEgress' },
+      {
+        key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnCertificateExpiry`,
+        label: 'gpnCertificateExpiry',
+      },
+      {
+        key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnInterceptionRefresh`,
+        label: 'gpnInterceptionRefresh',
+      },
+    ],
+  },
+  {
     key: SETTINGS_MENU_KEY.overlay,
     label: 'overlaySettings',
     items: [
@@ -244,6 +264,8 @@ export const BACKEND_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.backend)
 export const PROXIES_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.proxies)
 /** Key map for connections settings. */
 export const CONNECTIONS_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.connections)
+/** Key map for 5gpn interception settings. */
+export const GPN_INTERCEPTION_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.gpnInterception)
 /** Key map for runtime overlay settings. */
 export const OVERLAY_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.overlay)
 

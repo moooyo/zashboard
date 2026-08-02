@@ -564,6 +564,23 @@ const zh: LANG_MESSAGE = {
   // Runtime overlay
   settingsMenuOverlay: '覆盖层',
   overlaySettings: '运行时覆盖层',
+  gpnInterceptionSettings: '拦截',
+  settingsMenuGpnInterception: '拦截',
+  gpnInterceptionAbsent:
+    '拦截引擎未装载。它的文档加载失败，因此没有任何捕获规则生效 —— 这与「拦截已关闭」不是一回事。',
+  gpnCertificateGap:
+    '拦截证书未覆盖 {hosts}。对这些主机的捕获会呈上一张不包含它们的证书，客户端会以信任错误拒绝，而网关日志里什么都没有。',
+  gpnMitmMaster: 'MITM 总开关',
+  gpnHttp2: 'HTTP/2',
+  gpnQuicFallback: 'QUIC 回落保护',
+  gpnModules: '扩展',
+  gpnModuleCount: '已启用 {enabled} / 共 {total}',
+  gpnCaptureHosts: '正在捕获的主机',
+  gpnUnboundEgress: '缺少出口绑定',
+  gpnCertificateExpiry: '证书到期',
+  gpnInterceptionRefresh: '刷新',
+  gpnEnabled: '开',
+  gpnDisabled: '关',
   overlayProcessorState: '处理器状态',
   overlayGeneration: '生效代',
   overlayNoGeneration: '无',

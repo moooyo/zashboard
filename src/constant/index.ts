@@ -308,6 +308,7 @@ export enum SETTINGS_MENU_KEY {
   connections = 'connectionSettings',
   overview = 'overviewSettings',
   overlay = 'overlaySettings',
+  gpnInterception = 'gpnInterceptionSettings',
 }
 
 export enum OVERVIEW_CARD {

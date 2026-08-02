@@ -576,6 +576,23 @@ const ru: LANG_MESSAGE = {
   // Runtime overlay
   settingsMenuOverlay: 'Оверлей',
   overlaySettings: 'Оверлей среды выполнения',
+  gpnInterceptionSettings: 'Перехват',
+  settingsMenuGpnInterception: 'Перехват',
+  gpnInterceptionAbsent:
+    'Движок перехвата не установлен: его документ не загрузился, поэтому ни одно правило захвата не действует. Это не то же самое, что выключенный перехват.',
+  gpnCertificateGap:
+    'Сертификат перехвата не покрывает {hosts}. Клиенты отклонят соединение с ошибкой доверия, а шлюз ничего не запишет в журнал.',
+  gpnMitmMaster: 'MITM — главный переключатель',
+  gpnHttp2: 'HTTP/2',
+  gpnQuicFallback: 'Защита отката QUIC',
+  gpnModules: 'Расширения',
+  gpnModuleCount: 'включено {enabled} из {total}',
+  gpnCaptureHosts: 'Перехватываемые хосты',
+  gpnUnboundEgress: 'Нет привязки выхода',
+  gpnCertificateExpiry: 'Сертификат истекает',
+  gpnInterceptionRefresh: 'Обновить',
+  gpnEnabled: 'Вкл.',
+  gpnDisabled: 'Выкл.',
   overlayProcessorState: 'Состояние обработчика',
   overlayGeneration: 'Активное поколение',
   overlayNoGeneration: 'нет',
