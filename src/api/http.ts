@@ -26,7 +26,15 @@ const ignoreNotificationUrls = [
   // resolving instead of rejecting is what lets the caller branch on `status`.
   '/capabilities',
   '/runtime-overlays',
+  '/gpn',
 ]
+
+// endsWith alone never matched the entries that name a path *prefix*:
+// '/runtime-overlays' is listed, but the request is '/runtime-overlays/<owner>',
+// so every probe against a stock core raised a toast the list existed to
+// suppress. Sub-paths have to be matched as sub-paths.
+const ignoresNotification = (url?: string) =>
+  !!url && ignoreNotificationUrls.some((u) => url.endsWith(u) || url.includes(u + '/'))
 
 axios.interceptors.response.use(
   null,
@@ -46,7 +54,7 @@ axios.interceptors.response.use(
       nextTick(() => {
         showNotification({ content: 'unauthorizedTip' })
       })
-    } else if (!ignoreNotificationUrls.some((url) => error.config?.url?.endsWith(url))) {
+    } else if (!ignoresNotification(error.config?.url)) {
       const errorMessage = error.response?.data?.message || error.message
 
       showNotification({
