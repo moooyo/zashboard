@@ -5,12 +5,7 @@ import { computed, ref } from 'vue'
 /**
  * 能力发现 · 一次探测,N 个特性。
  *
- * 这里替代了原来 assembly/overlay/discovery.ts 的单特性版本。那份实现的语义
- * 是对的,只是把 FEATURE_KEY 写死成了 'runtime-overlays',并且状态是模块级单例。
- * 加第二个特性时若照抄一份,四态语义、代数护栏和 schema 版本判断就会出现两份
- * 副本 —— 它们迟早会分叉。所以状态改成按 key 索引的表,探测仍然只有一次。
- *
- * 四态而非布尔值的理由未变,三者的正确 UI 反应完全不同:
+ * 四态而非布尔值的理由:三者的正确 UI 反应完全不同。
  * 'unknown' 必须什么都不渲染(还不知道,渲染一个空面板等于撒谎),
  * 'unsupported' 永久隐藏,
  * 'temporarily-unavailable' 保留重试而不是把「暂时不可达」缓存成「不支持」。
@@ -21,13 +16,19 @@ export type FeatureState = 'unknown' | 'supported' | 'unsupported' | 'temporaril
 /**
  * 本前端理解的 schema 版本。核心报出更新的版本一律按 unsupported 处理 ——
  * 字段含义可能已经变了,照旧渲染等于对操作者展示一份可能是错的状态。
+ *
+ * 这张表同时是**门控白名单**:下面的探测只遍历这里的 key,所以核心宣称了、
+ * 而这里没有列出的特性,状态永远停在 'unknown',`featureSupported` 永远是
+ * false,对应的面板永远不渲染。加一个新子系统时必须同时加进这里 —— 否则
+ * 后端全通、验收全绿,而界面上什么都没有。gpn-bot 就这样漏过一次。
+ *
+ * 反过来,这里列了而核心不宣称的 key 会永久是 'unsupported',那是死条目:
+ * 它描述了一个不存在的特性,读这张表的人会以为它还在。
  */
 export const UNDERSTOOD_SCHEMA_VERSIONS: Record<string, number> = {
-  'runtime-overlays': 1,
   'gpn-dns': 1,
   'gpn-interception': 1,
-  'gpn-marketplace': 1,
-  'gpn-certificates': 1,
+  'gpn-bot': 1,
 }
 
 const RETRY_DELAY = 15000
@@ -50,7 +51,7 @@ export const featureState = (key: string) => computed(() => states.value[key] ??
  */
 export const featureSupported = (key: string) => computed(() => states.value[key] === 'supported')
 
-/** 特性宣称的 owner(overlay 用它拼 readback 路径),未知时是空串。 */
+/** 特性宣称的 owner,未知时是空串。 */
 export const featureOwner = (key: string) => computed(() => owners.value[key] ?? '')
 
 /** 核心报出的 schema 版本,未知时是 0。 */

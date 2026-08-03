@@ -560,10 +560,6 @@ const zh: LANG_MESSAGE = {
   folder_preview: '自动匹配的代理组',
   folder_no_matches: '没有匹配的代理组',
   folder_delete_confirm: '确认删除文件夹「{name}」？',
-
-  // Runtime overlay
-  settingsMenuOverlay: '覆盖层',
-  overlaySettings: '运行时覆盖层',
   gpnInterceptionSettings: '拦截',
   settingsMenuGpnInterception: '拦截',
   settingsMenuGpnBot: '机器人',
@@ -688,28 +684,6 @@ const zh: LANG_MESSAGE = {
   gpnInstallLandsDisabled: '安装后一律是禁用状态。启用是另一个决定 —— 决定让它看见流量。',
   gpnNetworkGrantWarning:
     '这个扩展持有不受限的网络授权。它的脚本可以把它能看到的任何请求、响应、设置或存储数据发往任何它能到达的主机,也可以把一个被捕获的请求连同方法、解码后的正文和头部(可能包含 Cookie 或 Authorization)改写到那里。该授权不指定任何目的地,因此没有一份可供审阅的清单。',
-  overlayProcessorState: '处理器状态',
-  overlayGeneration: '生效代',
-  overlayNoGeneration: '无',
-  overlayPersisted: '已持久化代',
-  overlayDigest: '摘要',
-  overlayProjection: '策略投影',
-  overlayLease: '就绪租约',
-  overlayLeaseValid: '有效',
-  overlayLeaseExpired: '已过期',
-  overlayLeaseNone: '从未上报',
-  overlayDraining: '排空中',
-  overlayPrepared: '已准备',
-  overlayRevision: '核心修订 / 解析器纪元',
-  overlayRefresh: '刷新',
-  overlayDependencyErrors: '依赖缺失 —— 捕获流量正在按失败关闭处理',
-  overlayUnavailable: '覆盖层接口暂时不可达，正在重试。',
-  overlayReadOnlyNotice: '只读。变更须经协调器，由它保证审阅、证书与 DNS 的先后顺序。',
-  overlayStateDisabled: '未启用',
-  overlayStateQuarantined: '隔离中',
-  overlayStateNotReady: '未就绪',
-  overlayStateDegraded: '降级',
-  overlayStateReady: '就绪',
 }
 
 export default zh

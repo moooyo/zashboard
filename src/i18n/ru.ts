@@ -572,10 +572,6 @@ const ru: LANG_MESSAGE = {
   folder_preview: 'Автоматически подобранные группы',
   folder_no_matches: 'Нет подходящих групп',
   folder_delete_confirm: 'Удалить папку «{name}»?',
-
-  // Runtime overlay
-  settingsMenuOverlay: 'Оверлей',
-  overlaySettings: 'Оверлей среды выполнения',
   gpnInterceptionSettings: 'Перехват',
   settingsMenuGpnInterception: 'Перехват',
   settingsMenuGpnBot: 'Бот',
@@ -706,28 +702,6 @@ const ru: LANG_MESSAGE = {
     'Установка всегда завершается в выключенном состоянии. Включение — отдельное решение о том, дать ли расширению видеть трафик.',
   gpnNetworkGrantWarning:
     'Это расширение имеет неограниченное сетевое разрешение. Его сценарии могут отправить любой видимый им запрос, ответ, настройку или сохранённое значение на любой достижимый хост, а также переписать туда перехваченный запрос вместе с методом, декодированным телом и заголовками — возможно, включая cookie или authorization. Разрешение не называет адресатов, поэтому проверять список нечего.',
-  overlayProcessorState: 'Состояние обработчика',
-  overlayGeneration: 'Активное поколение',
-  overlayNoGeneration: 'нет',
-  overlayPersisted: 'Сохранённое поколение',
-  overlayDigest: 'Дайджест',
-  overlayProjection: 'Проекция политики',
-  overlayLease: 'Аренда готовности',
-  overlayLeaseValid: 'действительна',
-  overlayLeaseExpired: 'истекла',
-  overlayLeaseNone: 'никогда не подтверждалась',
-  overlayDraining: 'Завершаются',
-  overlayPrepared: 'Подготовлены',
-  overlayRevision: 'Ревизия ядра / эпоха резолвера',
-  overlayRefresh: 'Обновить',
-  overlayDependencyErrors: 'Отсутствуют зависимости — перехват закрывается',
-  overlayUnavailable: 'Точка оверлея временно недоступна. Повтор.',
-  overlayReadOnlyNotice: 'Только чтение. Изменения идут через координатор.',
-  overlayStateDisabled: 'отключён',
-  overlayStateQuarantined: 'карантин',
-  overlayStateNotReady: 'не готов',
-  overlayStateDegraded: 'деградация',
-  overlayStateReady: 'готов',
 }
 
 export default ru

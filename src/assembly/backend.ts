@@ -9,7 +9,6 @@ import { getSingboxUrlFromBackend } from '@/helper/utils'
 import { activeBackend } from '@/store/setup'
 import type { Backend } from '@/types'
 import { computed } from 'vue'
-import { overlaySupported } from './overlay/discovery'
 
 // 当前后端是否为 sing-box native(gRPC)登录。
 export const isSingboxBackend = computed(() => activeBackend.value?.type === 'singbox')
@@ -32,11 +31,6 @@ export const capabilities = computed(() => ({
   smart: hasClashChannel.value,
   upgrade: hasClashChannel.value,
   tools: isSingboxBackend.value,
-  // runtime overlay 是发现出来的,不是从后端类型推断出来的:它是 fork 私有能力,
-  // 版本号或后端类型都不能作为存在性证据。这里只暴露派生布尔值,四态本身留在
-  // assembly/overlay/discovery.ts —— 因为 capabilities 被 `!cap` 消费,
-  // 'unknown' 和 'unsupported' 都是真值,直接塞字符串会让每个门控反向。
-  overlay: overlaySupported.value,
 }))
 
 // 后端连通性探测(供 Setup / EditBackend 测试连接使用)。

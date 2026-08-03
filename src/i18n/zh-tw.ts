@@ -560,10 +560,6 @@ const zhTW: LANG_MESSAGE = {
   folder_preview: '自動匹配的代理組',
   folder_no_matches: '沒有符合的代理組',
   folder_delete_confirm: '確認刪除資料夾「{name}」？',
-
-  // Runtime overlay
-  settingsMenuOverlay: '覆蓋層',
-  overlaySettings: '執行時覆蓋層',
   gpnInterceptionSettings: '攝取',
   settingsMenuGpnInterception: '攝取',
   settingsMenuGpnBot: '機器人',
@@ -688,28 +684,6 @@ const zhTW: LANG_MESSAGE = {
   gpnInstallLandsDisabled: '安裝後一律是停用狀態。啟用是另一個決定 —— 決定讓它看見流量。',
   gpnNetworkGrantWarning:
     '這個擴充持有不受限的網路授權。它的腳本可以把它能看到的任何請求、回應、設定或儲存資料送往任何它能到達的主機,也可以把一個被擷取的請求連同方法、解碼後的內文和標頭(可能包含 Cookie 或 Authorization)改寫到那裡。該授權不指定任何目的地,因此沒有一份可供審閱的清單。',
-  overlayProcessorState: '處理器狀態',
-  overlayGeneration: '生效代',
-  overlayNoGeneration: '無',
-  overlayPersisted: '已持久化代',
-  overlayDigest: '摘要',
-  overlayProjection: '策略投影',
-  overlayLease: '就緒租約',
-  overlayLeaseValid: '有效',
-  overlayLeaseExpired: '已過期',
-  overlayLeaseNone: '從未回報',
-  overlayDraining: '排空中',
-  overlayPrepared: '已準備',
-  overlayRevision: '核心修訂 / 解析器紀元',
-  overlayRefresh: '重新整理',
-  overlayDependencyErrors: '依賴缺失 —— 擷取流量正依失敗關閉處理',
-  overlayUnavailable: '覆蓋層介面暫時無法連線，正在重試。',
-  overlayReadOnlyNotice: '唯讀。變更須經協調器，由它保證審閱、憑證與 DNS 的先後順序。',
-  overlayStateDisabled: '未啟用',
-  overlayStateQuarantined: '隔離中',
-  overlayStateNotReady: '未就緒',
-  overlayStateDegraded: '降級',
-  overlayStateReady: '就緒',
 }
 
 export default zhTW

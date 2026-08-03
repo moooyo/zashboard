@@ -45,22 +45,6 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     ],
   },
   {
-    key: SETTINGS_MENU_KEY.overlay,
-    label: 'overlaySettings',
-    items: [
-      { key: `${SETTINGS_MENU_KEY.overlay}.overlayProcessorState`, label: 'overlayProcessorState' },
-      { key: `${SETTINGS_MENU_KEY.overlay}.overlayGeneration`, label: 'overlayGeneration' },
-      { key: `${SETTINGS_MENU_KEY.overlay}.overlayPersisted`, label: 'overlayPersisted' },
-      { key: `${SETTINGS_MENU_KEY.overlay}.overlayDigest`, label: 'overlayDigest' },
-      { key: `${SETTINGS_MENU_KEY.overlay}.overlayProjection`, label: 'overlayProjection' },
-      { key: `${SETTINGS_MENU_KEY.overlay}.overlayLease`, label: 'overlayLease' },
-      { key: `${SETTINGS_MENU_KEY.overlay}.overlayDraining`, label: 'overlayDraining' },
-      { key: `${SETTINGS_MENU_KEY.overlay}.overlayPrepared`, label: 'overlayPrepared' },
-      { key: `${SETTINGS_MENU_KEY.overlay}.overlayRevision`, label: 'overlayRevision' },
-      { key: `${SETTINGS_MENU_KEY.overlay}.overlayRefresh`, label: 'overlayRefresh' },
-    ],
-  },
-  {
     key: SETTINGS_MENU_KEY.backend,
     label: 'backendSettings',
     items: [
@@ -280,8 +264,6 @@ export const CONNECTIONS_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.connections
 export const GPN_INTERCEPTION_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.gpnInterception)
 /** Key map for the Telegram bot settings. */
 export const GPN_BOT_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.gpnBot)
-/** Key map for runtime overlay settings. */
-export const OVERLAY_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.overlay)
 
 function keyMapByLabel(categoryKey: SETTINGS_MENU_KEY): Record<string, string> {
   const category = SETTINGS_CATEGORIES.find((c) => c.key === categoryKey)

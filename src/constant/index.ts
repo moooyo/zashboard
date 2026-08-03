@@ -315,7 +315,6 @@ export enum SETTINGS_MENU_KEY {
   proxies = 'proxySettings',
   connections = 'connectionSettings',
   overview = 'overviewSettings',
-  overlay = 'overlaySettings',
   gpnInterception = 'gpnInterceptionSettings',
   gpnBot = 'gpnBotSettings',
 }

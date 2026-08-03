@@ -570,10 +570,6 @@ const en = {
   folder_preview: 'Auto-matched groups',
   folder_no_matches: 'No matched groups',
   folder_delete_confirm: 'Delete folder "{name}"?',
-
-  // Runtime overlay
-  settingsMenuOverlay: 'Overlay',
-  overlaySettings: 'Runtime Overlay',
   gpnInterceptionSettings: 'Interception',
   settingsMenuGpnInterception: 'Interception',
   settingsMenuGpnBot: 'Bot',
@@ -703,29 +699,6 @@ const en = {
     'An install always lands disabled. Enabling it is a separate decision about letting it see traffic.',
   gpnNetworkGrantWarning:
     'This extension holds the unrestricted network grant. Its scripts may send any request, response, setting or stored value they can see to any host they can reach, and may rewrite a captured request there with its method, decoded body and headers — possibly including cookies or authorization. The grant names no destinations, so there is no list to review.',
-  overlayProcessorState: 'Processor state',
-  overlayGeneration: 'Active generation',
-  overlayNoGeneration: 'none',
-  overlayPersisted: 'Persisted generation',
-  overlayDigest: 'Digest',
-  overlayProjection: 'Policy projection',
-  overlayLease: 'Readiness lease',
-  overlayLeaseValid: 'valid',
-  overlayLeaseExpired: 'expired',
-  overlayLeaseNone: 'never attested',
-  overlayDraining: 'Draining',
-  overlayPrepared: 'Prepared',
-  overlayRevision: 'Core revision / resolver epoch',
-  overlayRefresh: 'Refresh',
-  overlayDependencyErrors: 'Dependency errors — captures are failing closed',
-  overlayUnavailable: 'The overlay endpoint is temporarily unreachable. Retrying.',
-  overlayReadOnlyNotice:
-    'Read-only. Changes go through the coordinator, which owns review, certificate and DNS ordering.',
-  overlayStateDisabled: 'disabled',
-  overlayStateQuarantined: 'quarantined',
-  overlayStateNotReady: 'not ready',
-  overlayStateDegraded: 'degraded',
-  overlayStateReady: 'ready',
 }
 
 export type LANG_MESSAGE = typeof en

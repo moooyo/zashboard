@@ -3,4 +3,3 @@
 import './http'
 
 export * from './clash'
-export * from './overlay'

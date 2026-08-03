@@ -104,11 +104,9 @@ import ConnectionsSettings from '@/components/settings/connections/ConnectionsSe
 import ZashboardSettings from '@/components/settings/general/ZashboardSettings.vue'
 import GpnBotSettings from '@/components/settings/gpn/GpnBotSettings.vue'
 import GpnInterceptionSettings from '@/components/settings/gpn/GpnInterceptionSettings.vue'
-import OverlaySettings from '@/components/settings/overlay/OverlaySettings.vue'
 import OverviewSettings from '@/components/settings/overview/OverviewSettings.vue'
 import ProxiesSettings from '@/components/settings/proxies/ProxiesSettings.vue'
 import SettingsCategoryHeader from '@/components/settings/SettingsCategoryHeader.vue'
-import { overlaySupported } from '@/assembly/overlay'
 import { botSupported, refreshBot } from '@/assembly/gpn/bot'
 import { interceptionSupported, refreshInterception } from '@/assembly/gpn/interception'
 import { usePaddingForViews } from '@/composables/paddingViews'
@@ -203,17 +201,6 @@ const menuItems = computed<MenuItem[]>(() => {
       },
     ],
   ])
-
-  // overlay 面板只在能力发现给出肯定结论后出现。'unknown' 期间不渲染,
-  // 否则连着普通 mihomo 的用户会先看到一个面板再看到它消失。
-  if (overlaySupported.value) {
-    itemsMap.set(SETTINGS_MENU_KEY.overlay, {
-      key: SETTINGS_MENU_KEY.overlay,
-      label: 'overlaySettings',
-      icon: ShieldCheckIcon,
-      component: OverlaySettings,
-    })
-  }
 
   // 同样只在能力发现给出肯定结论后出现。这个面板还额外要求引擎装上了 ——
   // 一个 5gpn 内核可以拦截文档加载失败,那时核心返回 503,面板会说明原因,
