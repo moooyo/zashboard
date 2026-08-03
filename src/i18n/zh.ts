@@ -667,6 +667,7 @@ const zh: LANG_MESSAGE = {
   gpnImportUrl: '从清单 URL 安装',
   gpnPasteManifest: '或粘贴一份清单',
   gpnReview: '审阅',
+  gpnReviewUpdate: '审阅更新',
   gpnInstall: '安装',
   gpnApplyUpdate: '应用更新',
   gpnCheckUpdate: '检查更新',

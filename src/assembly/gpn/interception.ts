@@ -6,6 +6,7 @@ import type {
   GpnInterceptionEnvelope,
 } from '@/api/gpn'
 import {
+  applyCatalogUpdateAPI,
   applyExtensionUpdateAPI,
   checkExtensionUpdateAPI,
   deleteExtensionAPI,
@@ -243,6 +244,16 @@ export const refreshCatalog = async (refresh = false) => {
 
 export const setCatalogSources = (sources: GpnCatalogSource[]) =>
   write((revision) => putCatalogSourcesAPI({ revision, sources }))
+
+/**
+ * 从目录条目发起更新,会把该扩展的来源改成这个条目的 manifest URL。
+ *
+ * 单独一个调用,不是 applyReviewedUpdate 的分支:后者重读安装时那个 URL,
+ * 这个替换它。操作者点的是「这个目录里的这个条目」,所以改来源是他要的结果,
+ * 而不是配置带来的副作用。
+ */
+export const applyCatalogUpdate = (source: string, entry: string, candidate: GpnCandidate) =>
+  write((revision) => applyCatalogUpdateAPI(source, entry, { revision, digest: candidate.digest }))
 
 /**
  * 审阅一个目录条目。返回的 url 是安装时要带的来源 —— 由服务端给出,而不是

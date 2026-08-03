@@ -145,7 +145,7 @@
                 :disabled="reviewing || busy"
                 @click="reviewEntry(source.id, entry.id)"
               >
-                {{ $t('gpnReview') }}
+                {{ entry.installed_version ? $t('gpnReviewUpdate') : $t('gpnReview') }}
               </button>
             </div>
           </div>
@@ -246,11 +246,11 @@
               :disabled="busy"
               @click="install"
             >
-              {{ $t(candidate.installed ? 'gpnApplyUpdate' : 'gpnInstall') }}
+              {{ $t(candidate.installed || catalogTarget ? 'gpnApplyUpdate' : 'gpnInstall') }}
             </button>
             <button
               class="btn btn-sm"
-              @click="candidate = null"
+              @click="clearReview"
             >
               {{ $t('gpnCancel') }}
             </button>
@@ -365,6 +365,7 @@
 <script setup lang="ts">
 import type { GpnCandidate, GpnModuleSummary } from '@/api/gpn'
 import {
+  applyCatalogUpdate,
   applyReviewedUpdate,
   catalogError,
   catalogSources,
@@ -402,6 +403,8 @@ const importUrl = ref('')
 const importContent = ref('')
 const candidate = ref<GpnCandidate | null>(null)
 const updateTarget = ref('')
+// 目录坐标。非空表示这次确认要走 applyCatalogUpdate —— 那会改变扩展的来源。
+const catalogTarget = ref<{ source: string; entry: string } | null>(null)
 const reviewing = ref(false)
 const reviewError = ref('')
 
@@ -504,11 +507,16 @@ const checkUpdate = async (id: string) => {
  * 服务端把 manifest URL 一并返回,这里把它填进导入框 —— 于是安装用的是审阅
  * 读过的那一个来源,而操作者在确认之前看得见它。从列表里拼回一个 URL 会让
  * 「审阅的东西」和「安装的东西」在理论上可以不是同一个。
+ *
+ * 如果这个 id 已经装了,记下条目坐标:确认时走 applyCatalogUpdate,那会把
+ * 扩展的来源改成这个条目的 URL。这是操作者点这一行的意思,但它是一次改来源,
+ * 所以确认按钮说的是「更新」而不是「安装」。
  */
 const reviewEntry = async (sourceId: string, entryId: string) => {
   reviewing.value = true
   reviewError.value = ''
   updateTarget.value = ''
+  catalogTarget.value = null
   const result = await reviewCatalogEntry(sourceId, entryId)
   candidate.value = result.candidate ?? null
   reviewError.value = result.error
@@ -516,18 +524,32 @@ const reviewEntry = async (sourceId: string, entryId: string) => {
     importUrl.value = result.url
     importContent.value = ''
   }
+  if (result.candidate?.installed) {
+    catalogTarget.value = { source: sourceId, entry: entryId }
+  }
   reviewing.value = false
+}
+
+// 取消要把目录坐标一并清掉,否则下一次「安装」会带着上一次的条目走更新路径。
+const clearReview = () => {
+  candidate.value = null
+  updateTarget.value = ''
+  catalogTarget.value = null
 }
 
 const install = async () => {
   const reviewed = candidate.value
   if (!reviewed) return
   const target = updateTarget.value
-  await run(() =>
-    target ? applyReviewedUpdate(target, reviewed) : installReviewed(reviewed, source()),
-  )
+  const fromCatalog = catalogTarget.value
+  await run(() => {
+    if (fromCatalog) return applyCatalogUpdate(fromCatalog.source, fromCatalog.entry, reviewed)
+    if (target) return applyReviewedUpdate(target, reviewed)
+    return installReviewed(reviewed, source())
+  })
   candidate.value = null
   updateTarget.value = ''
+  catalogTarget.value = null
   importUrl.value = ''
   importContent.value = ''
   refreshCatalog()

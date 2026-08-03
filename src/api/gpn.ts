@@ -291,6 +291,23 @@ export const reviewCatalogEntryAPI = (source: string, entry: string) =>
     { timeout: 120000 },
   )
 
+/**
+ * 从目录条目发起更新。这会**改变**该扩展代码的来源 —— 这正是它和
+ * /extensions/{id}/update 分成两条路的原因:后者重读操作者已经选定的来源,
+ * 这条替换它。合并成一个带开关的调用,等于把「改来源」变成一个本来不会改
+ * 来源的操作的参数。
+ */
+export const applyCatalogUpdateAPI = (
+  source: string,
+  entry: string,
+  body: { revision: string; digest: string },
+) =>
+  axios.post<GpnInterceptionEnvelope>(
+    `/gpn/interception/catalog/${encodeURIComponent(source)}/entries/${encodeURIComponent(entry)}/update`,
+    body,
+    { timeout: 120000 },
+  )
+
 // ---------------------------------------------------------------------------
 // Telegram bot
 // ---------------------------------------------------------------------------

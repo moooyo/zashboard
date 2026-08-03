@@ -684,6 +684,7 @@ const ru: LANG_MESSAGE = {
   gpnImportUrl: 'Установить по URL манифеста',
   gpnPasteManifest: 'Или вставьте манифест',
   gpnReview: 'Проверить',
+  gpnReviewUpdate: 'Проверить обновление',
   gpnInstall: 'Установить',
   gpnApplyUpdate: 'Применить обновление',
   gpnCheckUpdate: 'Проверить обновление',

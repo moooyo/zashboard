@@ -667,6 +667,7 @@ const zhTW: LANG_MESSAGE = {
   gpnImportUrl: '從清單 URL 安裝',
   gpnPasteManifest: '或貼上一份清單',
   gpnReview: '審閱',
+  gpnReviewUpdate: '審閱更新',
   gpnInstall: '安裝',
   gpnApplyUpdate: '套用更新',
   gpnCheckUpdate: '檢查更新',

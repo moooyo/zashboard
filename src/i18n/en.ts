@@ -681,6 +681,7 @@ const en = {
   gpnImportUrl: 'Install from a manifest URL',
   gpnPasteManifest: 'Or paste a manifest',
   gpnReview: 'Review',
+  gpnReviewUpdate: 'Review update',
   gpnInstall: 'Install',
   gpnApplyUpdate: 'Apply update',
   gpnCheckUpdate: 'Check for update',
