@@ -12,11 +12,18 @@ name: 5gpn-release
 # FONT is left unset on purpose: vite.config.ts defaults it to 'all', which is
 # the variant upstream ships as the unsuffixed dist.zip, and the installer pins
 # that name.
+#
+# The tag pattern tracks the -monolith. series, not the -overlay. one it
+# replaced. The overlay was the three-process arrangement; a bundle built from
+# this branch talks to a single process on a single origin, so a tag naming the
+# mechanism it no longer uses would misdescribe what the release contains. A tag
+# pushed under the old pattern does not trigger this workflow, which is the
+# intended outcome rather than an oversight.
 
 on:
   push:
     tags:
-      - 'v*-overlay.*'
+      - 'v*-monolith.*'
   workflow_dispatch:
 
 permissions:
