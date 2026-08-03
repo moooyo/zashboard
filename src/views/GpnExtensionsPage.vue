@@ -60,15 +60,95 @@
             <input
               type="checkbox"
               class="toggle toggle-sm"
-              :checked="data.quic_fallback_protection"
-              @change="toggleQuic"
+              :checked="data.http3"
+              @change="toggleHttp3"
             />
-            <span class="text-sm">{{ $t('gpnQuicFallback') }}</span>
+            <span class="text-sm">{{ $t('gpnHttp3') }}</span>
           </label>
           <span class="text-xs opacity-70">
             {{ $t('gpnModuleCount', { enabled: enabledCount, total: data.modules.length }) }} ·
             {{ $t('gpnCaptureHosts') }}: {{ data.active_capture_hosts.length }}
           </span>
+        </div>
+
+        <!-- 目录。它只是一份 manifest 清单:点「审阅」走的仍然是审阅 → 确认
+             digest → 安装那条路,digest 由重新抓取 manifest 算出,不是目录说了算。
+             所以这里没有「一键安装」。 -->
+        <div class="base-container flex flex-col gap-2 p-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-sm font-medium">{{ $t('gpnCatalog') }}</span>
+            <button
+              class="btn btn-xs"
+              :disabled="catalogStatus === 'loading'"
+              @click="refreshCatalog(true)"
+            >
+              {{ $t('gpnCatalogRefresh') }}
+            </button>
+            <span
+              v-if="catalogStatus === 'loading'"
+              class="loading loading-spinner loading-xs"
+            />
+          </div>
+
+          <div
+            v-if="catalogError"
+            class="alert alert-error py-2"
+          >
+            <span>{{ catalogError }}</span>
+          </div>
+
+          <div
+            v-for="source in catalogSources"
+            :key="source.id"
+            class="flex flex-col gap-2"
+          >
+            <div class="flex flex-wrap items-center gap-2 text-xs opacity-70">
+              <span>{{ source.metadata?.name || source.name || source.id }}</span>
+              <span
+                v-if="!source.enabled"
+                class="badge badge-ghost badge-xs"
+                >{{ $t('gpnDisabled') }}</span
+              >
+              <span
+                v-else-if="source.error"
+                class="badge badge-error badge-xs"
+                >{{ source.error }}</span
+              >
+              <span v-else>{{ source.entries.length }}</span>
+            </div>
+
+            <div
+              v-for="entry in source.entries"
+              :key="entry.id"
+              class="flex flex-wrap items-center gap-2 pl-2 text-sm"
+            >
+              <span class="font-medium">{{ entry.name || entry.id }}</span>
+              <span class="badge badge-ghost badge-sm">{{ entry.version }}</span>
+              <span
+                v-if="entry.installed_version === entry.version"
+                class="badge badge-success badge-sm"
+                >{{ $t('gpnInstalled') }}</span
+              >
+              <span
+                v-else-if="entry.installed_version"
+                class="badge badge-info badge-sm"
+                >{{ $t('gpnUpdateFrom', { from: entry.installed_version }) }}</span
+              >
+              <span
+                v-if="entry.capabilities?.network"
+                class="badge badge-warning badge-sm"
+                >{{ $t('gpnNetworkGrant') }}</span
+              >
+              <span class="flex-1 truncate text-xs opacity-70">{{ entry.description }}</span>
+              <button
+                class="btn btn-xs"
+                :disabled="reviewing || busy"
+                @click="reviewEntry(source.id, entry.id)"
+              >
+                {{ $t('gpnReview') }}
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- 导入 -->
@@ -286,12 +366,17 @@
 import type { GpnCandidate, GpnModuleSummary } from '@/api/gpn'
 import {
   applyReviewedUpdate,
+  catalogError,
+  catalogSources,
+  catalogStatus,
   checkExtensionUpdate,
   installReviewed,
   interception,
   interceptionError,
   interceptionStatus,
+  refreshCatalog,
   refreshInterception,
+  reviewCatalogEntry,
   reviewExtension,
   setExecutionOrder,
   setExtensionCaptureDNS,
@@ -357,20 +442,15 @@ const run = async (action: () => Promise<string>) => {
 const settingsOf = () => ({
   enabled: data.value?.enabled ?? false,
   http2: data.value?.http2 ?? false,
-  quicFallbackProtection: data.value?.quic_fallback_protection ?? false,
+  http3: data.value?.http3 ?? false,
 })
 
 const toggleMaster = () =>
   run(() => setInterceptionSettings({ ...settingsOf(), enabled: !data.value?.enabled }))
 const toggleHttp2 = () =>
   run(() => setInterceptionSettings({ ...settingsOf(), http2: !data.value?.http2 }))
-const toggleQuic = () =>
-  run(() =>
-    setInterceptionSettings({
-      ...settingsOf(),
-      quicFallbackProtection: !data.value?.quic_fallback_protection,
-    }),
-  )
+const toggleHttp3 = () =>
+  run(() => setInterceptionSettings({ ...settingsOf(), http3: !data.value?.http3 }))
 
 const toggleModule = (module: GpnModuleSummary) =>
   run(() => setExtensionEnabled(module.id, !module.enabled))
@@ -418,6 +498,27 @@ const checkUpdate = async (id: string) => {
   reviewing.value = false
 }
 
+/**
+ * 目录条目的审阅走同一个候选框。
+ *
+ * 服务端把 manifest URL 一并返回,这里把它填进导入框 —— 于是安装用的是审阅
+ * 读过的那一个来源,而操作者在确认之前看得见它。从列表里拼回一个 URL 会让
+ * 「审阅的东西」和「安装的东西」在理论上可以不是同一个。
+ */
+const reviewEntry = async (sourceId: string, entryId: string) => {
+  reviewing.value = true
+  reviewError.value = ''
+  updateTarget.value = ''
+  const result = await reviewCatalogEntry(sourceId, entryId)
+  candidate.value = result.candidate ?? null
+  reviewError.value = result.error
+  if (result.url) {
+    importUrl.value = result.url
+    importContent.value = ''
+  }
+  reviewing.value = false
+}
+
 const install = async () => {
   const reviewed = candidate.value
   if (!reviewed) return
@@ -429,7 +530,9 @@ const install = async () => {
   updateTarget.value = ''
   importUrl.value = ''
   importContent.value = ''
+  refreshCatalog()
 }
 
 refreshInterception()
+refreshCatalog()
 </script>

@@ -55,7 +55,7 @@ export type GpnCertificateState = {
 export type GpnInterception = {
   enabled: boolean
   http2: boolean
-  quic_fallback_protection: boolean
+  http3: boolean
   modules: GpnModuleSummary[]
   execution_order: string[]
   active_capture_hosts: string[]
@@ -140,7 +140,7 @@ export const putInterceptionSettingsAPI = (body: {
   revision: string
   enabled: boolean
   http2: boolean
-  quicFallbackProtection: boolean
+  http3: boolean
 }) => axios.put<GpnInterceptionEnvelope>('/gpn/interception/settings', body)
 
 export const putInterceptionOrderAPI = (body: { revision: string; order: string[] }) =>
@@ -213,6 +213,117 @@ export const applyExtensionUpdateAPI = (id: string, body: { revision: string; di
     body,
     { timeout: 120000 },
   )
+
+// ---------------------------------------------------------------------------
+// 扩展目录(marketplace)
+// ---------------------------------------------------------------------------
+
+/**
+ * 目录只是「一份 manifest 清单」。它不授予任何权限:从条目安装走的仍然是
+ * 审阅 → 确认 digest → 安装这条路,而 digest 是重新抓取 manifest 算出来的,
+ * 不是目录说了算。目录本身从不落盘,所以这里没有 revision 概念 —— 写的只有
+ * 来源列表,那个才是操作者的状态。
+ */
+export type GpnCatalogCapabilities = {
+  captureHostCount: number
+  actionCount: number
+  settingCount: number
+  network: boolean
+  persistentStorage: boolean
+  upstreamMappingCount: number
+  egressGroupRequired: boolean
+  routingRuleCount?: number | null
+}
+
+export type GpnCatalogEntry = {
+  id: string
+  name?: string
+  version?: string
+  description?: string
+  tags?: string[]
+  license?: { spdx?: string; url?: string }
+  documentationUrl?: string
+  manifest: { url: string; sha256: string; size?: number }
+  capabilities: GpnCatalogCapabilities
+  /** 本网关已装的版本,没装则为空。由网关填,不是目录里的字段。 */
+  installed_version?: string
+}
+
+export type GpnCatalogSource = {
+  id: string
+  name?: string
+  url: string
+  enabled: boolean
+}
+
+export type GpnCatalogSourceView = GpnCatalogSource & {
+  /** 抓取失败的原因。有它就没有 entries,但来源仍然要列出来才能被删掉。 */
+  error?: string
+  fetched_at?: string
+  metadata: { id?: string; name?: string; description?: string; homepage?: string }
+  entries: GpnCatalogEntry[]
+}
+
+export type GpnCatalogEnvelope = {
+  catalog: { sources: GpnCatalogSourceView[] }
+  revision: string
+}
+
+export const fetchCatalogAPI = (refresh = false, signal?: AbortSignal) =>
+  axios.get<GpnCatalogEnvelope>('/gpn/interception/catalog', {
+    params: refresh ? { refresh: '1' } : undefined,
+    signal,
+    timeout: 120000,
+  })
+
+export const putCatalogSourcesAPI = (body: { revision: string; sources: GpnCatalogSource[] }) =>
+  axios.put<GpnInterceptionEnvelope>('/gpn/interception/catalog/sources', body)
+
+/**
+ * 目录条目的审阅。返回的东西和粘贴 URL 的审阅一模一样 —— 后面的安装就是同一个
+ * 调用。多出来的是核对:manifest 的 digest 和条目公布的一致,声明的能力和条目
+ * 打的标签一致。对不上就在这里拒绝,因为审阅页正是操作者做决定的地方。
+ */
+export const reviewCatalogEntryAPI = (source: string, entry: string) =>
+  axios.post<{ candidate: GpnCandidate; url: string; revision: string }>(
+    `/gpn/interception/catalog/${encodeURIComponent(source)}/entries/${encodeURIComponent(entry)}/review`,
+    {},
+    { timeout: 120000 },
+  )
+
+// ---------------------------------------------------------------------------
+// Telegram bot
+// ---------------------------------------------------------------------------
+
+/**
+ * token 是只写的:读回来的永远只有 token_set,没有值。写的时候留空表示
+ * 「保持原样」,这样控制台可以在从没见过 token 的情况下改管理员名单;
+ * 传 '-' 才是清除。
+ */
+export type GpnBotView = {
+  enabled: boolean
+  token_set: boolean
+  admins: number[]
+  alerts: boolean
+  state: string
+  last_error?: string
+}
+
+export type GpnBotEnvelope = {
+  bot: GpnBotView
+  revision: string
+}
+
+export const fetchBotAPI = (signal?: AbortSignal) =>
+  axios.get<GpnBotEnvelope>('/gpn/bot', { signal, timeout: 5000 })
+
+export const putBotAPI = (body: {
+  revision: string
+  enabled: boolean
+  admins: number[]
+  alerts: boolean
+  token?: string
+}) => axios.put<GpnBotEnvelope>('/gpn/bot', body)
 
 // ---------------------------------------------------------------------------
 // DNS

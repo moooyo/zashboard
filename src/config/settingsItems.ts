@@ -18,7 +18,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     items: [
       { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnMitmMaster`, label: 'gpnMitmMaster' },
       { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnHttp2`, label: 'gpnHttp2' },
-      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnQuicFallback`, label: 'gpnQuicFallback' },
+      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnHttp3`, label: 'gpnHttp3' },
       { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnModules`, label: 'gpnModules' },
       { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnCaptureHosts`, label: 'gpnCaptureHosts' },
       { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnUnboundEgress`, label: 'gpnUnboundEgress' },
@@ -30,6 +30,18 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
         key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnInterceptionRefresh`,
         label: 'gpnInterceptionRefresh',
       },
+    ],
+  },
+  {
+    key: SETTINGS_MENU_KEY.gpnBot,
+    label: 'gpnBotSettings',
+    items: [
+      { key: `${SETTINGS_MENU_KEY.gpnBot}.gpnBotEnabled`, label: 'gpnBotEnabled' },
+      { key: `${SETTINGS_MENU_KEY.gpnBot}.gpnBotState`, label: 'gpnBotState' },
+      { key: `${SETTINGS_MENU_KEY.gpnBot}.gpnBotToken`, label: 'gpnBotToken' },
+      { key: `${SETTINGS_MENU_KEY.gpnBot}.gpnBotAdmins`, label: 'gpnBotAdmins' },
+      { key: `${SETTINGS_MENU_KEY.gpnBot}.gpnBotAlerts`, label: 'gpnBotAlerts' },
+      { key: `${SETTINGS_MENU_KEY.gpnBot}.gpnBotSave`, label: 'gpnBotSave' },
     ],
   },
   {
@@ -266,6 +278,8 @@ export const PROXIES_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.proxies)
 export const CONNECTIONS_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.connections)
 /** Key map for 5gpn interception settings. */
 export const GPN_INTERCEPTION_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.gpnInterception)
+/** Key map for the Telegram bot settings. */
+export const GPN_BOT_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.gpnBot)
 /** Key map for runtime overlay settings. */
 export const OVERLAY_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.overlay)
 

@@ -52,13 +52,13 @@
           </div>
         </SettingItem>
 
-        <SettingItem :setting-key="k.gpnQuicFallback">
-          <div class="setting-item-label">{{ $t('gpnQuicFallback') }}</div>
+        <SettingItem :setting-key="k.gpnHttp3">
+          <div class="setting-item-label">{{ $t('gpnHttp3') }}</div>
           <div
             class="badge badge-sm"
-            :class="data.quic_fallback_protection ? 'badge-success' : 'badge-ghost'"
+            :class="data.http3 ? 'badge-success' : 'badge-ghost'"
           >
-            {{ $t(data.quic_fallback_protection ? 'gpnEnabled' : 'gpnDisabled') }}
+            {{ $t(data.http3 ? 'gpnEnabled' : 'gpnDisabled') }}
           </div>
         </SettingItem>
 

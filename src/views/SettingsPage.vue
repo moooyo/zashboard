@@ -102,12 +102,14 @@ import SettingsCtrl from '@/components/controls/SettingsCtrl.vue'
 import BackendSettings from '@/components/settings/backend/BackendSettings.vue'
 import ConnectionsSettings from '@/components/settings/connections/ConnectionsSettings.vue'
 import ZashboardSettings from '@/components/settings/general/ZashboardSettings.vue'
+import GpnBotSettings from '@/components/settings/gpn/GpnBotSettings.vue'
 import GpnInterceptionSettings from '@/components/settings/gpn/GpnInterceptionSettings.vue'
 import OverlaySettings from '@/components/settings/overlay/OverlaySettings.vue'
 import OverviewSettings from '@/components/settings/overview/OverviewSettings.vue'
 import ProxiesSettings from '@/components/settings/proxies/ProxiesSettings.vue'
 import SettingsCategoryHeader from '@/components/settings/SettingsCategoryHeader.vue'
 import { overlaySupported } from '@/assembly/overlay'
+import { botSupported, refreshBot } from '@/assembly/gpn/bot'
 import { interceptionSupported, refreshInterception } from '@/assembly/gpn/interception'
 import { usePaddingForViews } from '@/composables/paddingViews'
 import {
@@ -224,6 +226,18 @@ const menuItems = computed<MenuItem[]>(() => {
       component: GpnInterceptionSettings,
     })
     void refreshInterception()
+  }
+
+  // bot 同样只在能力发现给出肯定结论后出现。它与拦截是各自独立的子系统:
+  // 一个网关可以装了 bot 而没装引擎,反之亦然。
+  if (botSupported.value) {
+    itemsMap.set(SETTINGS_MENU_KEY.gpnBot, {
+      key: SETTINGS_MENU_KEY.gpnBot,
+      label: 'gpnBotSettings',
+      icon: ShieldCheckIcon,
+      component: GpnBotSettings,
+    })
+    void refreshBot()
   }
 
   // 根据 settingsMenuOrder 排序，并过滤隐藏的项。

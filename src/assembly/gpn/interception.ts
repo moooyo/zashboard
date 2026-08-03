@@ -1,16 +1,25 @@
-import type { GpnCandidate, GpnInterception, GpnInterceptionEnvelope } from '@/api/gpn'
+import type {
+  GpnCandidate,
+  GpnCatalogSource,
+  GpnCatalogSourceView,
+  GpnInterception,
+  GpnInterceptionEnvelope,
+} from '@/api/gpn'
 import {
   applyExtensionUpdateAPI,
   checkExtensionUpdateAPI,
   deleteExtensionAPI,
+  fetchCatalogAPI,
   fetchInterceptionAPI,
   installExtensionAPI,
+  putCatalogSourcesAPI,
   putExtensionCaptureDNSAPI,
   putExtensionEgressAPI,
   putExtensionEnabledAPI,
   putExtensionSettingAPI,
   putInterceptionOrderAPI,
   putInterceptionSettingsAPI,
+  reviewCatalogEntryAPI,
   reviewExtensionAPI,
 } from '@/api/gpn'
 import { activeUuid } from '@/store/setup'
@@ -123,7 +132,7 @@ const write = async (
 export const setInterceptionSettings = (settings: {
   enabled: boolean
   http2: boolean
-  quicFallbackProtection: boolean
+  http3: boolean
 }) => write((revision) => putInterceptionSettingsAPI({ revision, ...settings }))
 
 export const setExecutionOrder = (order: string[]) =>
@@ -185,6 +194,75 @@ export const checkExtensionUpdate = async (
   }
 }
 
+// ---------------------------------------------------------------------------
+// 目录
+// ---------------------------------------------------------------------------
+
+/**
+ * 目录状态是独立的一套,不并进 interception。
+ *
+ * 因为它不是网关的状态:一次抓取失败不该让扩展页说不出已经装了什么。列表拿不到
+ * 的时候,已安装的那一半仍然要能读、能开关、能卸载。
+ */
+export const catalogStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
+export const catalogSources = ref<GpnCatalogSourceView[]>([])
+export const catalogError = ref('')
+
+let catalogGeneration = 0
+let catalogController: AbortController | undefined
+
+export const refreshCatalog = async (refresh = false) => {
+  catalogController?.abort()
+  catalogController = new AbortController()
+  const gen = ++catalogGeneration
+  const uuid = activeUuid.value
+  const stale = () => gen !== catalogGeneration || uuid !== activeUuid.value
+
+  if (!uuid) {
+    catalogStatus.value = 'idle'
+    return
+  }
+  catalogStatus.value = 'loading'
+  catalogError.value = ''
+  try {
+    const res = await fetchCatalogAPI(refresh, catalogController.signal)
+    if (stale()) return
+    if (res.status !== 200 || !res.data?.catalog) {
+      catalogStatus.value = 'error'
+      catalogError.value = messageOf(res) || `catalog returned ${res.status}`
+      return
+    }
+    catalogSources.value = res.data.catalog.sources ?? []
+    catalogStatus.value = 'ready'
+  } catch (e) {
+    if (stale()) return
+    catalogStatus.value = 'error'
+    catalogError.value = e instanceof Error ? e.message : String(e)
+  }
+}
+
+export const setCatalogSources = (sources: GpnCatalogSource[]) =>
+  write((revision) => putCatalogSourcesAPI({ revision, sources }))
+
+/**
+ * 审阅一个目录条目。返回的 url 是安装时要带的来源 —— 由服务端给出,而不是
+ * 客户端从列表里拼回来,这样安装读的一定是审阅读过的那一个。
+ */
+export const reviewCatalogEntry = async (
+  source: string,
+  entry: string,
+): Promise<{ candidate?: GpnCandidate; url?: string; error: string }> => {
+  try {
+    const res = await reviewCatalogEntryAPI(source, entry)
+    if (res.status === 200 && res.data?.candidate) {
+      return { candidate: res.data.candidate, url: res.data.url, error: '' }
+    }
+    return { error: messageOf(res) || `review returned ${res.status}` }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
 export const stopInterception = () => {
   controller?.abort()
   controller = undefined
@@ -193,4 +271,11 @@ export const stopInterception = () => {
   interceptionRevision.value = ''
   interceptionStatus.value = 'idle'
   interceptionError.value = ''
+
+  catalogController?.abort()
+  catalogController = undefined
+  catalogGeneration++
+  catalogSources.value = []
+  catalogStatus.value = 'idle'
+  catalogError.value = ''
 }

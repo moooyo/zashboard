@@ -66,6 +66,7 @@ const segmentLabelMap: Record<SETTINGS_MENU_KEY, string> = {
   [SETTINGS_MENU_KEY.overview]: 'settingsMenuOverview',
   [SETTINGS_MENU_KEY.overlay]: 'settingsMenuOverlay',
   [SETTINGS_MENU_KEY.gpnInterception]: 'settingsMenuGpnInterception',
+  [SETTINGS_MENU_KEY.gpnBot]: 'settingsMenuGpnBot',
 }
 
 const segmentOptions = computed<SegmentOption[]>(() =>

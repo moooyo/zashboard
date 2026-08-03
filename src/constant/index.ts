@@ -317,6 +317,7 @@ export enum SETTINGS_MENU_KEY {
   overview = 'overviewSettings',
   overlay = 'overlaySettings',
   gpnInterception = 'gpnInterceptionSettings',
+  gpnBot = 'gpnBotSettings',
 }
 
 export enum OVERVIEW_CARD {
