@@ -2,6 +2,7 @@ import type {
   GpnCandidate,
   GpnCatalogSource,
   GpnCatalogSourceView,
+  GpnEngineLog,
   GpnInterception,
   GpnInterceptionEnvelope,
 } from '@/api/gpn'
@@ -11,6 +12,7 @@ import {
   checkExtensionUpdateAPI,
   deleteExtensionAPI,
   fetchCatalogAPI,
+  fetchEngineLogsAPI,
   fetchInterceptionAPI,
   installExtensionAPI,
   putCatalogSourcesAPI,
@@ -205,6 +207,48 @@ export const checkExtensionUpdate = async (
  * 因为它不是网关的状态:一次抓取失败不该让扩展页说不出已经装了什么。列表拿不到
  * 的时候,已安装的那一半仍然要能读、能开关、能卸载。
  */
+/**
+ * 扩展日志。和 DNS 查询日志同一个形状:一次读取,带过滤器,由操作者按刷新。
+ *
+ * 不做自动轮询。日志是出问题之后去翻的东西,而不是一直盯着的仪表 —— 让它每几秒
+ * 拉一次,是在没人看的时候持续给控制面加负载,换一份没人读的列表。
+ */
+export const engineLogs = ref<GpnEngineLog[]>([])
+export const engineLogError = ref('')
+export const engineLogFilter = ref('')
+export const engineLogExtension = ref('')
+export const engineLogLevel = ref('')
+
+let logController: AbortController | undefined
+
+export const refreshEngineLogs = async () => {
+  logController?.abort()
+  logController = new AbortController()
+  const uuid = activeUuid.value
+  if (!uuid) return
+  try {
+    const res = await fetchEngineLogsAPI(
+      {
+        contains: engineLogFilter.value || undefined,
+        extension: engineLogExtension.value || undefined,
+        level: engineLogLevel.value || undefined,
+        limit: 500,
+      },
+      logController.signal,
+    )
+    if (uuid !== activeUuid.value) return
+    if (res.status === 200 && res.data) {
+      engineLogs.value = res.data.logs ?? []
+      engineLogError.value = ''
+      return
+    }
+    engineLogError.value = `logs returned ${res.status}`
+  } catch (e) {
+    if (uuid !== activeUuid.value) return
+    engineLogError.value = e instanceof Error ? e.message : String(e)
+  }
+}
+
 export const catalogStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
 export const catalogSources = ref<GpnCatalogSourceView[]>([])
 export const catalogError = ref('')

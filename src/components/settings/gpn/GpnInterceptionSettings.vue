@@ -34,32 +34,35 @@
       <div class="settings-grid">
         <SettingItem :setting-key="k.gpnMitmMaster">
           <div class="setting-item-label">{{ $t('gpnMitmMaster') }}</div>
-          <div
-            class="badge badge-sm"
-            :class="data.enabled ? 'badge-success' : 'badge-ghost'"
-          >
-            {{ $t(data.enabled ? 'gpnEnabled' : 'gpnDisabled') }}
-          </div>
+          <input
+            type="checkbox"
+            class="toggle"
+            :checked="data.enabled"
+            :disabled="busy"
+            @change="toggleMaster"
+          />
         </SettingItem>
 
         <SettingItem :setting-key="k.gpnHttp2">
           <div class="setting-item-label">{{ $t('gpnHttp2') }}</div>
-          <div
-            class="badge badge-sm"
-            :class="data.http2 ? 'badge-success' : 'badge-ghost'"
-          >
-            {{ $t(data.http2 ? 'gpnEnabled' : 'gpnDisabled') }}
-          </div>
+          <input
+            type="checkbox"
+            class="toggle"
+            :checked="data.http2"
+            :disabled="busy"
+            @change="toggleHttp2"
+          />
         </SettingItem>
 
         <SettingItem :setting-key="k.gpnHttp3">
           <div class="setting-item-label">{{ $t('gpnHttp3') }}</div>
-          <div
-            class="badge badge-sm"
-            :class="data.http3 ? 'badge-success' : 'badge-ghost'"
-          >
-            {{ $t(data.http3 ? 'gpnEnabled' : 'gpnDisabled') }}
-          </div>
+          <input
+            type="checkbox"
+            class="toggle"
+            :checked="data.http3"
+            :disabled="busy"
+            @change="toggleHttp3"
+          />
         </SettingItem>
 
         <!-- 「已安装」与「正在捕获」是两个数字,而不是一个。被禁用的扩展照样
@@ -116,12 +119,13 @@ import {
   interceptionError,
   interceptionStatus,
   refreshInterception,
+  setInterceptionSettings,
 } from '@/assembly/gpn/interception'
 import SettingItem from '@/components/settings/SettingItem.vue'
 import { useHasAnyVisibleSetting } from '@/composables/settings'
 import { GPN_INTERCEPTION_ITEM_KEYS, getAllKeysForCategory } from '@/config/settingsItems'
 import { SETTINGS_MENU_KEY } from '@/constant'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const k = GPN_INTERCEPTION_ITEM_KEYS
 const hasVisibleItems = useHasAnyVisibleSetting(
@@ -129,6 +133,34 @@ const hasVisibleItems = useHasAnyVisibleSetting(
 )
 
 const data = computed(() => interception.value)
+
+// 这三个开关原本在扩展页面上。它们是设置,归设置页 —— 而这个面板在此之前只把它们
+// 渲染成只读徽章,于是同一件事在两个地方各有一半。
+//
+// 和其它写后端的设置行一样:改即生效,没有保存按钮。busy 只挡住重入,不是一个
+// 「未保存」状态。
+const busy = ref(false)
+
+const settingsOf = () => ({
+  enabled: data.value?.enabled ?? false,
+  http2: data.value?.http2 ?? false,
+  http3: data.value?.http3 ?? false,
+})
+
+const apply = async (next: ReturnType<typeof settingsOf>) => {
+  if (!data.value || busy.value) return
+  busy.value = true
+  const error = await setInterceptionSettings(next)
+  busy.value = false
+  if (error) {
+    // 失败时把界面拉回核心的真实状态,而不是留下一个看起来已经生效的开关。
+    void refreshInterception()
+  }
+}
+
+const toggleMaster = () => apply({ ...settingsOf(), enabled: !data.value?.enabled })
+const toggleHttp2 = () => apply({ ...settingsOf(), http2: !data.value?.http2 })
+const toggleHttp3 = () => apply({ ...settingsOf(), http3: !data.value?.http3 })
 
 const enabledCount = computed(() => (data.value?.modules ?? []).filter((m) => m.enabled).length)
 

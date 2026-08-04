@@ -37,34 +37,16 @@
           }}</span>
         </div>
 
-        <div class="base-container flex flex-wrap items-center gap-4 p-3">
-          <label class="flex items-center gap-2">
-            <input
-              type="checkbox"
-              class="toggle toggle-sm"
-              :checked="data.enabled"
-              @change="toggleMaster"
-            />
-            <span class="text-sm font-medium">{{ $t('gpnMitmMaster') }}</span>
-          </label>
-          <label class="flex items-center gap-2">
-            <input
-              type="checkbox"
-              class="toggle toggle-sm"
-              :checked="data.http2"
-              @change="toggleHttp2"
-            />
-            <span class="text-sm">{{ $t('gpnHttp2') }}</span>
-          </label>
-          <label class="flex items-center gap-2">
-            <input
-              type="checkbox"
-              class="toggle toggle-sm"
-              :checked="data.http3"
-              @change="toggleHttp3"
-            />
-            <span class="text-sm">{{ $t('gpnHttp3') }}</span>
-          </label>
+        <!-- 拦截主开关、HTTP/2 与 HTTP/3 是设置,住在设置页的「拦截」分区。
+             留在这里的是状态:管理扩展时需要知道现在有多少在跑、捕获了多少主机,
+             那不是一个可以在这里改的东西。 -->
+        <div class="base-container flex flex-wrap items-center gap-3 p-3 text-sm">
+          <span
+            class="badge badge-sm"
+            :class="data.enabled ? 'badge-success' : 'badge-ghost'"
+          >
+            {{ $t('gpnMitmMaster') }}: {{ $t(data.enabled ? 'gpnEnabled' : 'gpnDisabled') }}
+          </span>
           <span class="text-xs opacity-70">
             {{
               $t('gpnModuleCount', { enabled: enabledCount, total: (data.modules ?? []).length })
@@ -435,6 +417,105 @@
             </details>
           </div>
         </template>
+
+        <template v-else-if="tab === 'logs'">
+          <!-- 和 DNS 查询日志同一个形状:一次读取,手动刷新。日志是出问题之后去翻
+               的东西,自动轮询只是在没人看的时候给控制面加负载。 -->
+          <div class="base-container flex flex-col gap-2 p-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <input
+                v-model="engineLogFilter"
+                class="input input-sm w-56"
+                :placeholder="$t('gpnLogSearch')"
+                @keyup.enter="refreshEngineLogs"
+              />
+              <select
+                v-model="engineLogExtension"
+                class="select select-sm w-48"
+                @change="refreshEngineLogs"
+              >
+                <option value="">{{ $t('gpnLogAllExtensions') }}</option>
+                <option
+                  v-for="module in data.modules ?? []"
+                  :key="module.id"
+                  :value="module.id"
+                >
+                  {{ module.name || module.id }}
+                </option>
+              </select>
+              <select
+                v-model="engineLogLevel"
+                class="select select-sm w-28"
+                @change="refreshEngineLogs"
+              >
+                <option value="">{{ $t('gpnLogAllLevels') }}</option>
+                <option value="info">info</option>
+                <option value="warn">warn</option>
+                <option value="error">error</option>
+              </select>
+              <button
+                class="btn btn-sm"
+                @click="refreshEngineLogs"
+              >
+                {{ $t('gpnInterceptionRefresh') }}
+              </button>
+              <span class="text-xs opacity-70">{{ $t('gpnLogWindow') }}</span>
+            </div>
+
+            <div
+              v-if="engineLogError"
+              class="alert alert-error py-2"
+            >
+              <span>{{ engineLogError }}</span>
+            </div>
+
+            <div
+              v-else-if="engineLogs.length === 0"
+              class="text-base-content/50 py-4 text-center text-sm"
+            >
+              {{ $t('gpnLogEmpty') }}
+            </div>
+
+            <div
+              v-else
+              class="overflow-x-auto"
+            >
+              <table class="table-xs table">
+                <thead>
+                  <tr>
+                    <th>{{ $t('gpnLogTime') }}</th>
+                    <th>{{ $t('gpnLogLevel') }}</th>
+                    <th>{{ $t('gpnLogExtension') }}</th>
+                    <th>{{ $t('gpnLogAction') }}</th>
+                    <th>{{ $t('gpnLogMessage') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(entry, index) in engineLogs"
+                    :key="index"
+                  >
+                    <td class="whitespace-nowrap opacity-70">{{ logTime(entry.time) }}</td>
+                    <td>
+                      <span
+                        class="badge badge-xs"
+                        :class="levelClass(entry.level)"
+                      >
+                        {{ entry.level }}
+                      </span>
+                    </td>
+                    <td class="font-mono text-xs">{{ entry.extension || '—' }}</td>
+                    <td class="text-xs opacity-70">
+                      {{ entry.action || '—'
+                      }}<template v-if="entry.phase"> · {{ entry.phase }}</template>
+                    </td>
+                    <td class="font-mono text-xs break-all">{{ entry.message }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </template>
       </template>
     </div>
   </div>
@@ -453,7 +534,13 @@ import {
   interception,
   interceptionError,
   interceptionStatus,
+  engineLogError,
+  engineLogExtension,
+  engineLogFilter,
+  engineLogLevel,
+  engineLogs,
   refreshCatalog,
+  refreshEngineLogs,
   refreshInterception,
   reviewCatalogEntry,
   reviewExtension,
@@ -462,27 +549,38 @@ import {
   setExtensionCaptureDNS,
   setExtensionEgress,
   setExtensionEnabled,
-  setInterceptionSettings,
   uninstallExtension,
 } from '@/assembly/gpn/interception'
 import { proxyGroupList } from '@/assembly/proxies'
 import SegmentedControl, { type SegmentOption } from '@/components/common/SegmentedControl.vue'
 import { usePaddingForViews } from '@/composables/paddingViews'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const { padding } = usePaddingForViews({ offsetTop: 12, offsetBottom: 8 })
 
 // 已安装排在第一个,因为它是「这台网关现在在做什么」;市场和安装都是往里加东西。
-const tab = ref<'installed' | 'market' | 'install'>('installed')
+const tab = ref<'installed' | 'market' | 'install' | 'logs'>('installed')
 const tabOptions = computed<SegmentOption[]>(() => [
   { value: 'installed', label: t('gpnInstalledTab'), count: (data.value?.modules ?? []).length },
   { value: 'market', label: t('gpnCatalog'), count: catalogEntryCount.value },
   { value: 'install', label: t('gpnImportTab') },
+  { value: 'logs', label: t('gpnLogsTab') },
 ])
 
 // 市场里可安装条目的总数,跨来源。停用的来源不抓取,自然也不计数。
+const logTime = (iso: string) => new Date(iso).toLocaleTimeString()
+
+const levelClass = (level: string) =>
+  level === 'error' ? 'badge-error' : level === 'warn' ? 'badge-warning' : 'badge-ghost'
+
+// 切到日志标签时拉一次。进来看到空表、还得再按一下刷新,是让操作者替界面做它
+// 自己知道该做的事。
+watch(tab, (next) => {
+  if (next === 'logs') void refreshEngineLogs()
+})
+
 const catalogEntryCount = computed(() =>
   catalogSources.value.reduce((n, s) => n + (s.entries ?? []).length, 0),
 )
@@ -634,19 +732,6 @@ const run = async (action: () => Promise<string>) => {
   report(await action())
   busy.value = false
 }
-
-const settingsOf = () => ({
-  enabled: data.value?.enabled ?? false,
-  http2: data.value?.http2 ?? false,
-  http3: data.value?.http3 ?? false,
-})
-
-const toggleMaster = () =>
-  run(() => setInterceptionSettings({ ...settingsOf(), enabled: !data.value?.enabled }))
-const toggleHttp2 = () =>
-  run(() => setInterceptionSettings({ ...settingsOf(), http2: !data.value?.http2 }))
-const toggleHttp3 = () =>
-  run(() => setInterceptionSettings({ ...settingsOf(), http3: !data.value?.http3 }))
 
 const toggleModule = (module: GpnModuleSummary) =>
   run(() => setExtensionEnabled(module.id, !module.enabled))

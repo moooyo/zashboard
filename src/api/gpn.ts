@@ -276,6 +276,36 @@ export const fetchCatalogAPI = (refresh = false, signal?: AbortSignal) =>
     timeout: 120000,
   })
 
+/**
+ * 扩展日志。一次读取,不是订阅。
+ *
+ * 引擎另有一条 websocket 用于实时跟随,但操作者真正的问题是「它坏之前干了什么」,
+ * 而这个问题是在它坏之后才问的 —— 从「现在」开始的流回答不了。核心为此保留了
+ * 一个有界环形缓冲。
+ */
+export type GpnEngineLog = {
+  time: string
+  level: 'info' | 'warn' | 'error'
+  source: 'script' | 'engine'
+  extension?: string
+  action?: string
+  phase?: string
+  duration_ms?: number
+  url?: string
+  script_digest?: string
+  message: string
+}
+
+export const fetchEngineLogsAPI = (
+  params: { extension?: string; level?: string; contains?: string; limit?: number },
+  signal?: AbortSignal,
+) =>
+  axios.get<{ logs: GpnEngineLog[] }>('/gpn/interception/logs', {
+    params,
+    signal,
+    timeout: 5000,
+  })
+
 export const putCatalogSourcesAPI = (body: { revision: string; sources: GpnCatalogSource[] }) =>
   axios.put<GpnInterceptionEnvelope>('/gpn/interception/catalog/sources', body)
 
