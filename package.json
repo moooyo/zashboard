@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "node scripts/check-capability-probe.mjs && node scripts/check-i18n-compiles.mjs && vite build && node scripts/check-built-output.mjs",
+    "build": "node scripts/check-capability-probe.mjs && node scripts/check-i18n-compiles.mjs && node scripts/check-i18n-keys-exist.mjs && vite build && node scripts/check-built-output.mjs",
     "build:cdn-fonts": "FONT=cdn vite build",
     "build:firasans-only": "FONT=firasans vite build",
     "build:misans-only": "FONT=misans vite build",

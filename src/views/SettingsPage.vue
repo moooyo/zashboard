@@ -103,11 +103,13 @@ import BackendSettings from '@/components/settings/backend/BackendSettings.vue'
 import ConnectionsSettings from '@/components/settings/connections/ConnectionsSettings.vue'
 import ZashboardSettings from '@/components/settings/general/ZashboardSettings.vue'
 import GpnBotSettings from '@/components/settings/gpn/GpnBotSettings.vue'
+import GpnDnsSettings from '@/components/settings/gpn/GpnDnsSettings.vue'
 import GpnInterceptionSettings from '@/components/settings/gpn/GpnInterceptionSettings.vue'
 import OverviewSettings from '@/components/settings/overview/OverviewSettings.vue'
 import ProxiesSettings from '@/components/settings/proxies/ProxiesSettings.vue'
 import SettingsCategoryHeader from '@/components/settings/SettingsCategoryHeader.vue'
 import { botSupported, refreshBot } from '@/assembly/gpn/bot'
+import { dnsSupported } from '@/assembly/gpn/dns'
 import { interceptionSupported, refreshInterception } from '@/assembly/gpn/interception'
 import { usePaddingForViews } from '@/composables/paddingViews'
 import {
@@ -128,6 +130,7 @@ import {
   HomeIcon,
   ServerIcon,
   ShieldCheckIcon,
+  SignalIcon,
 } from '@heroicons/vue/24/outline'
 import { useElementSize } from '@vueuse/core'
 import { throttle } from 'lodash'
@@ -205,6 +208,18 @@ const menuItems = computed<MenuItem[]>(() => {
   // 同样只在能力发现给出肯定结论后出现。这个面板还额外要求引擎装上了 ——
   // 一个 5gpn 内核可以拦截文档加载失败,那时核心返回 503,面板会说明原因,
   // 而不是把它渲染成「拦截已关闭」。
+  // Same gate as the pages: only once capability discovery has said yes. The
+  // panel edits the resolver's document, so offering it against a core that
+  // does not serve one would be a form that cannot save.
+  if (dnsSupported.value) {
+    itemsMap.set(SETTINGS_MENU_KEY.gpnDns, {
+      key: SETTINGS_MENU_KEY.gpnDns,
+      label: 'gpnDnsSettings',
+      icon: SignalIcon,
+      component: GpnDnsSettings,
+    })
+  }
+
   if (interceptionSupported.value) {
     itemsMap.set(SETTINGS_MENU_KEY.gpnInterception, {
       key: SETTINGS_MENU_KEY.gpnInterception,

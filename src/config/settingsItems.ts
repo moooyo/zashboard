@@ -13,6 +13,19 @@ export type SettingsCategory = {
 
 export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   {
+    // DNS policy, upstreams and the resolve diagnostic. They used to live on
+    // the gpn-dns page beside the query log, which put configuration and a
+    // read-only stream of traffic in the same place and in neither of the two
+    // idioms this console otherwise has. The page keeps the log.
+    key: SETTINGS_MENU_KEY.gpnDns,
+    label: 'gpnDnsSettings',
+    items: [
+      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsPolicy`, label: 'gpnDnsPolicy' },
+      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsUpstreams`, label: 'gpnDnsUpstreams' },
+      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsDiagnose`, label: 'gpnDnsDiagnose' },
+    ],
+  },
+  {
     key: SETTINGS_MENU_KEY.gpnInterception,
     label: 'gpnInterceptionSettings',
     items: [
@@ -261,6 +274,8 @@ export const PROXIES_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.proxies)
 /** Key map for connections settings. */
 export const CONNECTIONS_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.connections)
 /** Key map for 5gpn interception settings. */
+export const GPN_DNS_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.gpnDns)
+/** Key map for the DNS settings. */
 export const GPN_INTERCEPTION_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.gpnInterception)
 /** Key map for the Telegram bot settings. */
 export const GPN_BOT_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.gpnBot)
