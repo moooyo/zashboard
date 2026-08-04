@@ -39,6 +39,15 @@ export default defineConfig({
     vueJsx(),
     VitePWA({
       registerType: 'autoUpdate',
+      // The injected registerSW.js calls navigator.serviceWorker.register()
+      // with no catch, so any failure lands in the console as an uncaught
+      // SecurityError with a stack. That failure is GUARANTEED on a gateway
+      // running CERT_MODE=debug: a browser lets an operator click through a
+      // self-signed certificate to view the panel, but it will not register a
+      // service worker behind one. Registration is done in main.ts instead, so
+      // the expected case reads as one line rather than as an error that
+      // buries the next real one.
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'favicon-dark.svg'],
       workbox: {
         // The bundle is above Workbox's 2 MiB default because sing-box native
