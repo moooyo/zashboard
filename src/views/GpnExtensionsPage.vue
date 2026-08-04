@@ -88,6 +88,53 @@
               v-if="catalogStatus === 'loading'"
               class="loading loading-spinner loading-xs"
             />
+            <span class="text-xs opacity-70">
+              {{ catalogSources.length }} / {{ CATALOG_SOURCE_LIMIT }}
+            </span>
+          </div>
+
+          <!-- 来源管理。目录条目不授予任何权限,所以加一个来源只是多一份清单 ——
+               安装仍然是审阅 → 核对 digest → 确认。校验规则和核心一致,写在这里
+               是为了当场说明白拒绝的理由,不是替核心把关:提交仍然由核心裁定。 -->
+          <div class="border-base-300 flex flex-col gap-2 border-t pt-2">
+            <div class="flex flex-wrap items-end gap-2">
+              <label class="flex flex-col gap-1">
+                <span class="text-xs opacity-70">{{ $t('gpnCatalogSourceId') }}</span>
+                <input
+                  v-model="newSourceId"
+                  class="input input-sm input-bordered w-48"
+                  :placeholder="'io.example.catalog'"
+                />
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="text-xs opacity-70">{{ $t('gpnCatalogSourceUrl') }}</span>
+                <input
+                  v-model="newSourceUrl"
+                  class="input input-sm input-bordered w-80"
+                  :placeholder="'https://example.com/index.json'"
+                />
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="text-xs opacity-70">{{ $t('gpnCatalogSourceName') }}</span>
+                <input
+                  v-model="newSourceName"
+                  class="input input-sm input-bordered w-48"
+                />
+              </label>
+              <button
+                class="btn btn-sm btn-primary"
+                :disabled="!canAddSource || sourceBusy"
+                @click="addCatalogSource"
+              >
+                {{ $t('gpnCatalogSourceAdd') }}
+              </button>
+            </div>
+            <div
+              v-if="sourceError"
+              class="alert alert-error py-2"
+            >
+              <span>{{ sourceError }}</span>
+            </div>
           </div>
 
           <div
@@ -115,6 +162,20 @@
                 >{{ source.error }}</span
               >
               <span v-else>{{ source.entries.length }}</span>
+              <button
+                class="btn btn-ghost btn-xs"
+                :disabled="sourceBusy"
+                @click="toggleCatalogSource(source.id)"
+              >
+                {{ source.enabled ? $t('gpnCatalogSourceDisable') : $t('gpnCatalogSourceEnable') }}
+              </button>
+              <button
+                class="btn btn-ghost btn-xs text-error"
+                :disabled="sourceBusy"
+                @click="removeCatalogSource(source.id)"
+              >
+                {{ $t('gpnCatalogSourceRemove') }}
+              </button>
             </div>
 
             <div
@@ -379,6 +440,7 @@ import {
   refreshInterception,
   reviewCatalogEntry,
   reviewExtension,
+  setCatalogSources,
   setExecutionOrder,
   setExtensionCaptureDNS,
   setExtensionEgress,
@@ -393,6 +455,106 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const { padding } = usePaddingForViews({ offsetTop: 12, offsetBottom: 8 })
+
+/**
+ * 目录来源的增删启停。
+ *
+ * 文档一直支持 16 个来源,核心一直有 PUT /gpn/interception/catalog/sources,
+ * 前端也一直把它们全部列出来 —— 唯独没有加进去的入口,所以第二个来源只能用
+ * curl 加。这里补的是那个入口。
+ *
+ * 写入是整份替换而不是增量:核心的契约就是「这就是全部来源」,带 revision 做
+ * 乐观并发。所以每个操作都从当前列表出发构造新列表。
+ */
+const CATALOG_SOURCE_LIMIT = 16
+// 和核心的 nativeExtensionIDPattern 同形,长度另按 validModuleID 限 3..40。
+const SOURCE_ID_PATTERN = /^[a-z0-9](?:[a-z0-9.-]{1,126}[a-z0-9])$/
+
+const newSourceId = ref('')
+const newSourceUrl = ref('')
+const newSourceName = ref('')
+const sourceError = ref('')
+const sourceBusy = ref(false)
+const validSourceId = (id: string) =>
+  id.length >= 3 && id.length <= 40 && SOURCE_ID_PATTERN.test(id)
+
+/** 和核心 checkResourceURL 相同的四条:https、有 host、无 userinfo、无 fragment。 */
+const validSourceUrl = (raw: string) => {
+  let u: URL
+  try {
+    u = new URL(raw)
+  } catch {
+    return false
+  }
+  return u.protocol === 'https:' && !!u.hostname && !u.username && !u.password && !u.hash
+}
+
+const canAddSource = computed(
+  () =>
+    catalogSources.value.length < CATALOG_SOURCE_LIMIT &&
+    validSourceId(newSourceId.value.trim()) &&
+    validSourceUrl(newSourceUrl.value.trim()),
+)
+
+/** 当前来源的可写副本 —— 视图类型带着 entries/metadata,提交时不能捎上。 */
+const currentSources = () =>
+  catalogSources.value.map((s) => ({
+    id: s.id,
+    name: s.name ?? '',
+    url: s.url,
+    enabled: s.enabled,
+  }))
+
+const writeSources = async (sources: ReturnType<typeof currentSources>) => {
+  sourceBusy.value = true
+  sourceError.value = ''
+  // write() RETURNS an error string and never throws -- '' is success. A
+  // try/catch here would catch nothing and treat every rejected write as a
+  // success, which is the failure mode this page exists to avoid.
+  const err = await setCatalogSources(sources)
+  sourceBusy.value = false
+  // Errors also go through the page's own notice, so a catalog write reports
+  // where every other write on this page reports.
+  report(err)
+  if (err) {
+    sourceError.value = err === 'conflict' ? t('gpnConflict') : err
+    return false
+  }
+  // The source list changed, so the listing did too. The core does not refetch
+  // on our behalf.
+  await refreshCatalog(true)
+  return true
+}
+
+const addCatalogSource = async () => {
+  const id = newSourceId.value.trim()
+  const url = newSourceUrl.value.trim()
+  const name = newSourceName.value.trim()
+  const sources = currentSources()
+  // 重复由核心判定失败,但当场说出来比等一个 400 清楚。
+  if (sources.some((s) => s.id === id)) {
+    sourceError.value = t('gpnCatalogSourceDuplicateId', { id })
+    return
+  }
+  if (sources.some((s) => s.url === url)) {
+    sourceError.value = t('gpnCatalogSourceDuplicateUrl', { url })
+    return
+  }
+  sources.push({ id, name, url, enabled: true })
+  if (await writeSources(sources)) {
+    newSourceId.value = ''
+    newSourceUrl.value = ''
+    newSourceName.value = ''
+  }
+}
+
+const removeCatalogSource = async (id: string) => {
+  await writeSources(currentSources().filter((s) => s.id !== id))
+}
+
+const toggleCatalogSource = async (id: string) => {
+  await writeSources(currentSources().map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)))
+}
 
 const data = computed(() => interception.value)
 const busy = ref(false)
