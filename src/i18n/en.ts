@@ -644,6 +644,9 @@ const en = {
   gpnDnsSubscriptions: 'Rule subscriptions',
   gpnSubNone: 'No subscriptions configured.',
   gpnSubAdd: 'Add subscription',
+  gpnDnsCardLoading: 'Waiting for the first sample…',
+  gpnSubImportDefaults: 'Import defaults',
+  gpnSubDefaultsPresent: 'Defaults present',
   gpnSubHint:
     'A subscription is a rule whose value is a URL. The list it fetches is matched with the intent chosen here; the interval is in seconds.',
   gpnDnsGateway: 'Gateway address',

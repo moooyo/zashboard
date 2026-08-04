@@ -394,12 +394,25 @@
         <div class="text-xs opacity-60">{{ subscriptionNote(entry.rule.id) }}</div>
       </div>
 
-      <button
-        class="btn btn-sm w-fit"
-        @click="addSubscription"
-      >
-        {{ $t('gpnSubAdd') }}
-      </button>
+      <div class="flex flex-wrap gap-2">
+        <button
+          class="btn btn-sm w-fit"
+          @click="addSubscription"
+        >
+          {{ $t('gpnSubAdd') }}
+        </button>
+        <!-- 新装的网关由核心种下这两条。已经有文档的网关不会 —— 默认值只对
+             「不存在的文档」生效,而那正是扩展目录当初在所有已有主机上发布即
+             黑屏的原因。所以这里给一个显式的按钮,而不是让升级悄悄改写运维者
+             的策略。 -->
+        <button
+          class="btn btn-sm w-fit"
+          :disabled="defaultsPresent"
+          @click="importDefaultSubscriptions"
+        >
+          {{ defaultsPresent ? $t('gpnSubDefaultsPresent') : $t('gpnSubImportDefaults') }}
+        </button>
+      </div>
       <p class="text-xs opacity-70">{{ $t('gpnSubHint') }}</p>
     </div>
   </DialogWrapper>
@@ -595,6 +608,48 @@ const subscriptionRules = computed(() =>
 const failedSubscriptions = computed(
   () => dnsSubscriptions.value.filter((s) => Boolean(s.error)).length,
 )
+
+// 和核心 DefaultSubscriptionRules 同一份地址与格式。两处描述同一个「默认」,
+// 写成两份迟早会各说各话 —— 这一份是给已经有文档、因此拿不到种子的网关的。
+const DEFAULT_SUBSCRIPTIONS = [
+  {
+    id: 'china-domains',
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Domain.yaml',
+    intent: 'direct' as const,
+    format: 'clash',
+  },
+  {
+    id: 'gfwlist',
+    url: 'https://raw.githubusercontent.com/Loyalsoldier/v2ray-rules-dat/release/gfw.txt',
+    intent: 'proxy' as const,
+    format: 'plain',
+  },
+]
+
+const defaultsPresent = computed(() =>
+  DEFAULT_SUBSCRIPTIONS.every((d) =>
+    (draft.value?.policy.rules ?? []).some((r) => r.value === d.url),
+  ),
+)
+
+const importDefaultSubscriptions = () => {
+  if (!draft.value) return
+  for (const preset of DEFAULT_SUBSCRIPTIONS) {
+    // 按 URL 判重,不按 ID:运维者可能自己加过同一份表,再加一条只会让两条规则
+    // 抓同一个地址。
+    if (draft.value.policy.rules.some((r) => r.value === preset.url)) continue
+    draft.value.policy.rules.push({
+      id: preset.id,
+      kind: 'subscription',
+      value: preset.url,
+      intent: preset.intent,
+      enabled: true,
+      format: preset.format,
+      intervalSeconds: 86400,
+    })
+  }
+  apply()
+}
 
 const addSubscription = () => {
   if (!draft.value) return

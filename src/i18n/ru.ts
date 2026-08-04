@@ -646,6 +646,9 @@ const ru: LANG_MESSAGE = {
   gpnDnsSubscriptions: 'Подписки на правила',
   gpnSubNone: 'Подписки не настроены.',
   gpnSubAdd: 'Добавить подписку',
+  gpnDnsCardLoading: 'Ожидание первой выборки…',
+  gpnSubImportDefaults: 'Импорт по умолчанию',
+  gpnSubDefaultsPresent: 'Уже добавлены',
   gpnSubHint:
     'Подписка — это правило, значение которого является URL. Загруженный список сопоставляется с выбранным здесь намерением; интервал в секундах.',
   gpnDnsGateway: 'Адрес шлюза',
