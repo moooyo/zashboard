@@ -42,6 +42,7 @@
           <select
             v-model="draft.policy.fallback"
             class="select select-sm w-32"
+            @change="apply"
           >
             <option value="auto">{{ $t('gpnFallbackAuto') }}</option>
             <option value="direct">{{ $t('gpnFallbackDirect') }}</option>
@@ -83,6 +84,7 @@
             v-model="draft.gateway"
             class="input input-sm w-44"
             placeholder="203.0.113.10"
+            @change="apply"
           />
         </SettingItem>
 
@@ -136,6 +138,7 @@
             v-model="draft.upstreams.ecs"
             class="input input-sm w-44"
             placeholder="112.96.32.0/24"
+            @change="apply"
           />
         </SettingItem>
       </div>
@@ -196,31 +199,6 @@
           </div>
         </div>
       </template>
-
-      <!-- 保存栏在最后,因为策略与上游共用同一份草稿和同一次写入:它属于这一整块
-           设置,不属于其中某一项。 -->
-      <div class="flex items-center gap-2 px-1">
-        <button
-          class="btn btn-primary btn-sm"
-          :disabled="saving || !dirty"
-          @click="save"
-        >
-          {{ $t('gpnSave') }}
-        </button>
-        <button
-          class="btn btn-sm"
-          :disabled="saving"
-          @click="reset"
-        >
-          {{ $t('gpnRevert') }}
-        </button>
-        <span
-          v-if="dirty"
-          class="text-xs opacity-70"
-        >
-          {{ $t('gpnUnsaved') }}
-        </span>
-      </div>
     </template>
   </div>
 
@@ -243,10 +221,12 @@
           v-model="rule.enabled"
           type="checkbox"
           class="toggle toggle-sm"
+          @change="apply"
         />
         <select
           v-model="rule.intent"
           class="select select-xs w-24"
+          @change="apply"
         >
           <option value="block">{{ $t('gpnIntentBlock') }}</option>
           <option value="direct">{{ $t('gpnIntentDirect') }}</option>
@@ -255,6 +235,7 @@
         <select
           v-model="rule.kind"
           class="select select-xs w-36"
+          @change="apply"
         >
           <option value="domain">{{ $t('gpnKindDomain') }}</option>
           <option value="domain-suffix">{{ $t('gpnKindSuffix') }}</option>
@@ -265,11 +246,13 @@
           v-model="rule.value"
           class="input input-xs min-w-56 flex-1"
           :placeholder="$t('gpnRuleValue')"
+          @change="apply"
         />
         <template v-if="rule.kind === 'subscription'">
           <select
             v-model="rule.format"
             class="select select-xs w-28"
+            @change="apply"
           >
             <option value="plain">plain</option>
             <option value="gfwlist">gfwlist</option>
@@ -282,6 +265,7 @@
             type="number"
             class="input input-xs w-24"
             :placeholder="$t('gpnInterval')"
+            @change="apply"
           />
           <span class="text-xs opacity-60">{{ subscriptionNote(rule.id) }}</span>
         </template>
@@ -302,7 +286,7 @@
           </button>
           <button
             class="btn btn-ghost btn-xs text-error"
-            @click="draft.policy.rules.splice(index, 1)"
+            @click="removeRule(index)"
           >
             ✕
           </button>
@@ -327,6 +311,7 @@
         v-model="chinaText"
         class="textarea textarea-sm w-full font-mono"
         rows="6"
+        @change="apply"
       />
       <p class="text-xs opacity-70">{{ $t('gpnUpstreamGrammar') }}</p>
     </div>
@@ -341,6 +326,7 @@
         v-model="trustText"
         class="textarea textarea-sm w-full font-mono"
         rows="6"
+        @change="apply"
       />
       <p class="text-xs opacity-70">{{ $t('gpnUpstreamGrammar') }}</p>
     </div>
@@ -456,7 +442,6 @@ const FALLBACK_HINT: Record<string, string> = {
 }
 
 const draft = ref<GpnDnsDocument | null>(null)
-const saving = ref(false)
 const notice = ref('')
 const noticeIsError = ref(false)
 const probeName = ref('')
@@ -496,13 +481,6 @@ const trustText = computed({
   },
 })
 
-const dirty = computed(
-  () =>
-    Boolean(draft.value) &&
-    Boolean(dnsDocument.value) &&
-    JSON.stringify(draft.value) !== JSON.stringify(dnsDocument.value),
-)
-
 const move = (index: number, delta: number) => {
   const rules = draft.value?.policy.rules
   if (!rules) return
@@ -510,9 +488,20 @@ const move = (index: number, delta: number) => {
   if (target < 0 || target >= rules.length) return
   const [item] = rules.splice(index, 1)
   rules.splice(target, 0, item)
+  apply()
+}
+
+const removeRule = (index: number) => {
+  draft.value?.policy.rules.splice(index, 1)
+  apply()
 }
 
 // 规则 ID 由客户端铸造,因为它同时是订阅缓存文件名;服务端只要求它是路径安全的。
+//
+// A new rule is not applied on creation: it has an empty value, which the core
+// would refuse, and reporting that as an error to someone who has just pressed
+// "add" is telling them off for a step they are in the middle of. It writes when
+// the value changes.
 const addRule = () => {
   if (!draft.value) return
   draft.value.policy.rules.push({
@@ -524,13 +513,22 @@ const addRule = () => {
   })
 }
 
-const save = async () => {
+// Every row writes when it changes, and there is no save button, because that
+// is what a zashboard settings row that writes to the backend does --
+// BackendPortsGrid patches /configs on @change, and the tun / allow-lan toggles
+// beside it do the same. A save bar here was this panel inventing a second
+// interaction model for the same job.
+//
+// @change rather than the model updating: on an <input> it fires on blur or
+// Enter, so typing an address does not send a request per keystroke. Add,
+// remove and reorder call this directly, because those have no blur to wait for.
+const apply = async () => {
   if (!draft.value) return
-  saving.value = true
   const error = await saveDns(draft.value)
-  saving.value = false
   noticeIsError.value = Boolean(error)
-  notice.value = error === 'conflict' ? t('gpnConflict') : error || t('gpnSaved')
+  // Silence on success. A settings row that announces every accepted change is
+  // noise; what an operator needs to see is the one that was refused.
+  notice.value = error === 'conflict' ? t('gpnConflict') : error
 }
 
 const runProbe = () => explain(probeName.value)
