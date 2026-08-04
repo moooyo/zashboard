@@ -156,6 +156,7 @@ export const renderRoutes = computed(() => {
     [ROUTE_NAME.rules]: caps.rules,
     [ROUTE_NAME.tools]: caps.tools,
     [ROUTE_NAME.gpnDns]: dnsSupported.value,
+    [ROUTE_NAME.gpnSetupGuide]: dnsSupported.value,
     [ROUTE_NAME.gpnExtensions]: interceptionSupported.value,
   }
   return Object.values(ROUTE_NAME).filter((r) => {

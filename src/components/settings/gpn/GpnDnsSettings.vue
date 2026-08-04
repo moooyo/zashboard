@@ -68,6 +68,28 @@
             <PencilSquareIcon class="h-4 w-4" />
           </button>
         </SettingItem>
+
+        <!-- 订阅在数据模型里就是 kind=subscription 的规则,所以它本来就"实现了" ——
+             但它只在规则对话框里以一个下拉选项的形式存在,等于没有。给它自己的一行
+             和自己的对话框,因为「我订了哪些表、抓下来多少条、有没有失败」是一个
+             独立的问题,不是编辑某一条规则时顺带看的东西。 -->
+        <SettingItem :setting-key="k.gpnDnsSubscriptions">
+          <div class="setting-item-label">
+            {{ $t('gpnDnsSubscriptions') }}
+            <template v-if="subscriptionRules.length"> ({{ subscriptionRules.length }}) </template>
+            <span
+              v-if="failedSubscriptions > 0"
+              class="badge badge-error badge-xs"
+              >{{ failedSubscriptions }}</span
+            >
+          </div>
+          <button
+            class="btn btn-sm"
+            @click="subsDialog = true"
+          >
+            <PencilSquareIcon class="h-4 w-4" />
+          </button>
+        </SettingItem>
       </div>
 
       <div class="settings-section-label">{{ $t('gpnDnsUpstreams') }}</div>
@@ -303,6 +325,86 @@
   </DialogWrapper>
 
   <DialogWrapper
+    v-model="subsDialog"
+    :title="$t('gpnDnsSubscriptions')"
+  >
+    <div
+      v-if="draft"
+      class="flex flex-col gap-2 text-sm"
+    >
+      <div
+        v-if="subscriptionRules.length === 0"
+        class="text-base-content/50 py-2 text-xs"
+      >
+        {{ $t('gpnSubNone') }}
+      </div>
+      <div
+        v-for="entry in subscriptionRules"
+        :key="entry.rule.id"
+        class="border-base-content/10 rounded-box flex flex-col gap-2 border p-2"
+        :class="{ 'opacity-50': !entry.rule.enabled }"
+      >
+        <div class="flex flex-wrap items-center gap-2">
+          <input
+            v-model="entry.rule.enabled"
+            type="checkbox"
+            class="toggle toggle-sm"
+            @change="apply"
+          />
+          <select
+            v-model="entry.rule.intent"
+            class="select select-xs w-24"
+            @change="apply"
+          >
+            <option value="block">{{ $t('gpnIntentBlock') }}</option>
+            <option value="direct">{{ $t('gpnIntentDirect') }}</option>
+            <option value="proxy">{{ $t('gpnIntentProxy') }}</option>
+          </select>
+          <select
+            v-model="entry.rule.format"
+            class="select select-xs w-28"
+            @change="apply"
+          >
+            <option value="plain">plain</option>
+            <option value="gfwlist">gfwlist</option>
+            <option value="dnsmasq">dnsmasq</option>
+            <option value="hosts">hosts</option>
+            <option value="clash">clash</option>
+          </select>
+          <input
+            v-model.number="entry.rule.intervalSeconds"
+            type="number"
+            class="input input-xs w-24"
+            :placeholder="$t('gpnInterval')"
+            @change="apply"
+          />
+          <button
+            class="btn btn-ghost btn-xs text-error ml-auto"
+            @click="removeSubscription(entry.rule.id)"
+          >
+            ✕
+          </button>
+        </div>
+        <input
+          v-model="entry.rule.value"
+          class="input input-xs w-full font-mono"
+          placeholder="https://example.com/list.txt"
+          @change="apply"
+        />
+        <div class="text-xs opacity-60">{{ subscriptionNote(entry.rule.id) }}</div>
+      </div>
+
+      <button
+        class="btn btn-sm w-fit"
+        @click="addSubscription"
+      >
+        {{ $t('gpnSubAdd') }}
+      </button>
+      <p class="text-xs opacity-70">{{ $t('gpnSubHint') }}</p>
+    </div>
+  </DialogWrapper>
+
+  <DialogWrapper
     v-model="chinaDialog"
     :title="$t('gpnChinaGroup')"
   >
@@ -447,6 +549,7 @@ const noticeIsError = ref(false)
 const probeName = ref('')
 
 const rulesDialog = ref(false)
+const subsDialog = ref(false)
 const chinaDialog = ref(false)
 const trustDialog = ref(false)
 const probeDialog = ref(false)
@@ -480,6 +583,37 @@ const trustText = computed({
     if (draft.value) draft.value.upstreams.trust = splitLines(v)
   },
 })
+
+// 订阅规则连同它在整份列表里的位置一起给出:顺序是策略语义的一部分,而这个
+// 对话框只筛出其中一类,不改变它们之间的先后。
+const subscriptionRules = computed(() =>
+  (draft.value?.policy.rules ?? [])
+    .map((rule, index) => ({ rule, index }))
+    .filter((entry) => entry.rule.kind === 'subscription'),
+)
+
+const failedSubscriptions = computed(
+  () => dnsSubscriptions.value.filter((s) => Boolean(s.error)).length,
+)
+
+const addSubscription = () => {
+  if (!draft.value) return
+  draft.value.policy.rules.push({
+    id: `s-${Math.random().toString(36).slice(2, 10)}`,
+    kind: 'subscription',
+    value: '',
+    intent: 'proxy',
+    enabled: true,
+    format: 'plain',
+    intervalSeconds: 86400,
+  })
+}
+
+const removeSubscription = (id: string) => {
+  if (!draft.value) return
+  draft.value.policy.rules = draft.value.policy.rules.filter((r) => r.id !== id)
+  apply()
+}
 
 const move = (index: number, delta: number) => {
   const rules = draft.value?.policy.rules

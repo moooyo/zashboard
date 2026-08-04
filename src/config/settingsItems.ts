@@ -22,6 +22,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     items: [
       { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsFallback`, label: 'gpnDnsFallback' },
       { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsRules`, label: 'gpnDnsRules' },
+      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsSubscriptions`, label: 'gpnDnsSubscriptions' },
       { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsGateway`, label: 'gpnDnsGateway' },
       { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsChina`, label: 'gpnDnsChina' },
       { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsTrust`, label: 'gpnDnsTrust' },
