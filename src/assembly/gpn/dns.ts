@@ -91,6 +91,10 @@ const sampleOnce = async () => {
   if (uuid !== activeUuid.value) return
 
   dnsStats.value = data.stats
+  // 订阅状态也一起收下。它是只读的抓取结果,不是文档 —— 采样刻意不碰 dnsDocument
+  // (那会抹掉正在编辑的草稿),但「抓了多少条」属于「现在装着什么」,和 stats 同一
+  // 类,而且已经在同一个响应里了。不收下的话,独立概览页上那张卡永远读不到它。
+  dnsSubscriptions.value = data.subscriptions ?? []
   const now = Date.now()
   const total = data.stats?.total ?? 0
   // 第一次采样只建立基线,没有速率可算。核心重启会让 total 回退,那不是负速率,

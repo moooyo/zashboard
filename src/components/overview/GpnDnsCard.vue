@@ -156,13 +156,32 @@
             </div>
           </div>
         </div>
-        <!-- 解析成空的 CN 集会把整个国内互联网判成境外,而从外面看不出来。所以这个
-           数字常驻:它是仲裁的地基,不是一个统计量。 -->
-        <div
-          class="text-xs"
-          :class="stats.cnRanges === 0 ? 'text-error' : 'text-base-content/50'"
-        >
-          {{ $t('gpnCnRanges') }} {{ stats.cnRanges }}
+        <!--
+          「现在到底装着哪些判定数据」是一个问题,不是两个。CN 段是核心自带的
+          IP 集合,订阅是运维者订的域名表,来源不同,但对读的人来说是同一件事:
+          仲裁和规则手里有没有料。所以并排放在一行。
+
+          CN 段为 0 要红:仲裁会把整个国内互联网判成境外,而别处看不出来。订阅
+          抓取失败也要红,但数字仍然是上一次成功的条数 —— 核心在失败时保留旧缓存,
+          所以那条线还在生效,报 0 会是假的。
+        -->
+        <div class="flex flex-wrap items-center gap-x-2 text-xs">
+          <span class="text-base-content/60">{{ $t('gpnLoaded') }}</span>
+          <span :class="stats.cnRanges === 0 ? 'text-error' : 'text-base-content/50'">
+            {{ $t('gpnCnRanges') }} {{ stats.cnRanges }}
+          </span>
+          <template v-if="loadedLists.lists > 0">
+            <span class="text-base-content/30">·</span>
+            <span class="text-base-content/50">
+              {{ $t('gpnLoadedLists', { lists: loadedLists.lists, entries: loadedLists.entries }) }}
+            </span>
+          </template>
+          <template v-if="loadedLists.failed > 0">
+            <span class="text-base-content/30">·</span>
+            <span class="text-error">
+              {{ $t('gpnLoadedListsFailed', { count: loadedLists.failed }) }}
+            </span>
+          </template>
         </div>
       </div>
     </template>
@@ -173,6 +192,7 @@
 import {
   chinaLatencyHistory,
   dnsStats,
+  dnsSubscriptions,
   dnsSupported,
   qps,
   qpsHistory,
@@ -240,6 +260,18 @@ const groups = computed(() => [
 
 const qpsLabel = (value: number) => `${value.toFixed(1)}/s`
 const msLabel = (value: number) => `${value.toFixed(0)}ms`
+
+// 只统计真的加载进来的表。核心的状态表是抓过之后才有条目的,所以一条从未抓取过的
+// 订阅在这里不出现 —— 这一行报的是「装着什么」,不是「配置了什么」,后者在设置页
+// 的规则订阅那一行,连失败角标一起。
+const loadedLists = computed(() => {
+  const statuses = dnsSubscriptions.value
+  return {
+    lists: statuses.filter((s) => s.entries > 0).length,
+    entries: statuses.reduce((n, s) => n + s.entries, 0),
+    failed: statuses.filter((s) => Boolean(s.error)).length,
+  }
+})
 // 用 ChartsCard 同一个助手,而不是自己拼字符串:tooltip 的标记、颜色和数字格式
 // 都在那里定义,重写一遍就是让这一张图慢慢长得和别的不一样。
 const qpsTooltip = (params: ToolTipParams[]) =>
