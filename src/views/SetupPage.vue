@@ -187,11 +187,39 @@ import Draggable from 'vuedraggable'
 
 const { t } = useI18n()
 
+/**
+ * 首个后端的默认值 = **服务这个页面的源**。
+ *
+ * 上游默认 http://127.0.0.1:9090,那是「面板托管在别处、后端在本机」的形状。
+ * 5gpn 是反过来的:bundle 由控制器自己以 external-ui 提供,面板和 API 永远同源。
+ * 于是那三个默认值在这里全是错的 —— 协议错(控制器 TLS-only,
+ * external-controller 是空串)、主机错(从浏览器看 127.0.0.1 是操作者自己的机器)、
+ * 端口错(控制器在 443)。空后端列表时的静默自动提交因此必然失败,而且是**静默**
+ * 失败:列表仍然是空的,能力探测从不开始,featureSupported 恒为 false,
+ * renderRoutes 把 gpn 页面全部滤掉 —— 界面看起来就是一个原版 zashboard。
+ *
+ * 同源是唯一不需要猜的答案。file:// 等非 http(s) 场景没有可用的源,退回上游默认。
+ */
+const servedOrigin = () => {
+  const { protocol, hostname, port } = window.location
+  if ((protocol !== 'http:' && protocol !== 'https:') || !hostname) {
+    return null
+  }
+  return {
+    protocol: protocol.replace(':', ''),
+    host: hostname,
+    // 同源 URL 里省略的端口就是协议默认端口,而后端表单要求显式值。
+    port: port || (protocol === 'https:' ? '443' : '80'),
+  }
+}
+
+const served = servedOrigin()
+
 const form = reactive({
   type: 'clash' as BackendType,
-  protocol: 'http',
-  host: '127.0.0.1',
-  port: '9090',
+  protocol: served?.protocol ?? 'http',
+  host: served?.host ?? '127.0.0.1',
+  port: served?.port ?? '9090',
   secondaryPath: '',
   password: '',
   label: '',
