@@ -648,7 +648,9 @@ const en = {
   gpnSubImportDefaults: 'Import defaults',
   gpnSubDefaultsPresent: 'Defaults present',
   gpnSubHint:
-    'A subscription is a rule whose value is a URL. The list it fetches is matched with the intent chosen here; the interval is in seconds.',
+    'A subscription is a rule whose value is a URL. The list it fetches is matched with the intent chosen here; the interval is in seconds. Every resolution rule is evaluated before any subscription, so an exception you wrote by hand always outranks an imported list.',
+  gpnRulesHint:
+    'Top to bottom, first match wins. These are evaluated before every subscription, so a rule here outranks an imported list covering the same name. Add a subscription under Rule subscriptions.',
   gpnDnsGateway: 'Gateway address',
   gpnDnsChina: 'China group',
   gpnDnsTrust: 'Trusted group',
@@ -672,7 +674,6 @@ const en = {
   gpnKindDomain: 'Exact name',
   gpnKindSuffix: 'Name and subdomains',
   gpnKindKeyword: 'Contains',
-  gpnKindSubscription: 'Subscription',
   gpnRuleValue: 'example.com',
   gpnInterval: 'Seconds',
   gpnAddRule: 'Add rule',

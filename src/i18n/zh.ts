@@ -637,7 +637,10 @@ const zh: LANG_MESSAGE = {
   gpnDnsCardLoading: '等待首次采样…',
   gpnSubImportDefaults: '导入默认订阅',
   gpnSubDefaultsPresent: '默认订阅已存在',
-  gpnSubHint: '订阅就是取值为 URL 的规则。抓取到的清单按这里选择的意图匹配;间隔单位为秒。',
+  gpnSubHint:
+    '订阅就是取值为 URL 的规则。抓取到的清单按这里选择的意图匹配;间隔单位为秒。解析规则整体先于订阅求值,所以手写的例外总能压过导入的清单。',
+  gpnRulesHint:
+    '从上到下,首个命中生效。这一组整体先于订阅求值,所以这里的规则能压过覆盖同一个名字的订阅。订阅在「规则订阅」里添加。',
   gpnDnsGateway: '网关地址',
   gpnDnsChina: '国内组',
   gpnDnsTrust: '可信组',
@@ -660,7 +663,6 @@ const zh: LANG_MESSAGE = {
   gpnKindDomain: '精确名字',
   gpnKindSuffix: '本域与子域',
   gpnKindKeyword: '包含',
-  gpnKindSubscription: '订阅',
   gpnRuleValue: 'example.com',
   gpnInterval: '秒',
   gpnAddRule: '添加规则',

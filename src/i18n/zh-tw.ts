@@ -637,7 +637,10 @@ const zhTW: LANG_MESSAGE = {
   gpnDnsCardLoading: '等待首次取樣…',
   gpnSubImportDefaults: '匯入預設訂閱',
   gpnSubDefaultsPresent: '預設訂閱已存在',
-  gpnSubHint: '訂閱就是取值為 URL 的規則。抓取到的清單按這裡選擇的意圖比對;間隔單位為秒。',
+  gpnSubHint:
+    '訂閱就是取值為 URL 的規則。抓取到的清單按這裡選擇的意圖比對;間隔單位為秒。解析規則整體先於訂閱求值,所以手寫的例外總能壓過匯入的清單。',
+  gpnRulesHint:
+    '從上到下,首個命中生效。這一組整體先於訂閱求值,所以這裡的規則能壓過覆蓋同一個名字的訂閱。訂閱在「規則訂閱」裡新增。',
   gpnDnsGateway: '閘道位址',
   gpnDnsChina: '國內組',
   gpnDnsTrust: '可信組',
@@ -660,7 +663,6 @@ const zhTW: LANG_MESSAGE = {
   gpnKindDomain: '精確名稱',
   gpnKindSuffix: '本網域與子網域',
   gpnKindKeyword: '包含',
-  gpnKindSubscription: '訂閱',
   gpnRuleValue: 'example.com',
   gpnInterval: '秒',
   gpnAddRule: '新增規則',

@@ -53,13 +53,14 @@
         <!-- 规则是一份有序列表,不是一行一个控件:整份列表只走一遍,首个命中获胜,
              跨 intent,所以「谁在谁上面」是语义本身。拆成设置行会把顺序拆没。
              它走 zashboard 给「值是列表」的那条路 —— 一行显示数量,编辑在对话框
-             里,和源 IP 标签同一个形状。 -->
+             里,和源 IP 标签同一个形状。
+
+             这里只有手写的规则。订阅虽然在数据模型里也是一条规则,但它归下面那
+             一行管 —— 两个入口都能编辑同一条,是上一版最难解释的地方。 -->
         <SettingItem :setting-key="k.gpnDnsRules">
           <div class="setting-item-label">
             {{ $t('gpnDnsRules') }}
-            <template v-if="draft.policy.rules.length">
-              ({{ draft.policy.rules.length }})
-            </template>
+            <template v-if="handRules.length"> ({{ handRules.length }}) </template>
           </div>
           <button
             class="btn btn-sm"
@@ -69,10 +70,10 @@
           </button>
         </SettingItem>
 
-        <!-- 订阅在数据模型里就是 kind=subscription 的规则,所以它本来就"实现了" ——
-             但它只在规则对话框里以一个下拉选项的形式存在,等于没有。给它自己的一行
-             和自己的对话框,因为「我订了哪些表、抓下来多少条、有没有失败」是一个
-             独立的问题,不是编辑某一条规则时顺带看的东西。 -->
+        <!-- 订阅在数据模型里就是 kind=subscription 的规则,但它有自己的一行和自己
+             的对话框:「我订了哪些表、抓下来多少条、有没有失败」是一个独立的问题,
+             不是编辑某一条规则时顺带看的东西。核心保证手写规则整体先于订阅求值,
+             所以两个列表各自排序就够了,不需要一个能看见对方的共同索引。 -->
         <SettingItem :setting-key="k.gpnDnsSubscriptions">
           <div class="setting-item-label">
             {{ $t('gpnDnsSubscriptions') }}
@@ -233,20 +234,20 @@
       class="flex flex-col gap-2 text-sm"
     >
       <div
-        v-for="(rule, index) in draft.policy.rules"
-        :key="rule.id"
+        v-for="(entry, position) in handRules"
+        :key="entry.rule.id"
         class="border-base-content/10 rounded-box flex flex-wrap items-center gap-2 border p-2"
-        :class="{ 'opacity-50': !rule.enabled }"
+        :class="{ 'opacity-50': !entry.rule.enabled }"
       >
-        <span class="w-6 text-center text-xs opacity-60">{{ index + 1 }}</span>
+        <span class="w-6 text-center text-xs opacity-60">{{ position + 1 }}</span>
         <input
-          v-model="rule.enabled"
+          v-model="entry.rule.enabled"
           type="checkbox"
           class="toggle toggle-sm"
           @change="apply"
         />
         <select
-          v-model="rule.intent"
+          v-model="entry.rule.intent"
           class="select select-xs w-24"
           @change="apply"
         >
@@ -254,61 +255,42 @@
           <option value="direct">{{ $t('gpnIntentDirect') }}</option>
           <option value="proxy">{{ $t('gpnIntentProxy') }}</option>
         </select>
+        <!-- 没有 subscription 这一项:订阅由它自己那一行拥有。留在这里就等于同一条
+             规则有两个入口,而这个下拉还会把一条手写规则原地变成订阅 —— 那条规则
+             随即从这个列表消失、出现在另一个对话框里,没有任何东西说明发生了什么。 -->
         <select
-          v-model="rule.kind"
+          v-model="entry.rule.kind"
           class="select select-xs w-36"
           @change="apply"
         >
           <option value="domain">{{ $t('gpnKindDomain') }}</option>
           <option value="domain-suffix">{{ $t('gpnKindSuffix') }}</option>
           <option value="domain-keyword">{{ $t('gpnKindKeyword') }}</option>
-          <option value="subscription">{{ $t('gpnKindSubscription') }}</option>
         </select>
         <input
-          v-model="rule.value"
+          v-model="entry.rule.value"
           class="input input-xs min-w-56 flex-1"
           :placeholder="$t('gpnRuleValue')"
           @change="apply"
         />
-        <template v-if="rule.kind === 'subscription'">
-          <select
-            v-model="rule.format"
-            class="select select-xs w-28"
-            @change="apply"
-          >
-            <option value="plain">plain</option>
-            <option value="gfwlist">gfwlist</option>
-            <option value="dnsmasq">dnsmasq</option>
-            <option value="hosts">hosts</option>
-            <option value="clash">clash</option>
-          </select>
-          <input
-            v-model.number="rule.intervalSeconds"
-            type="number"
-            class="input input-xs w-24"
-            :placeholder="$t('gpnInterval')"
-            @change="apply"
-          />
-          <span class="text-xs opacity-60">{{ subscriptionNote(rule.id) }}</span>
-        </template>
         <div class="ml-auto flex gap-1">
           <button
             class="btn btn-ghost btn-xs"
-            :disabled="index === 0"
-            @click="move(index, -1)"
+            :disabled="position === 0"
+            @click="moveWithin(handRules, position, -1)"
           >
             ↑
           </button>
           <button
             class="btn btn-ghost btn-xs"
-            :disabled="index === draft.policy.rules.length - 1"
-            @click="move(index, 1)"
+            :disabled="position === handRules.length - 1"
+            @click="moveWithin(handRules, position, 1)"
           >
             ↓
           </button>
           <button
             class="btn btn-ghost btn-xs text-error"
-            @click="removeRule(index)"
+            @click="removeRule(entry.rule.id)"
           >
             ✕
           </button>
@@ -321,6 +303,7 @@
       >
         {{ $t('gpnAddRule') }}
       </button>
+      <p class="text-xs opacity-70">{{ $t('gpnRulesHint') }}</p>
     </div>
   </DialogWrapper>
 
@@ -339,12 +322,13 @@
         {{ $t('gpnSubNone') }}
       </div>
       <div
-        v-for="entry in subscriptionRules"
+        v-for="(entry, position) in subscriptionRules"
         :key="entry.rule.id"
         class="border-base-content/10 rounded-box flex flex-col gap-2 border p-2"
         :class="{ 'opacity-50': !entry.rule.enabled }"
       >
         <div class="flex flex-wrap items-center gap-2">
+          <span class="w-6 text-center text-xs opacity-60">{{ position + 1 }}</span>
           <input
             v-model="entry.rule.enabled"
             type="checkbox"
@@ -378,12 +362,30 @@
             :placeholder="$t('gpnInterval')"
             @change="apply"
           />
-          <button
-            class="btn btn-ghost btn-xs text-error ml-auto"
-            @click="removeSubscription(entry.rule.id)"
-          >
-            ✕
-          </button>
+          <!-- 订阅之间也讲顺序:两张表可以覆盖同一个名字而给出不同的 intent。
+               排序按钮从规则对话框搬过来,因为那边现在看不到订阅了。 -->
+          <div class="ml-auto flex gap-1">
+            <button
+              class="btn btn-ghost btn-xs"
+              :disabled="position === 0"
+              @click="moveWithin(subscriptionRules, position, -1)"
+            >
+              ↑
+            </button>
+            <button
+              class="btn btn-ghost btn-xs"
+              :disabled="position === subscriptionRules.length - 1"
+              @click="moveWithin(subscriptionRules, position, 1)"
+            >
+              ↓
+            </button>
+            <button
+              class="btn btn-ghost btn-xs text-error"
+              @click="removeSubscription(entry.rule.id)"
+            >
+              ✕
+            </button>
+          </div>
         </div>
         <input
           v-model="entry.rule.value"
@@ -597,13 +599,20 @@ const trustText = computed({
   },
 })
 
-// 订阅规则连同它在整份列表里的位置一起给出:顺序是策略语义的一部分,而这个
-// 对话框只筛出其中一类,不改变它们之间的先后。
-const subscriptionRules = computed(() =>
-  (draft.value?.policy.rules ?? [])
-    .map((rule, index) => ({ rule, index }))
-    .filter((entry) => entry.rule.kind === 'subscription'),
-)
+// 两个对话框各自拿一组,但编辑的是同一个数组,所以每条都连它在整份列表里的绝对
+// 位置一起给出 —— 顺序是策略语义的一部分,筛选不能把它丢掉。
+//
+// 跨组的先后不在这里决定:核心保证手写规则整体排在订阅之前(Policy.ordered),
+// 每次写入和每次打开文档都会归一。面板只排组内。
+const groupedRules = (subscription: boolean) =>
+  computed(() =>
+    (draft.value?.policy.rules ?? [])
+      .map((rule, index) => ({ rule, index }))
+      .filter((entry) => (entry.rule.kind === 'subscription') === subscription),
+  )
+
+const handRules = groupedRules(false)
+const subscriptionRules = groupedRules(true)
 
 const failedSubscriptions = computed(
   () => dnsSubscriptions.value.filter((s) => Boolean(s.error)).length,
@@ -670,18 +679,22 @@ const removeSubscription = (id: string) => {
   apply()
 }
 
-const move = (index: number, delta: number) => {
+// 组内移动一格。entries 是某一组的筛选结果,每项带着它在整份列表里的绝对下标;
+// 交换两个绝对下标只动这两条,别的规则原地不动 —— 所以哪怕两组在数组里没有挨着
+// (旧核心写下的文档就可能这样),组内看到的效果仍然正好是「上移/下移一格」。
+const moveWithin = (entries: { index: number }[], position: number, delta: number) => {
   const rules = draft.value?.policy.rules
-  if (!rules) return
-  const target = index + delta
-  if (target < 0 || target >= rules.length) return
-  const [item] = rules.splice(index, 1)
-  rules.splice(target, 0, item)
+  const target = position + delta
+  if (!rules || target < 0 || target >= entries.length) return
+  const a = entries[position].index
+  const b = entries[target].index
+  ;[rules[a], rules[b]] = [rules[b], rules[a]]
   apply()
 }
 
-const removeRule = (index: number) => {
-  draft.value?.policy.rules.splice(index, 1)
+const removeRule = (id: string) => {
+  if (!draft.value) return
+  draft.value.policy.rules = draft.value.policy.rules.filter((r) => r.id !== id)
   apply()
 }
 
@@ -693,7 +706,12 @@ const removeRule = (index: number) => {
 // the value changes.
 const addRule = () => {
   if (!draft.value) return
-  draft.value.policy.rules.push({
+  const rules = draft.value.policy.rules
+  // 插在手写组的末尾,不是整份列表的末尾。核心写入时会把手写规则整体挪到订阅之前,
+  // 直接 push 会让草稿在保存前一直和保存后长得不一样;而且 moveWithin 依赖「组是
+  // 连续的」,一条排在订阅后面的手写规则会让它把两组的成员换到一起去。
+  const firstSubscription = rules.findIndex((r) => r.kind === 'subscription')
+  rules.splice(firstSubscription === -1 ? rules.length : firstSubscription, 0, {
     id: `r-${Math.random().toString(36).slice(2, 10)}`,
     kind: 'domain-suffix',
     value: '',
