@@ -66,6 +66,10 @@ const makeQpsHistory = (): GpnQpsPoint[] => {
 
 export const qps = ref(0)
 export const qpsHistory = ref<GpnQpsPoint[]>(makeQpsHistory())
+// 每个上游组的 p50 时间序列。核心报的是一个 15 分钟的滚动窗口,所以这条线读的是
+// 「最近一次采样时,这一组典型查询有多贵」,不是自启动以来的平均。
+export const chinaLatencyHistory = ref<GpnQpsPoint[]>(makeQpsHistory())
+export const trustLatencyHistory = ref<GpnQpsPoint[]>(makeQpsHistory())
 
 let sampleTimer: ReturnType<typeof setInterval> | undefined
 let lastTotal = -1
@@ -102,6 +106,24 @@ const sampleOnce = async () => {
 
   qpsHistory.value.push({ name: now, value: [now, qps.value] })
   qpsHistory.value = qpsHistory.value.slice(-QPS_POINTS)
+
+  // 上游延迟。窗口有 15 分钟的年龄上限,所以一台安静的网关会真的退回到「没有样本」
+  // —— 那时画一个 0 就是在说「0 毫秒」,是假的。用 init 标记这个点,和 makeQpsHistory
+  // 铺的占位点同一个约定:画在零线上,但没有 tooltip,不冒充一次测量。
+  const pushLatency = (
+    history: typeof qpsHistory,
+    group?: { latencyCount: number; p50Ms: number },
+  ) => {
+    const measured = (group?.latencyCount ?? 0) > 0
+    history.value.push(
+      measured
+        ? { name: now, value: [now, group!.p50Ms] }
+        : { name: now, value: [now, 0], init: true },
+    )
+    history.value = history.value.slice(-QPS_POINTS)
+  }
+  pushLatency(chinaLatencyHistory, data.stats?.china)
+  pushLatency(trustLatencyHistory, data.stats?.trust)
 }
 
 /** 引用计数:多张卡片同时挂载时只跑一个定时器。 */
@@ -111,6 +133,8 @@ export const startQpsSampling = () => {
   lastTotal = -1
   lastAt = 0
   qpsHistory.value = makeQpsHistory()
+  chinaLatencyHistory.value = makeQpsHistory()
+  trustLatencyHistory.value = makeQpsHistory()
   void sampleOnce()
   sampleTimer = setInterval(() => void sampleOnce(), 1000)
 }

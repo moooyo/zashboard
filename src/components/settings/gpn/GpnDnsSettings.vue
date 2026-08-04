@@ -189,39 +189,14 @@
         </SettingItem>
       </div>
 
-      <!-- 统计是只读的,天然就是一行一项。 -->
-      <template v-if="dnsStats">
-        <div class="settings-grid">
-          <SettingItem :setting-key="k.gpnDnsStats">
-            <div class="setting-item-label">{{ $t('gpnQueriesTotal') }}</div>
-            <span>{{ dnsStats.total }}</span>
-          </SettingItem>
-          <div class="setting-item">
-            <div class="setting-item-label">{{ $t('gpnCache') }}</div>
-            <span
-              >{{ dnsStats.cacheHits }} / {{ dnsStats.cacheHits + dnsStats.cacheMisses }} ·
-              {{ dnsStats.cacheEntries }}</span
-            >
-          </div>
-          <div class="setting-item">
-            <div class="setting-item-label">{{ $t('gpnChinaGroup') }}</div>
-            <span>{{ groupLine(dnsStats.china) }}</span>
-          </div>
-          <div class="setting-item">
-            <div class="setting-item-label">{{ $t('gpnTrustGroup') }}</div>
-            <span>{{ groupLine(dnsStats.trust) }}</span>
-          </div>
-          <!-- 解析成空的 CN 集会把整个国内互联网判成境外,而从外面看不出来。 -->
-          <div class="setting-item">
-            <div class="setting-item-label">{{ $t('gpnCnRanges') }}</div>
-            <span :class="{ 'text-error': dnsStats.cnRanges === 0 }">{{ dnsStats.cnRanges }}</span>
-          </div>
-          <div class="setting-item">
-            <div class="setting-item-label">{{ $t('gpnSteered') }}</div>
-            <span>{{ dnsStats.chnrouteForeign + dnsStats.forceProxy }}</span>
-          </div>
-        </div>
-      </template>
+      <!--
+        统计整块删掉了。它是概览卡片那几张图的文字版 —— 同一批数字读两遍,而且这
+        一遍读不出趋势。查询总数、缓存命中/查找/条目、两个上游组都在卡片上,
+        「已引导到网关」更是决策分布里 走网关 + 引导入网关 的和,那张图已经把它
+        拆成了两个原因。「已加载 CN 段」是唯一不属于统计的一项 —— 它是仲裁的地基,
+        为 0 时整个国内互联网都会被判成境外 —— 所以它跟着搬到卡片上常驻,而不是
+        在这里陪着一堆重复的数字。
+      -->
     </template>
   </div>
 
@@ -518,11 +493,10 @@
 </template>
 
 <script setup lang="ts">
-import type { GpnDnsDocument, GpnGroupStats } from '@/api/gpn'
+import type { GpnDnsDocument } from '@/api/gpn'
 import {
   dnsDocument,
   dnsError,
-  dnsStats,
   dnsStatus,
   dnsSubscriptions,
   explain,
@@ -752,11 +726,6 @@ const decidedBy = computed(() => {
   if (e.rule) return t('gpnDecidedByRule', { kind: e.rule.kind, value: e.rule.value })
   return t('gpnDecidedByFallback', { fallback: e.fallback })
 })
-
-const groupLine = (g: GpnGroupStats) =>
-  g.latencyCount === 0
-    ? `${g.ok} / ${g.ok + g.err} · ${t('gpnNoSamples')}`
-    : `${g.ok} / ${g.ok + g.err} · p50 ${g.p50Ms.toFixed(1)}ms · p95 ${g.p95Ms.toFixed(1)}ms`
 
 const subscriptionNote = (ruleId: string) => {
   const status = dnsSubscriptions.value.find((s) => s.ruleId === ruleId)

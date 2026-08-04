@@ -106,41 +106,63 @@
         </template>
       </div>
 
-      <!-- 上游健康与延迟。err 比 p95 更重要:一个全错的组延迟会很好看,因为失败得快。 -->
+      <!-- 上游健康与延迟。err 比 p95 更重要:一个全错的组延迟会很好看,因为失败得快。
+         所以每一格里 ok/total 和延迟并排,而不是只画一条漂亮的线。 -->
       <div class="bg-base-200/30 mt-3 flex flex-col gap-2 rounded-xl p-4">
         <div class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
           {{ $t('gpnUpstreamHealth') }}
         </div>
-        <div
-          v-for="group in groups"
-          :key="group.key"
-          class="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm"
-        >
-          <span class="text-base-content/60 w-16 shrink-0 text-xs">{{ $t(group.label) }}</span>
-          <span
-            class="badge badge-sm"
-            :class="group.stats.err > 0 ? 'badge-warning' : 'badge-ghost'"
+        <div class="grid grid-cols-2 gap-3">
+          <div
+            v-for="group in groups"
+            :key="group.key"
+            class="flex flex-col gap-1.5"
           >
-            {{ group.stats.ok }} / {{ group.stats.ok + group.stats.err }}
-          </span>
-          <span
-            v-if="group.stats.latencyCount === 0"
-            class="text-base-content/50 text-xs"
-            >{{ $t('gpnNoSamples') }}</span
-          >
-          <span
-            v-else
-            class="text-base-content/70 text-xs tabular-nums"
-          >
-            p50 {{ group.stats.p50Ms.toFixed(1) }}ms · p95 {{ group.stats.p95Ms.toFixed(1) }}ms
-          </span>
+            <div class="flex items-center gap-2">
+              <span class="text-base-content/60 text-xs">{{ $t(group.label) }}</span>
+              <span
+                class="badge badge-sm"
+                :class="group.stats.err > 0 ? 'badge-warning' : 'badge-ghost'"
+              >
+                {{ group.stats.ok }} / {{ group.stats.ok + group.stats.err }}
+              </span>
+            </div>
+            <div class="flex items-baseline gap-1.5">
+              <span
+                v-if="group.stats.latencyCount === 0"
+                class="text-base-content/50 text-sm"
+                >{{ $t('gpnNoSamples') }}</span
+              >
+              <template v-else>
+                <span class="text-3xl font-extralight tabular-nums">{{
+                  group.stats.p50Ms.toFixed(1)
+                }}</span>
+                <span class="text-base-content/60 text-sm">ms</span>
+              </template>
+            </div>
+            <div class="mt-1 h-14">
+              <MiniSparkline
+                :data="group.history"
+                :min="1"
+                :color="group.color"
+                :name="t(group.label)"
+                :label-formatter="msLabel"
+                :tooltip-formatter="msTooltip"
+              />
+            </div>
+            <div class="text-base-content/50 text-xs tabular-nums">
+              <template v-if="group.stats.latencyCount === 0">&nbsp;</template>
+              <template v-else>p95 {{ group.stats.p95Ms.toFixed(1) }}ms</template>
+            </div>
+          </div>
         </div>
-        <!-- 解析成空的 CN 集会把整个国内互联网判成境外,而从外面看不出来。 -->
+        <!-- 解析成空的 CN 集会把整个国内互联网判成境外,而从外面看不出来。所以这个
+           数字常驻:它是仲裁的地基,不是一个统计量。 -->
         <div
-          v-if="stats.cnRanges === 0"
-          class="text-error text-xs"
+          class="text-xs"
+          :class="stats.cnRanges === 0 ? 'text-error' : 'text-base-content/50'"
         >
-          {{ $t('gpnCnRanges') }}: 0
+          {{ $t('gpnCnRanges') }} {{ stats.cnRanges }}
         </div>
       </div>
     </template>
@@ -149,12 +171,14 @@
 
 <script setup lang="ts">
 import {
+  chinaLatencyHistory,
   dnsStats,
   dnsSupported,
   qps,
   qpsHistory,
   startQpsSampling,
   stopQpsSampling,
+  trustLatencyHistory,
 } from '@/assembly/gpn/dns'
 import MiniSparkline from '@/components/overview/MiniSparkline.vue'
 import { getToolTipForParams } from '@/helper'
@@ -195,14 +219,31 @@ const decisions = computed(() => {
 
 const decidedTotal = computed(() => decisions.value.reduce((n, d) => n + d.value, 0))
 
+// 两组用不同的颜色,和 ChartsCard 的上行/下行同一种区分方式 —— 一眼看出哪条线是谁,
+// 不用去读标签。
 const groups = computed(() => [
-  { key: 'china', label: 'gpnChinaGroup', stats: stats.value!.china },
-  { key: 'trust', label: 'gpnTrustGroup', stats: stats.value!.trust },
+  {
+    key: 'china',
+    label: 'gpnChinaGroup',
+    stats: stats.value!.china,
+    history: chinaLatencyHistory.value,
+    color: 'info' as const,
+  },
+  {
+    key: 'trust',
+    label: 'gpnTrustGroup',
+    stats: stats.value!.trust,
+    history: trustLatencyHistory.value,
+    color: 'primary' as const,
+  },
 ])
 
 const qpsLabel = (value: number) => `${value.toFixed(1)}/s`
+const msLabel = (value: number) => `${value.toFixed(0)}ms`
 // 用 ChartsCard 同一个助手,而不是自己拼字符串:tooltip 的标记、颜色和数字格式
 // 都在那里定义,重写一遍就是让这一张图慢慢长得和别的不一样。
 const qpsTooltip = (params: ToolTipParams[]) =>
   params.map((item) => getToolTipForParams(item, { binary: false, suffix: '/s' })).join('')
+const msTooltip = (params: ToolTipParams[]) =>
+  params.map((item) => getToolTipForParams(item, { binary: false, suffix: 'ms' })).join('')
 </script>

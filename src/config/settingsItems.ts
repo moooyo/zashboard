@@ -29,7 +29,6 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
       { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsEcs`, label: 'gpnDnsEcs' },
       { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsResolve`, label: 'gpnDnsResolve' },
       { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsFlush`, label: 'gpnDnsFlush' },
-      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsStats`, label: 'gpnDnsStats' },
     ],
   },
   {
