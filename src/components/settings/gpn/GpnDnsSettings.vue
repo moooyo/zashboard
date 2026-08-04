@@ -29,275 +29,177 @@
         <span>{{ notice }}</span>
       </div>
 
-      <SettingItem :setting-key="k.gpnDnsPolicy">
-        <div class="flex w-full flex-col gap-3">
-          <div class="setting-item-label">{{ $t('gpnDnsPolicy') }}</div>
-
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-sm font-medium">{{ $t('gpnFallback') }}</span>
-            <select
-              v-model="draft.policy.fallback"
-              class="select select-sm w-40"
-            >
-              <option value="auto">{{ $t('gpnFallbackAuto') }}</option>
-              <option value="direct">{{ $t('gpnFallbackDirect') }}</option>
-              <option value="gateway">{{ $t('gpnFallbackGateway') }}</option>
-            </select>
-            <span class="text-xs opacity-70">{{ $t(FALLBACK_HINT[draft.policy.fallback]) }}</span>
+      <div class="settings-section-label">{{ $t('gpnDnsPolicy') }}</div>
+      <div class="settings-grid">
+        <SettingItem :setting-key="k.gpnDnsFallback">
+          <div class="setting-item-label">
+            {{ $t('gpnFallback') }}
+            <QuestionMarkCircleIcon
+              class="h-4 w-4 cursor-pointer"
+              @mouseenter="showTip($event, $t(FALLBACK_HINT[draft.policy.fallback]))"
+            />
           </div>
+          <select
+            v-model="draft.policy.fallback"
+            class="select select-sm w-32"
+          >
+            <option value="auto">{{ $t('gpnFallbackAuto') }}</option>
+            <option value="direct">{{ $t('gpnFallbackDirect') }}</option>
+            <option value="gateway">{{ $t('gpnFallbackGateway') }}</option>
+          </select>
+        </SettingItem>
 
-          <!-- 顺序是语义的一部分:整份列表只走一遍,首个命中获胜,跨 intent。
-               所以这里必须能看出「谁在谁上面」,而不是按 intent 分组。 -->
-          <div class="flex flex-col gap-2">
-            <div
-              v-for="(rule, index) in draft.policy.rules"
-              :key="rule.id"
-              class="border-base-300 flex flex-wrap items-center gap-2 rounded-lg border p-2"
-              :class="{ 'opacity-50': !rule.enabled }"
-            >
-              <span class="w-6 text-center text-xs opacity-60">{{ index + 1 }}</span>
-              <input
-                v-model="rule.enabled"
-                type="checkbox"
-                class="toggle toggle-sm"
-              />
-              <select
-                v-model="rule.intent"
-                class="select select-xs w-24"
-              >
-                <option value="block">{{ $t('gpnIntentBlock') }}</option>
-                <option value="direct">{{ $t('gpnIntentDirect') }}</option>
-                <option value="proxy">{{ $t('gpnIntentProxy') }}</option>
-              </select>
-              <select
-                v-model="rule.kind"
-                class="select select-xs w-36"
-              >
-                <option value="domain">{{ $t('gpnKindDomain') }}</option>
-                <option value="domain-suffix">{{ $t('gpnKindSuffix') }}</option>
-                <option value="domain-keyword">{{ $t('gpnKindKeyword') }}</option>
-                <option value="subscription">{{ $t('gpnKindSubscription') }}</option>
-              </select>
-              <input
-                v-model="rule.value"
-                class="input input-xs min-w-56 flex-1"
-                :placeholder="$t('gpnRuleValue')"
-              />
-              <template v-if="rule.kind === 'subscription'">
-                <select
-                  v-model="rule.format"
-                  class="select select-xs w-28"
-                >
-                  <option value="plain">plain</option>
-                  <option value="gfwlist">gfwlist</option>
-                  <option value="dnsmasq">dnsmasq</option>
-                  <option value="hosts">hosts</option>
-                  <option value="clash">clash</option>
-                </select>
-                <input
-                  v-model.number="rule.intervalSeconds"
-                  type="number"
-                  class="input input-xs w-24"
-                  :placeholder="$t('gpnInterval')"
-                />
-                <span class="text-xs opacity-60">{{ subscriptionNote(rule.id) }}</span>
-              </template>
-              <div class="ml-auto flex gap-1">
-                <button
-                  class="btn btn-ghost btn-xs"
-                  :disabled="index === 0"
-                  @click="move(index, -1)"
-                >
-                  ↑
-                </button>
-                <button
-                  class="btn btn-ghost btn-xs"
-                  :disabled="index === draft.policy.rules.length - 1"
-                  @click="move(index, 1)"
-                >
-                  ↓
-                </button>
-                <button
-                  class="btn btn-ghost btn-xs text-error"
-                  @click="draft.policy.rules.splice(index, 1)"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
+        <!-- 规则是一份有序列表,不是一行一个控件:整份列表只走一遍,首个命中获胜,
+             跨 intent,所以「谁在谁上面」是语义本身。拆成设置行会把顺序拆没。
+             它走 zashboard 给「值是列表」的那条路 —— 一行显示数量,编辑在对话框
+             里,和源 IP 标签同一个形状。 -->
+        <SettingItem :setting-key="k.gpnDnsRules">
+          <div class="setting-item-label">
+            {{ $t('gpnDnsRules') }}
+            <template v-if="draft.policy.rules.length">
+              ({{ draft.policy.rules.length }})
+            </template>
           </div>
-
           <button
-            class="btn btn-sm w-fit"
-            @click="addRule"
+            class="btn btn-sm"
+            @click="rulesDialog = true"
           >
-            {{ $t('gpnAddRule') }}
+            <PencilSquareIcon class="h-4 w-4" />
           </button>
-        </div>
-      </SettingItem>
+        </SettingItem>
+      </div>
 
-      <SettingItem :setting-key="k.gpnDnsUpstreams">
-        <div class="flex w-full flex-col gap-3">
-          <div class="setting-item-label">{{ $t('gpnDnsUpstreams') }}</div>
-
-          <label class="flex flex-col gap-1">
-            <span class="text-sm font-medium">{{ $t('gpnGateway') }}</span>
-            <input
-              v-model="draft.gateway"
-              class="input input-sm max-w-md"
-              placeholder="203.0.113.10"
+      <div class="settings-section-label">{{ $t('gpnDnsUpstreams') }}</div>
+      <div class="settings-grid">
+        <SettingItem :setting-key="k.gpnDnsGateway">
+          <div class="setting-item-label">
+            {{ $t('gpnGateway') }}
+            <QuestionMarkCircleIcon
+              class="h-4 w-4 cursor-pointer"
+              @mouseenter="showTip($event, $t('gpnGatewayHint'))"
             />
-            <span class="text-xs opacity-70">{{ $t('gpnGatewayHint') }}</span>
-          </label>
+          </div>
+          <input
+            v-model="draft.gateway"
+            class="input input-sm w-44"
+            placeholder="203.0.113.10"
+          />
+        </SettingItem>
 
-          <label class="flex flex-col gap-1">
-            <span class="text-sm font-medium">{{ $t('gpnChinaGroup') }}</span>
-            <textarea
-              v-model="chinaText"
-              class="textarea textarea-sm max-w-2xl font-mono"
-              rows="3"
+        <SettingItem :setting-key="k.gpnDnsChina">
+          <div class="setting-item-label">
+            {{ $t('gpnChinaGroup') }}
+            <template v-if="draft.upstreams.china?.length">
+              ({{ draft.upstreams.china.length }})
+            </template>
+            <QuestionMarkCircleIcon
+              class="h-4 w-4 cursor-pointer"
+              @mouseenter="showTip($event, $t('gpnUpstreamGrammar'))"
             />
-          </label>
-          <label class="flex flex-col gap-1">
-            <span class="text-sm font-medium">{{ $t('gpnTrustGroup') }}</span>
-            <textarea
-              v-model="trustText"
-              class="textarea textarea-sm max-w-2xl font-mono"
-              rows="3"
+          </div>
+          <button
+            class="btn btn-sm"
+            @click="chinaDialog = true"
+          >
+            <PencilSquareIcon class="h-4 w-4" />
+          </button>
+        </SettingItem>
+
+        <SettingItem :setting-key="k.gpnDnsTrust">
+          <div class="setting-item-label">
+            {{ $t('gpnTrustGroup') }}
+            <template v-if="draft.upstreams.trust?.length">
+              ({{ draft.upstreams.trust.length }})
+            </template>
+            <QuestionMarkCircleIcon
+              class="h-4 w-4 cursor-pointer"
+              @mouseenter="showTip($event, $t('gpnUpstreamGrammar'))"
             />
-          </label>
-          <p class="max-w-2xl text-xs opacity-70">{{ $t('gpnUpstreamGrammar') }}</p>
+          </div>
+          <button
+            class="btn btn-sm"
+            @click="trustDialog = true"
+          >
+            <PencilSquareIcon class="h-4 w-4" />
+          </button>
+        </SettingItem>
 
-          <label class="flex flex-col gap-1">
-            <span class="text-sm font-medium">{{ $t('gpnEcs') }}</span>
-            <input
-              v-model="draft.upstreams.ecs"
-              class="input input-sm max-w-md"
-              placeholder="112.96.32.0/24"
+        <SettingItem :setting-key="k.gpnDnsEcs">
+          <div class="setting-item-label">
+            {{ $t('gpnEcs') }}
+            <QuestionMarkCircleIcon
+              class="h-4 w-4 cursor-pointer"
+              @mouseenter="showTip($event, $t('gpnEcsHint'))"
             />
-            <span class="max-w-2xl text-xs opacity-70">{{ $t('gpnEcsHint') }}</span>
-          </label>
-        </div>
-      </SettingItem>
+          </div>
+          <input
+            v-model="draft.upstreams.ecs"
+            class="input input-sm w-44"
+            placeholder="112.96.32.0/24"
+          />
+        </SettingItem>
+      </div>
 
-      <SettingItem :setting-key="k.gpnDnsDiagnose">
-        <div class="flex w-full flex-col gap-3">
-          <div class="setting-item-label">{{ $t('gpnDnsDiagnose') }}</div>
+      <div class="settings-section-label">{{ $t('gpnDnsDiagnose') }}</div>
+      <div class="settings-grid">
+        <SettingItem :setting-key="k.gpnDnsResolve">
+          <div class="setting-item-label">{{ $t('gpnResolveTest') }}</div>
+          <button
+            class="btn btn-sm"
+            @click="probeDialog = true"
+          >
+            <MagnifyingGlassIcon class="h-4 w-4" />
+          </button>
+        </SettingItem>
 
-          <div class="flex flex-wrap items-end gap-2">
-            <label class="flex flex-col gap-1">
-              <span class="text-sm font-medium">{{ $t('gpnResolveTest') }}</span>
-              <input
-                v-model="probeName"
-                class="input input-sm w-72"
-                placeholder="example.com"
-                @keyup.enter="runProbe"
-              />
-            </label>
-            <button
-              class="btn btn-sm btn-primary"
-              :disabled="explaining || !probeName"
-              @click="runProbe"
+        <SettingItem :setting-key="k.gpnDnsFlush">
+          <div class="setting-item-label">{{ $t('gpnDnsFlush') }}</div>
+          <button
+            class="btn btn-sm"
+            @click="flushCache"
+          >
+            {{ $t('gpnFlushCache') }}
+          </button>
+        </SettingItem>
+      </div>
+
+      <!-- 统计是只读的,天然就是一行一项。 -->
+      <template v-if="dnsStats">
+        <div class="settings-grid">
+          <SettingItem :setting-key="k.gpnDnsStats">
+            <div class="setting-item-label">{{ $t('gpnQueriesTotal') }}</div>
+            <span>{{ dnsStats.total }}</span>
+          </SettingItem>
+          <div class="setting-item">
+            <div class="setting-item-label">{{ $t('gpnCache') }}</div>
+            <span
+              >{{ dnsStats.cacheHits }} / {{ dnsStats.cacheHits + dnsStats.cacheMisses }} ·
+              {{ dnsStats.cacheEntries }}</span
             >
-              {{ $t('gpnResolveRun') }}
-            </button>
-            <button
-              class="btn btn-sm"
-              @click="flushCache"
-            >
-              {{ $t('gpnFlushCache') }}
-            </button>
           </div>
-
-          <div
-            v-if="explanationError"
-            class="alert alert-error py-2"
-          >
-            <span>{{ explanationError }}</span>
+          <div class="setting-item">
+            <div class="setting-item-label">{{ $t('gpnChinaGroup') }}</div>
+            <span>{{ groupLine(dnsStats.china) }}</span>
           </div>
-
-          <div
-            v-if="explanation"
-            class="settings-grid"
-          >
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnVerdict') }}</span>
-              <span class="badge badge-sm">
-                {{ explanation.verdict.verdict || '—' }} / {{ explanation.verdict.reason || '—' }}
-              </span>
-            </div>
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnDecidedBy') }}</span>
-              <span>{{ decidedBy }}</span>
-            </div>
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnClientAnswer') }}</span>
-              <span class="font-mono text-xs">{{
-                (explanation.answers ?? []).join(', ') || '—'
-              }}</span>
-            </div>
-            <!-- 客户端答案与源站答案在被引导的名字上必然不同,只看前者会读成
-                 「DNS 坏了」。 -->
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnOriginAnswer') }}</span>
-              <span class="font-mono text-xs">{{
-                (explanation.origin ?? []).join(', ') || '—'
-              }}</span>
-            </div>
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnUpstreamAdopted') }}</span>
-              <span
-                >{{ explanation.upstream || '—'
-                }}{{ explanation.cacheHit ? ` (${$t('gpnCacheHit')})` : '' }}</span
-              >
-            </div>
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnRcode') }}</span>
-              <span>{{ explanation.rcode }}</span>
-            </div>
+          <div class="setting-item">
+            <div class="setting-item-label">{{ $t('gpnTrustGroup') }}</div>
+            <span>{{ groupLine(dnsStats.trust) }}</span>
           </div>
-
-          <div
-            v-if="dnsStats"
-            class="settings-grid"
-          >
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnQueriesTotal') }}</span>
-              <span>{{ dnsStats.total }}</span>
-            </div>
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnCache') }}</span>
-              <span
-                >{{ dnsStats.cacheHits }} / {{ dnsStats.cacheHits + dnsStats.cacheMisses }} ·
-                {{ dnsStats.cacheEntries }}</span
-              >
-            </div>
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnChinaGroup') }}</span>
-              <span>{{ groupLine(dnsStats.china) }}</span>
-            </div>
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnTrustGroup') }}</span>
-              <span>{{ groupLine(dnsStats.trust) }}</span>
-            </div>
-            <!-- 解析成空的 CN 集会把整个国内互联网判成境外,而从外面看不出来。 -->
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnCnRanges') }}</span>
-              <span :class="{ 'text-error': dnsStats.cnRanges === 0 }">{{
-                dnsStats.cnRanges
-              }}</span>
-            </div>
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnSteered') }}</span>
-              <span>{{ dnsStats.chnrouteForeign + dnsStats.forceProxy }}</span>
-            </div>
+          <!-- 解析成空的 CN 集会把整个国内互联网判成境外,而从外面看不出来。 -->
+          <div class="setting-item">
+            <div class="setting-item-label">{{ $t('gpnCnRanges') }}</div>
+            <span :class="{ 'text-error': dnsStats.cnRanges === 0 }">{{ dnsStats.cnRanges }}</span>
+          </div>
+          <div class="setting-item">
+            <div class="setting-item-label">{{ $t('gpnSteered') }}</div>
+            <span>{{ dnsStats.chnrouteForeign + dnsStats.forceProxy }}</span>
           </div>
         </div>
-      </SettingItem>
+      </template>
 
       <!-- 保存栏在最后,因为策略与上游共用同一份草稿和同一次写入:它属于这一整块
            设置,不属于其中某一项。 -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 px-1">
         <button
           class="btn btn-primary btn-sm"
           :disabled="saving || !dirty"
@@ -321,6 +223,195 @@
       </div>
     </template>
   </div>
+
+  <DialogWrapper
+    v-model="rulesDialog"
+    :title="$t('gpnDnsRules')"
+  >
+    <div
+      v-if="draft"
+      class="flex flex-col gap-2 text-sm"
+    >
+      <div
+        v-for="(rule, index) in draft.policy.rules"
+        :key="rule.id"
+        class="border-base-content/10 rounded-box flex flex-wrap items-center gap-2 border p-2"
+        :class="{ 'opacity-50': !rule.enabled }"
+      >
+        <span class="w-6 text-center text-xs opacity-60">{{ index + 1 }}</span>
+        <input
+          v-model="rule.enabled"
+          type="checkbox"
+          class="toggle toggle-sm"
+        />
+        <select
+          v-model="rule.intent"
+          class="select select-xs w-24"
+        >
+          <option value="block">{{ $t('gpnIntentBlock') }}</option>
+          <option value="direct">{{ $t('gpnIntentDirect') }}</option>
+          <option value="proxy">{{ $t('gpnIntentProxy') }}</option>
+        </select>
+        <select
+          v-model="rule.kind"
+          class="select select-xs w-36"
+        >
+          <option value="domain">{{ $t('gpnKindDomain') }}</option>
+          <option value="domain-suffix">{{ $t('gpnKindSuffix') }}</option>
+          <option value="domain-keyword">{{ $t('gpnKindKeyword') }}</option>
+          <option value="subscription">{{ $t('gpnKindSubscription') }}</option>
+        </select>
+        <input
+          v-model="rule.value"
+          class="input input-xs min-w-56 flex-1"
+          :placeholder="$t('gpnRuleValue')"
+        />
+        <template v-if="rule.kind === 'subscription'">
+          <select
+            v-model="rule.format"
+            class="select select-xs w-28"
+          >
+            <option value="plain">plain</option>
+            <option value="gfwlist">gfwlist</option>
+            <option value="dnsmasq">dnsmasq</option>
+            <option value="hosts">hosts</option>
+            <option value="clash">clash</option>
+          </select>
+          <input
+            v-model.number="rule.intervalSeconds"
+            type="number"
+            class="input input-xs w-24"
+            :placeholder="$t('gpnInterval')"
+          />
+          <span class="text-xs opacity-60">{{ subscriptionNote(rule.id) }}</span>
+        </template>
+        <div class="ml-auto flex gap-1">
+          <button
+            class="btn btn-ghost btn-xs"
+            :disabled="index === 0"
+            @click="move(index, -1)"
+          >
+            ↑
+          </button>
+          <button
+            class="btn btn-ghost btn-xs"
+            :disabled="index === draft.policy.rules.length - 1"
+            @click="move(index, 1)"
+          >
+            ↓
+          </button>
+          <button
+            class="btn btn-ghost btn-xs text-error"
+            @click="draft.policy.rules.splice(index, 1)"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <button
+        class="btn btn-sm w-fit"
+        @click="addRule"
+      >
+        {{ $t('gpnAddRule') }}
+      </button>
+    </div>
+  </DialogWrapper>
+
+  <DialogWrapper
+    v-model="chinaDialog"
+    :title="$t('gpnChinaGroup')"
+  >
+    <div class="flex flex-col gap-2 text-sm">
+      <textarea
+        v-model="chinaText"
+        class="textarea textarea-sm w-full font-mono"
+        rows="6"
+      />
+      <p class="text-xs opacity-70">{{ $t('gpnUpstreamGrammar') }}</p>
+    </div>
+  </DialogWrapper>
+
+  <DialogWrapper
+    v-model="trustDialog"
+    :title="$t('gpnTrustGroup')"
+  >
+    <div class="flex flex-col gap-2 text-sm">
+      <textarea
+        v-model="trustText"
+        class="textarea textarea-sm w-full font-mono"
+        rows="6"
+      />
+      <p class="text-xs opacity-70">{{ $t('gpnUpstreamGrammar') }}</p>
+    </div>
+  </DialogWrapper>
+
+  <DialogWrapper
+    v-model="probeDialog"
+    :title="$t('gpnResolveTest')"
+  >
+    <div class="flex flex-col gap-3 text-sm">
+      <div class="flex flex-wrap items-center gap-2">
+        <input
+          v-model="probeName"
+          class="input input-sm flex-1"
+          placeholder="example.com"
+          @keyup.enter="runProbe"
+        />
+        <button
+          class="btn btn-sm btn-primary"
+          :disabled="explaining || !probeName"
+          @click="runProbe"
+        >
+          {{ $t('gpnResolveRun') }}
+        </button>
+      </div>
+
+      <div
+        v-if="explanationError"
+        class="alert alert-error py-2"
+      >
+        <span>{{ explanationError }}</span>
+      </div>
+
+      <div
+        v-if="explanation"
+        class="settings-grid"
+      >
+        <div class="setting-item">
+          <div class="setting-item-label">{{ $t('gpnVerdict') }}</div>
+          <span class="badge badge-sm">
+            {{ explanation.verdict.verdict || '—' }} / {{ explanation.verdict.reason || '—' }}
+          </span>
+        </div>
+        <div class="setting-item">
+          <div class="setting-item-label">{{ $t('gpnDecidedBy') }}</div>
+          <span>{{ decidedBy }}</span>
+        </div>
+        <div class="setting-item">
+          <div class="setting-item-label">{{ $t('gpnClientAnswer') }}</div>
+          <span class="font-mono text-xs">{{ (explanation.answers ?? []).join(', ') || '—' }}</span>
+        </div>
+        <!-- 客户端答案与源站答案在被引导的名字上必然不同,只看前者会读成
+             「DNS 坏了」。 -->
+        <div class="setting-item">
+          <div class="setting-item-label">{{ $t('gpnOriginAnswer') }}</div>
+          <span class="font-mono text-xs">{{ (explanation.origin ?? []).join(', ') || '—' }}</span>
+        </div>
+        <div class="setting-item">
+          <div class="setting-item-label">{{ $t('gpnUpstreamAdopted') }}</div>
+          <span
+            >{{ explanation.upstream || '—'
+            }}{{ explanation.cacheHit ? ` (${$t('gpnCacheHit')})` : '' }}</span
+          >
+        </div>
+        <div class="setting-item">
+          <div class="setting-item-label">{{ $t('gpnRcode') }}</div>
+          <span>{{ explanation.rcode }}</span>
+        </div>
+      </div>
+    </div>
+  </DialogWrapper>
 </template>
 
 <script setup lang="ts">
@@ -339,14 +430,22 @@ import {
   refreshDns,
   saveDns,
 } from '@/assembly/gpn/dns'
+import DialogWrapper from '@/components/common/DialogWrapper.vue'
 import SettingItem from '@/components/settings/SettingItem.vue'
 import { useHasAnyVisibleSetting } from '@/composables/settings'
+import { useTooltip } from '@/helper/tooltip'
 import { getAllKeysForCategory, GPN_DNS_ITEM_KEYS } from '@/config/settingsItems'
 import { SETTINGS_MENU_KEY } from '@/constant'
+import {
+  MagnifyingGlassIcon,
+  PencilSquareIcon,
+  QuestionMarkCircleIcon,
+} from '@heroicons/vue/24/outline'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
+const { showTip } = useTooltip()
 const k = GPN_DNS_ITEM_KEYS
 const hasVisibleItems = useHasAnyVisibleSetting(getAllKeysForCategory(SETTINGS_MENU_KEY.gpnDns))
 
@@ -361,6 +460,11 @@ const saving = ref(false)
 const notice = ref('')
 const noticeIsError = ref(false)
 const probeName = ref('')
+
+const rulesDialog = ref(false)
+const chinaDialog = ref(false)
+const trustDialog = ref(false)
+const probeDialog = ref(false)
 
 // 草稿是深拷贝。直接改 store 里的文档会让「取消」无处可退,也会在保存失败时
 // 留下一份界面上已生效、后端并不知道的策略。

@@ -20,9 +20,15 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     key: SETTINGS_MENU_KEY.gpnDns,
     label: 'gpnDnsSettings',
     items: [
-      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsPolicy`, label: 'gpnDnsPolicy' },
-      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsUpstreams`, label: 'gpnDnsUpstreams' },
-      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsDiagnose`, label: 'gpnDnsDiagnose' },
+      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsFallback`, label: 'gpnDnsFallback' },
+      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsRules`, label: 'gpnDnsRules' },
+      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsGateway`, label: 'gpnDnsGateway' },
+      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsChina`, label: 'gpnDnsChina' },
+      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsTrust`, label: 'gpnDnsTrust' },
+      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsEcs`, label: 'gpnDnsEcs' },
+      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsResolve`, label: 'gpnDnsResolve' },
+      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsFlush`, label: 'gpnDnsFlush' },
+      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsStats`, label: 'gpnDnsStats' },
     ],
   },
   {
