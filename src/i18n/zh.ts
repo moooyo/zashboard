@@ -639,7 +639,7 @@ const zh: LANG_MESSAGE = {
   gpnChinaGroup: '国内组',
   gpnTrustGroup: '可信组',
   gpnUpstreamGrammar:
-    '每行一个成员。IP[:port] 是明文 UDP,serverName@IP 是 DoT,https://host/path@IP 是 DoH。@ 后面的地址是必填的:解析上游自己的域名会绕回这个解析器。',
+    "每行一个成员。IP[:port] 是明文 UDP,serverName{'@'}IP 是 DoT,https://host/path{'@'}IP 是 DoH。{'@'} 后面的地址是必填的:解析上游自己的域名会绕回这个解析器。",
   gpnEcs: '客户端子网(国内组)',
   gpnEcsHint: '只发给国内组,让国内 CDN 按客户端而不是按网关调度。可信组永远不会收到它。',
   gpnResolveTest: '解析一个名字',

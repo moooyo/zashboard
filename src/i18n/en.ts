@@ -651,7 +651,7 @@ const en = {
   gpnChinaGroup: 'China group',
   gpnTrustGroup: 'Trust group',
   gpnUpstreamGrammar:
-    'One member per line. IP[:port] is plain UDP, serverName@IP is DoT, https://host/path@IP is DoH. The address after @ is required, because resolving an upstream’s own name would come back through this resolver.',
+    "One member per line. IP[:port] is plain UDP, serverName{'@'}IP is DoT, https://host/path{'@'}IP is DoH. The address after {'@'} is required, because resolving an upstream’s own name would come back through this resolver.",
   gpnEcs: 'Client subnet (china group)',
   gpnEcsHint:
     'Sent only to the china group, so domestic CDNs schedule near your clients instead of near the gateway. The trust group never receives one.',

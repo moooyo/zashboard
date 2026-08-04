@@ -639,7 +639,7 @@ const zhTW: LANG_MESSAGE = {
   gpnChinaGroup: '國內組',
   gpnTrustGroup: '可信組',
   gpnUpstreamGrammar:
-    '每行一個成員。IP[:port] 是明文 UDP,serverName@IP 是 DoT,https://host/path@IP 是 DoH。@ 後面的位址是必填的:解析上游自己的網域會繞回這個解析器。',
+    "每行一個成員。IP[:port] 是明文 UDP,serverName{'@'}IP 是 DoT,https://host/path{'@'}IP 是 DoH。{'@'} 後面的位址是必填的:解析上游自己的網域會繞回這個解析器。",
   gpnEcs: '用戶端子網(國內組)',
   gpnEcsHint: '只發給國內組,讓國內 CDN 按用戶端而不是按閘道調度。可信組永遠不會收到它。',
   gpnResolveTest: '解析一個名稱',
