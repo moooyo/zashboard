@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "build": "node scripts/check-capability-probe.mjs && vite build",
     "build:cdn-fonts": "FONT=cdn vite build",
     "build:firasans-only": "FONT=firasans vite build",
     "build:misans-only": "FONT=misans vite build",

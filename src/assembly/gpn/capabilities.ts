@@ -1,6 +1,6 @@
 import { fetchCapabilitiesAPI } from '@/api/gpn'
 import { activeUuid } from '@/store/setup'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 /**
  * 能力发现 · 一次探测,N 个特性。
@@ -180,3 +180,30 @@ export const stopCapabilityDiscovery = () => {
   generation++
   reset()
 }
+
+/**
+ * 能力发现的唯一触发点。
+ *
+ * 在此之前 initCapabilityDiscovery 完整、正确、处理了 404/401/5xx/超时每一种
+ * 情形 —— 并且**从未被调用过**。唯一提到它的地方是它自己的重试定时器。于是
+ * states 永远是空对象,featureState 对每个 key 都返回 'unknown',
+ * featureSupported 恒为 false,renderRoutes 滤掉 gpn-dns 与 gpn-extensions,
+ * SettingsPage 的 menuItems 不加入拦截与 bot 分区 —— 面板的 5gpn 那一半在任何
+ * 后端上、永远不可达。表现是一个连得上、能跑流量、却和上游一模一样的 zashboard。
+ *
+ * 挂在模块顶层而不是某个组件里,是因为门控的消费者(helper 的 renderRoutes、
+ * SettingsPage 的 menuItems)都不是组件生命周期的一部分;而 version.ts 用的正是
+ * 同一种模式。immediate 让首次加载就探测,uuid 变化覆盖切换后端。
+ */
+watch(
+  activeUuid,
+  (uuid) => {
+    if (uuid) {
+      void initCapabilityDiscovery()
+    } else {
+      // 退出登录 / 删除后端:结论属于那个后端,不能留给下一个。
+      stopCapabilityDiscovery()
+    }
+  },
+  { immediate: true },
+)
