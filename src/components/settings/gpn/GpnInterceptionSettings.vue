@@ -130,7 +130,7 @@ const hasVisibleItems = useHasAnyVisibleSetting(
 
 const data = computed(() => interception.value)
 
-const enabledCount = computed(() => data.value?.modules.filter((m) => m.enabled).length ?? 0)
+const enabledCount = computed(() => (data.value?.modules ?? []).filter((m) => m.enabled).length)
 
 const certificateGap = computed(
   () => data.value?.certificate.loaded === true && !data.value.certificate.covers_all_capture_hosts,
