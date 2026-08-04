@@ -66,8 +66,10 @@
             <span class="text-sm">{{ $t('gpnHttp3') }}</span>
           </label>
           <span class="text-xs opacity-70">
-            {{ $t('gpnModuleCount', { enabled: enabledCount, total: data.modules.length }) }} ·
-            {{ $t('gpnCaptureHosts') }}: {{ data.active_capture_hosts.length }}
+            {{
+              $t('gpnModuleCount', { enabled: enabledCount, total: (data.modules ?? []).length })
+            }}
+            · {{ $t('gpnCaptureHosts') }}: {{ (data.active_capture_hosts ?? []).length }}
           </span>
         </div>
 
@@ -161,7 +163,7 @@
                 class="badge badge-error badge-xs"
                 >{{ source.error }}</span
               >
-              <span v-else>{{ source.entries.length }}</span>
+              <span v-else>{{ (source.entries ?? []).length }}</span>
               <button
                 class="btn btn-ghost btn-xs"
                 :disabled="sourceBusy"
@@ -570,7 +572,7 @@ const catalogTarget = ref<{ source: string; entry: string } | null>(null)
 const reviewing = ref(false)
 const reviewError = ref('')
 
-const enabledCount = computed(() => data.value?.modules.filter((m) => m.enabled).length ?? 0)
+const enabledCount = computed(() => (data.value?.modules ?? []).filter((m) => m.enabled).length)
 
 const certificateGap = computed(
   () => data.value?.certificate.loaded === true && !data.value.certificate.covers_all_capture_hosts,
