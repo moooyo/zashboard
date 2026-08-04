@@ -162,6 +162,9 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     key: SETTINGS_MENU_KEY.overview,
     label: 'overviewSettings',
     items: [
+      // 这一条对应设置页内嵌概览里的 5gpn DNS 卡片。它和 chartsCard /
+      // networkCard 是同一层的东西 —— 都是「内嵌概览里显示哪几张卡」。
+      { key: `${SETTINGS_MENU_KEY.overview}.gpnDnsCard`, label: 'gpnDnsCard' },
       { key: `${SETTINGS_MENU_KEY.overview}.overviewCard`, label: 'chartsCard' },
       { key: `${SETTINGS_MENU_KEY.overview}.networkCard`, label: 'networkCard' },
       { key: `${SETTINGS_MENU_KEY.overview}.splitOverviewPage`, label: 'splitOverviewPage' },
