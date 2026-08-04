@@ -327,6 +327,7 @@ export enum OVERVIEW_CARD {
   TopologyCharts = 'TopologyCharts',
   ConnectionHistory = 'ConnectionHistory',
   RuleHitCountCard = 'RuleHitCountCard',
+  GpnDnsCard = 'GpnDnsCard',
 }
 
 export enum MIHOMO {

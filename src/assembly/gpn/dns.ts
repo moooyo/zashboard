@@ -40,6 +40,89 @@ export const dnsSupported = featureSupported('gpn-dns')
 let generation = 0
 let controller: AbortController | undefined
 
+/**
+ * 统计采样:只更新 stats,绝不碰 dnsDocument。
+ *
+ * QPS 是速率,而核心只报累计 total,所以速率必须由前端对相邻两次采样做差 ——
+ * 和 zashboard 的流量图同一个做法,只是那边是 websocket 推,这边是拉。
+ *
+ * 为什么不复用 refreshDns:它会写 dnsDocument,而设置面板 watch 它并据此重置
+ * 草稿。一次落在输入过程中的轮询会把操作者正在敲的值抹掉。采样和编辑共用一个
+ * 写入口,就是让「看图」这件事去破坏「改配置」那件事。
+ */
+export type GpnQpsPoint = { name: number; value: [number, number]; init?: boolean }
+
+const QPS_SECONDS = 60
+// 屏幕外多留两点:最老的点在网格左缘外被删除,左缘滑出时才不会出现可见断线。
+const QPS_POINTS = QPS_SECONDS + 2
+
+const makeQpsHistory = (): GpnQpsPoint[] => {
+  const now = Date.now()
+  return new Array(QPS_POINTS).fill(0).map((_, i) => {
+    const at = now - (QPS_POINTS - 1 - i) * 1000
+    return { name: at, value: [at, 0] as [number, number], init: true }
+  })
+}
+
+export const qps = ref(0)
+export const qpsHistory = ref<GpnQpsPoint[]>(makeQpsHistory())
+
+let sampleTimer: ReturnType<typeof setInterval> | undefined
+let lastTotal = -1
+let lastAt = 0
+let samplers = 0
+
+const sampleOnce = async () => {
+  const uuid = activeUuid.value
+  if (!uuid) return
+  let data: GpnDnsEnvelope | undefined
+  try {
+    const res = await fetchDnsAPI()
+    if (res.status !== 200 || !res.data) return
+    data = res.data
+  } catch {
+    // 采样失败不改变状态:一次网络抖动不该把面板判成「引擎缺席」。
+    return
+  }
+  if (uuid !== activeUuid.value) return
+
+  dnsStats.value = data.stats
+  const now = Date.now()
+  const total = data.stats?.total ?? 0
+  // 第一次采样只建立基线,没有速率可算。核心重启会让 total 回退,那不是负速率,
+  // 是一段新的计数 —— 同样只重建基线。
+  if (lastTotal >= 0 && total >= lastTotal && lastAt > 0) {
+    const seconds = Math.max((now - lastAt) / 1000, 0.001)
+    qps.value = (total - lastTotal) / seconds
+  } else {
+    qps.value = 0
+  }
+  lastTotal = total
+  lastAt = now
+
+  qpsHistory.value.push({ name: now, value: [now, qps.value] })
+  qpsHistory.value = qpsHistory.value.slice(-QPS_POINTS)
+}
+
+/** 引用计数:多张卡片同时挂载时只跑一个定时器。 */
+export const startQpsSampling = () => {
+  samplers += 1
+  if (sampleTimer) return
+  lastTotal = -1
+  lastAt = 0
+  qpsHistory.value = makeQpsHistory()
+  void sampleOnce()
+  sampleTimer = setInterval(() => void sampleOnce(), 1000)
+}
+
+export const stopQpsSampling = () => {
+  samplers = Math.max(0, samplers - 1)
+  if (samplers > 0 || !sampleTimer) return
+  clearInterval(sampleTimer)
+  sampleTimer = undefined
+  qps.value = 0
+}
+
 const adopt = (data: GpnDnsEnvelope) => {
   dnsDocument.value = data.document
   dnsRevision.value = data.revision
