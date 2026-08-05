@@ -102,15 +102,15 @@ import SettingsCtrl from '@/components/controls/SettingsCtrl.vue'
 import BackendSettings from '@/components/settings/backend/BackendSettings.vue'
 import ConnectionsSettings from '@/components/settings/connections/ConnectionsSettings.vue'
 import ZashboardSettings from '@/components/settings/general/ZashboardSettings.vue'
-import GpnBotSettings from '@/components/settings/gpn/GpnBotSettings.vue'
-import GpnDnsSettings from '@/components/settings/gpn/GpnDnsSettings.vue'
-import GpnInterceptionSettings from '@/components/settings/gpn/GpnInterceptionSettings.vue'
+import FiveGPNBotSettings from '@/components/settings/fivegpn/FiveGPNBotSettings.vue'
+import FiveGPNDnsSettings from '@/components/settings/fivegpn/FiveGPNDnsSettings.vue'
+import FiveGPNInterceptionSettings from '@/components/settings/fivegpn/FiveGPNInterceptionSettings.vue'
 import OverviewSettings from '@/components/settings/overview/OverviewSettings.vue'
 import ProxiesSettings from '@/components/settings/proxies/ProxiesSettings.vue'
 import SettingsCategoryHeader from '@/components/settings/SettingsCategoryHeader.vue'
-import { botSupported, refreshBot } from '@/assembly/gpn/bot'
-import { dnsSupported } from '@/assembly/gpn/dns'
-import { interceptionSupported, refreshInterception } from '@/assembly/gpn/interception'
+import { botSupported, refreshBot } from '@/assembly/fivegpn/bot'
+import { dnsSupported } from '@/assembly/fivegpn/dns'
+import { interceptionSupported, refreshInterception } from '@/assembly/fivegpn/interception'
 import { usePaddingForViews } from '@/composables/paddingViews'
 import {
   applyMinimalPreset,
@@ -205,46 +205,46 @@ const menuItems = computed<MenuItem[]>(() => {
     ],
   ])
 
-  // 同样只在能力发现给出肯定结论后出现。这个面板还额外要求引擎装上了 ——
-  // 一个 5gpn 内核可以拦截文档加载失败,那时核心返回 503,面板会说明原因,
-  // 而不是把它渲染成「拦截已关闭」。
+  // Likewise, show this only after capability discovery returns a positive result. This panel also
+  // requires the engine to be installed. A 5gpn core may fail to load the interception document;
+  // then it returns 503 and the panel explains why instead of rendering interception as disabled.
   // Same gate as the pages: only once capability discovery has said yes. The
   // panel edits the resolver's document, so offering it against a core that
   // does not serve one would be a form that cannot save.
   if (dnsSupported.value) {
-    itemsMap.set(SETTINGS_MENU_KEY.gpnDns, {
-      key: SETTINGS_MENU_KEY.gpnDns,
-      label: 'gpnDnsSettings',
+    itemsMap.set(SETTINGS_MENU_KEY.fivegpnDns, {
+      key: SETTINGS_MENU_KEY.fivegpnDns,
+      label: 'fivegpnDnsSettings',
       icon: SignalIcon,
-      component: GpnDnsSettings,
+      component: FiveGPNDnsSettings,
     })
   }
 
   if (interceptionSupported.value) {
-    itemsMap.set(SETTINGS_MENU_KEY.gpnInterception, {
-      key: SETTINGS_MENU_KEY.gpnInterception,
-      label: 'gpnInterceptionSettings',
+    itemsMap.set(SETTINGS_MENU_KEY.fivegpnInterception, {
+      key: SETTINGS_MENU_KEY.fivegpnInterception,
+      label: 'fivegpnInterceptionSettings',
       icon: ShieldCheckIcon,
-      component: GpnInterceptionSettings,
+      component: FiveGPNInterceptionSettings,
     })
     void refreshInterception()
   }
 
-  // bot 同样只在能力发现给出肯定结论后出现。它与拦截是各自独立的子系统:
-  // 一个网关可以装了 bot 而没装引擎,反之亦然。
+  // Likewise, show the bot only after capability discovery returns a positive result. The bot and
+  // interception are independent subsystems: a gateway may have either one without the other.
   if (botSupported.value) {
-    itemsMap.set(SETTINGS_MENU_KEY.gpnBot, {
-      key: SETTINGS_MENU_KEY.gpnBot,
-      label: 'gpnBotSettings',
+    itemsMap.set(SETTINGS_MENU_KEY.fivegpnBot, {
+      key: SETTINGS_MENU_KEY.fivegpnBot,
+      label: 'fivegpnBotSettings',
       icon: ShieldCheckIcon,
-      component: GpnBotSettings,
+      component: FiveGPNBotSettings,
     })
     void refreshBot()
   }
 
-  // 根据 settingsMenuOrder 排序，并过滤隐藏的项。
-  // settingsMenuOrder 是持久化的,旧记录里不会有新加的分类,所以要把 itemsMap
-  // 里有、顺序表里没有的补在末尾 —— 否则新分类永远不显示。
+  // Sort by settingsMenuOrder and filter hidden items.
+  // settingsMenuOrder is persisted, so older records do not contain newly added categories. Append
+  // entries present in itemsMap but absent from the order, or new categories would never appear.
   const order = [...settingsMenuOrder.value]
   for (const key of itemsMap.keys()) {
     if (!order.includes(key)) order.push(key)
@@ -258,7 +258,7 @@ const activeMenuKey = ref<SETTINGS_MENU_KEY>(menuItems.value[0]?.key || SETTINGS
 const columnAssignment = ref<number[]>(menuItems.value.map((_, i) => i % 2))
 
 const rebalanceColumns = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 0)) // 等待 DOM 更新
+  await new Promise((resolve) => setTimeout(resolve, 0)) // Wait for the DOM update.
   const colHeights = [0, 0]
   columnAssignment.value = menuItems.value.map((item) => {
     const el = document.getElementById(`item-${item.key}`)
@@ -276,7 +276,7 @@ watch(menuItems, () => {
 
 watch(isTwoColumns, rebalanceColumns)
 
-// 当 menuItems 变化时，如果当前激活的项被隐藏，则切换到第一个可见项
+// If menuItems changes and hides the active item, switch to the first visible item.
 watch(
   menuItems,
   (newItems) => {
@@ -355,15 +355,15 @@ const updateActiveMenuByScroll = () => {
 
     if (visibleHeight <= 0) return
 
-    // 元素自身的可见比例（对小元素更友好）
+    // Visible fraction of the element itself, which favors smaller elements.
     const selfRatio = visibleHeight / elementRect.height
-    // 元素占容器可见区域的比例
+    // Fraction of the container's visible area occupied by the element.
     const containerRatio = visibleHeight / containerHeight
-    // 综合得分：优先考虑自身可见比例高的元素，其次考虑占容器比例
-    // 当小元素完全可见时 selfRatio=1，得分会很高
+    // Combined score: prioritize the element's own visible fraction, then its container share.
+    // A fully visible small element has selfRatio=1 and therefore receives a high score.
     let score = selfRatio + containerRatio * 0.4
 
-    // 滚动方向偏好：偏向即将进入视口的元素
+    // Directional preference: favor the element about to enter the viewport.
     const elementCenter = (visibleTop + visibleBottom) / 2
     const referencePoint = containerTop + containerHeight * (scrollingDown ? 0.6 : 0.4)
     const normalizedDistance = Math.abs(elementCenter - referencePoint) / containerHeight

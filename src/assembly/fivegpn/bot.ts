@@ -1,31 +1,33 @@
-import type { GpnBotEnvelope, GpnBotView } from '@/api/gpn'
-import { fetchBotAPI, putBotAPI } from '@/api/gpn'
+import type { FiveGPNBotEnvelope, FiveGPNBotView } from '@/api/fivegpn'
+import { fetchBotAPI, putBotAPI } from '@/api/fivegpn'
 import { activeUuid } from '@/store/setup'
 import { ref } from 'vue'
 import { featureSupported } from './capabilities'
 
 /**
- * Telegram bot 的状态。
+ * Telegram bot state.
  *
- * 与拦截同样的五态:'absent' 与 'error' 必须分开 —— 前者是核心根本没装这个
- * 子系统(503),后者是装了但读不出来。
+ * This uses the same five states as interception. 'absent' and 'error' must
+ * remain distinct: the former means the core does not provide the subsystem
+ * (503), while the latter means it is present but cannot be read.
  *
- * token 永远不在这里。读回来的只有 token_set,写的时候留空表示「保持原样」,
- * 所以这个 store 从来不持有凭据,也就不可能不小心把它渲染出去。
+ * The token never appears here. Reads return only token_set, and an empty value
+ * on write means "keep unchanged". This store therefore never holds the
+ * credential and cannot accidentally render it.
  */
 export type BotStatus = 'idle' | 'loading' | 'ready' | 'absent' | 'error'
 
 export const botStatus = ref<BotStatus>('idle')
-export const bot = ref<GpnBotView | null>(null)
+export const bot = ref<FiveGPNBotView | null>(null)
 export const botRevision = ref('')
 export const botError = ref('')
 
-export const botSupported = featureSupported('gpn-bot')
+export const botSupported = featureSupported('5gpn-bot')
 
 let generation = 0
 let controller: AbortController | undefined
 
-const adopt = (data: GpnBotEnvelope) => {
+const adopt = (data: FiveGPNBotEnvelope) => {
   bot.value = data.bot
   botRevision.value = data.revision
   botStatus.value = 'ready'
@@ -47,7 +49,7 @@ export const refreshBot = async () => {
   botError.value = ''
 
   let status = 0
-  let data: GpnBotEnvelope | undefined
+  let data: FiveGPNBotEnvelope | undefined
   try {
     const res = await fetchBotAPI(controller.signal)
     status = res.status
@@ -74,8 +76,9 @@ export const refreshBot = async () => {
 }
 
 /**
- * 写。token 缺省表示不动已存的那一份 —— 控制台在从没见过它的情况下也能改
- * 管理员名单;传 '-' 才是清除。
+ * Write the bot configuration. Omitting token preserves the stored value, so
+ * the console can update administrators without ever seeing it. Pass '-' to
+ * clear the token.
  */
 export const saveBot = async (next: {
   enabled: boolean

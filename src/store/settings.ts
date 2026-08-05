@@ -178,7 +178,7 @@ export const numberOfChartsInSidebar = useStorage<1 | 2 | 3>(
 )
 const defaultOverviewCardOrder: { card: OVERVIEW_CARD; visible: boolean }[] = [
   {
-    card: OVERVIEW_CARD.GpnDnsCard,
+    card: OVERVIEW_CARD.FiveGPNDnsCard,
     visible: true,
   },
   {
@@ -212,7 +212,7 @@ export const overviewCardOrder = useStorage<{ card: OVERVIEW_CARD; visible: bool
   defaultOverviewCardOrder,
 )
 
-// 确保所有卡片都在配置中，缺失的卡片添加到末尾
+// Append any cards missing from the configured order.
 const allCardTypes = Object.values(OVERVIEW_CARD)
 const existingCardTypes = new Set(overviewCardOrder.value.map((item) => item.card))
 const missingCards = allCardTypes.filter((card) => !existingCardTypes.has(card))
@@ -353,15 +353,15 @@ export const logRetentionLimit = useStorage<number>('config/log-retention-limit'
 export const logSearchHistory = useStorage<string[]>('cache/log-search-history', [])
 
 // settings visibility
-// 使用扁平结构，key 格式为 "大设置项.小设置项" 或 "大设置项"（仅大设置项）
-// 默认所有项都可见，只有隐藏的项才会记录在此对象中
+// Use flat keys in either "section.item" or "section" form.
+// All items are visible by default; this object records only hidden items.
 export const hiddenSettingsItems = useStorage<Record<string, boolean>>(
   'config/hidden-settings-items',
   {},
 )
 
 // settings menu order
-// 存储设置菜单项的顺序
+// Store the settings menu item order.
 export const settingsMenuOrder = useStorage<SETTINGS_MENU_KEY[]>(
   'config/settings-menu-order',
   SETTINGS_CATEGORIES.map((category) => category.key),

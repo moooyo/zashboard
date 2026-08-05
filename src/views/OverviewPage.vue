@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import OverviewCtrl from '@/components/controls/OverviewCtrl.vue'
 import ChartsCard from '@/components/overview/ChartsCard.vue'
-import GpnDnsCard from '@/components/overview/GpnDnsCard.vue'
+import FiveGPNDnsCard from '@/components/overview/FiveGPNDnsCard.vue'
 import ConnectionHistory from '@/components/overview/ConnectionHistory.vue'
 import NetworkCard from '@/components/overview/NetworkCard.vue'
 import ProviderTrafficOverview from '@/components/overview/ProviderTrafficOverview.vue'
@@ -38,7 +38,7 @@ const visibleCards = computed(() => {
 
 const cardComponents: Record<string, Component> = {
   ChartsCard,
-  GpnDnsCard,
+  FiveGPNDnsCard,
   NetworkCard,
   ProviderTrafficOverview,
   TopologyCharts,

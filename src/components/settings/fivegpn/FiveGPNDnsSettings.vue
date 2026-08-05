@@ -3,12 +3,12 @@
     v-if="hasVisibleItems"
     class="flex flex-col gap-3 text-sm"
   >
-    <!-- 引擎缺席不是「DNS 关掉了」。关掉是一份加载成功并声明如此的文档;缺席是
-         一份没能加载的文档。渲染成同一个界面,等于告诉操作者他的策略正在生效,
-         而实际上没有人在读它。 -->
+    <!-- A missing engine does not mean DNS is disabled. Disabled means a successfully loaded
+         document says so; missing means the document could not be loaded. Rendering both states
+         alike would tell the operator that policy is active when nothing reads it. -->
     <template v-if="dnsStatus === 'absent'">
       <div class="alert alert-warning py-2">
-        <span>{{ $t('gpnDnsAbsent') }}</span>
+        <span>{{ $t('fivegpnDnsAbsent') }}</span>
       </div>
     </template>
 
@@ -18,8 +18,8 @@
       </div>
     </template>
 
-    <!-- draft 而不是 status:刷新期间状态会变成 loading,按状态渲染会让整块在每次
-         刷新时闪空一下,而草稿里可能有操作者还没保存的编辑。 -->
+    <!-- Render from draft rather than status. Refreshing changes status to loading, and rendering
+         from status would briefly blank the entire section while the draft may contain unsaved edits. -->
     <template v-else-if="draft">
       <div
         v-if="notice"
@@ -29,11 +29,11 @@
         <span>{{ notice }}</span>
       </div>
 
-      <div class="settings-section-label">{{ $t('gpnDnsPolicy') }}</div>
+      <div class="settings-section-label">{{ $t('fivegpnDnsPolicy') }}</div>
       <div class="settings-grid">
-        <SettingItem :setting-key="k.gpnDnsFallback">
+        <SettingItem :setting-key="k.fivegpnDnsFallback">
           <div class="setting-item-label">
-            {{ $t('gpnFallback') }}
+            {{ $t('fivegpnFallback') }}
             <QuestionMarkCircleIcon
               class="h-4 w-4 cursor-pointer"
               @mouseenter="showTip($event, $t(FALLBACK_HINT[draft.policy.fallback]))"
@@ -44,22 +44,23 @@
             class="select select-sm w-32"
             @change="apply"
           >
-            <option value="auto">{{ $t('gpnFallbackAuto') }}</option>
-            <option value="direct">{{ $t('gpnFallbackDirect') }}</option>
-            <option value="gateway">{{ $t('gpnFallbackGateway') }}</option>
+            <option value="auto">{{ $t('fivegpnFallbackAuto') }}</option>
+            <option value="direct">{{ $t('fivegpnFallbackDirect') }}</option>
+            <option value="gateway">{{ $t('fivegpnFallbackGateway') }}</option>
           </select>
         </SettingItem>
 
-        <!-- 规则是一份有序列表,不是一行一个控件:整份列表只走一遍,首个命中获胜,
-             跨 intent,所以「谁在谁上面」是语义本身。拆成设置行会把顺序拆没。
-             它走 zashboard 给「值是列表」的那条路 —— 一行显示数量,编辑在对话框
-             里,和源 IP 标签同一个形状。
+        <!-- Rules form one ordered list, not one control per row. The full list is evaluated once,
+             first match wins across intents, so relative order is part of the semantics. Separate
+             setting rows would erase that ordering. Follow zashboard's list-valued setting pattern:
+             show a count in one row and edit it in a dialog, just like source IP labels.
 
-             这里只有手写的规则。订阅虽然在数据模型里也是一条规则,但它归下面那
-             一行管 —— 两个入口都能编辑同一条,是上一版最难解释的地方。 -->
-        <SettingItem :setting-key="k.gpnDnsRules">
+             This dialog contains only manually entered rules. A subscription is also a rule in the
+             data model, but the row below owns it. Two entry points editing the same rule was the
+             hardest behavior to explain in the previous version. -->
+        <SettingItem :setting-key="k.fivegpnDnsRules">
           <div class="setting-item-label">
-            {{ $t('gpnDnsRules') }}
+            {{ $t('fivegpnDnsRules') }}
             <template v-if="handRules.length"> ({{ handRules.length }}) </template>
           </div>
           <button
@@ -70,13 +71,14 @@
           </button>
         </SettingItem>
 
-        <!-- 订阅在数据模型里就是 kind=subscription 的规则,但它有自己的一行和自己
-             的对话框:「我订了哪些表、抓下来多少条、有没有失败」是一个独立的问题,
-             不是编辑某一条规则时顺带看的东西。核心保证手写规则整体先于订阅求值,
-             所以两个列表各自排序就够了,不需要一个能看见对方的共同索引。 -->
-        <SettingItem :setting-key="k.gpnDnsSubscriptions">
+        <!-- A subscription is a kind=subscription rule in the data model, but it has its own row and
+             dialog. Which lists are subscribed, how many entries were fetched, and whether fetching
+             failed is a separate concern, not incidental information while editing another rule.
+             The core evaluates all manual rules before subscriptions, so each list needs only its
+             own ordering rather than a shared index across both lists. -->
+        <SettingItem :setting-key="k.fivegpnDnsSubscriptions">
           <div class="setting-item-label">
-            {{ $t('gpnDnsSubscriptions') }}
+            {{ $t('fivegpnDnsSubscriptions') }}
             <template v-if="subscriptionRules.length"> ({{ subscriptionRules.length }}) </template>
             <span
               v-if="failedSubscriptions > 0"
@@ -93,14 +95,14 @@
         </SettingItem>
       </div>
 
-      <div class="settings-section-label">{{ $t('gpnDnsUpstreams') }}</div>
+      <div class="settings-section-label">{{ $t('fivegpnDnsUpstreams') }}</div>
       <div class="settings-grid">
-        <SettingItem :setting-key="k.gpnDnsGateway">
+        <SettingItem :setting-key="k.fivegpnDnsGateway">
           <div class="setting-item-label">
-            {{ $t('gpnGateway') }}
+            {{ $t('fivegpnGateway') }}
             <QuestionMarkCircleIcon
               class="h-4 w-4 cursor-pointer"
-              @mouseenter="showTip($event, $t('gpnGatewayHint'))"
+              @mouseenter="showTip($event, $t('fivegpnGatewayHint'))"
             />
           </div>
           <input
@@ -111,15 +113,15 @@
           />
         </SettingItem>
 
-        <SettingItem :setting-key="k.gpnDnsChina">
+        <SettingItem :setting-key="k.fivegpnDnsChina">
           <div class="setting-item-label">
-            {{ $t('gpnChinaGroup') }}
+            {{ $t('fivegpnChinaGroup') }}
             <template v-if="draft.upstreams.china?.length">
               ({{ draft.upstreams.china.length }})
             </template>
             <QuestionMarkCircleIcon
               class="h-4 w-4 cursor-pointer"
-              @mouseenter="showTip($event, $t('gpnUpstreamGrammar'))"
+              @mouseenter="showTip($event, $t('fivegpnUpstreamGrammar'))"
             />
           </div>
           <button
@@ -130,15 +132,15 @@
           </button>
         </SettingItem>
 
-        <SettingItem :setting-key="k.gpnDnsTrust">
+        <SettingItem :setting-key="k.fivegpnDnsTrust">
           <div class="setting-item-label">
-            {{ $t('gpnTrustGroup') }}
+            {{ $t('fivegpnTrustGroup') }}
             <template v-if="draft.upstreams.trust?.length">
               ({{ draft.upstreams.trust.length }})
             </template>
             <QuestionMarkCircleIcon
               class="h-4 w-4 cursor-pointer"
-              @mouseenter="showTip($event, $t('gpnUpstreamGrammar'))"
+              @mouseenter="showTip($event, $t('fivegpnUpstreamGrammar'))"
             />
           </div>
           <button
@@ -149,12 +151,12 @@
           </button>
         </SettingItem>
 
-        <SettingItem :setting-key="k.gpnDnsEcs">
+        <SettingItem :setting-key="k.fivegpnDnsEcs">
           <div class="setting-item-label">
-            {{ $t('gpnEcs') }}
+            {{ $t('fivegpnEcs') }}
             <QuestionMarkCircleIcon
               class="h-4 w-4 cursor-pointer"
-              @mouseenter="showTip($event, $t('gpnEcsHint'))"
+              @mouseenter="showTip($event, $t('fivegpnEcsHint'))"
             />
           </div>
           <input
@@ -166,10 +168,10 @@
         </SettingItem>
       </div>
 
-      <div class="settings-section-label">{{ $t('gpnDnsDiagnose') }}</div>
+      <div class="settings-section-label">{{ $t('fivegpnDnsDiagnose') }}</div>
       <div class="settings-grid">
-        <SettingItem :setting-key="k.gpnDnsResolve">
-          <div class="setting-item-label">{{ $t('gpnResolveTest') }}</div>
+        <SettingItem :setting-key="k.fivegpnDnsResolve">
+          <div class="setting-item-label">{{ $t('fivegpnResolveTest') }}</div>
           <button
             class="btn btn-sm"
             @click="probeDialog = true"
@@ -178,31 +180,32 @@
           </button>
         </SettingItem>
 
-        <SettingItem :setting-key="k.gpnDnsFlush">
-          <div class="setting-item-label">{{ $t('gpnDnsFlush') }}</div>
+        <SettingItem :setting-key="k.fivegpnDnsFlush">
+          <div class="setting-item-label">{{ $t('fivegpnDnsFlush') }}</div>
           <button
             class="btn btn-sm"
             @click="flushCache"
           >
-            {{ $t('gpnFlushCache') }}
+            {{ $t('fivegpnFlushCache') }}
           </button>
         </SettingItem>
       </div>
 
       <!--
-        统计整块删掉了。它是概览卡片那几张图的文字版 —— 同一批数字读两遍,而且这
-        一遍读不出趋势。查询总数、缓存命中/查找/条目、两个上游组都在卡片上,
-        「已引导到网关」更是决策分布里 走网关 + 引导入网关 的和,那张图已经把它
-        拆成了两个原因。「已加载 CN 段」是唯一不属于统计的一项 —— 它是仲裁的地基,
-        为 0 时整个国内互联网都会被判成境外 —— 所以它跟着搬到卡片上常驻,而不是
-        在这里陪着一堆重复的数字。
+        The statistics section was removed because it was a textual copy of the overview charts:
+        the same numbers appeared twice, and this version showed no trend. Query totals, cache
+        hits/lookups/entries, and both upstream groups are already on the card. "Routed to gateway"
+        was merely the sum of gateway and guided-to-gateway in the decision distribution, where the
+        chart already separates the two causes. "Loaded CN ranges" was the only non-statistic: it is
+        the foundation of arbitration, and zero would classify the entire Chinese internet as foreign.
+        It therefore moved to the persistent card instead of sitting beside duplicated numbers here.
       -->
     </template>
   </div>
 
   <DialogWrapper
     v-model="rulesDialog"
-    :title="$t('gpnDnsRules')"
+    :title="$t('fivegpnDnsRules')"
   >
     <div
       v-if="draft"
@@ -226,26 +229,27 @@
           class="select select-xs w-24"
           @change="apply"
         >
-          <option value="block">{{ $t('gpnIntentBlock') }}</option>
-          <option value="direct">{{ $t('gpnIntentDirect') }}</option>
-          <option value="proxy">{{ $t('gpnIntentProxy') }}</option>
+          <option value="block">{{ $t('fivegpnIntentBlock') }}</option>
+          <option value="direct">{{ $t('fivegpnIntentDirect') }}</option>
+          <option value="proxy">{{ $t('fivegpnIntentProxy') }}</option>
         </select>
-        <!-- 没有 subscription 这一项:订阅由它自己那一行拥有。留在这里就等于同一条
-             规则有两个入口,而这个下拉还会把一条手写规则原地变成订阅 —— 那条规则
-             随即从这个列表消失、出现在另一个对话框里,没有任何东西说明发生了什么。 -->
+        <!-- There is no subscription option because subscriptions belong to their own row. Keeping
+             one here would give the same rule two entry points, and this select could turn a manual
+             rule into a subscription in place. The rule would then disappear from this list and
+             appear in another dialog with no explanation of what happened. -->
         <select
           v-model="entry.rule.kind"
           class="select select-xs w-36"
           @change="apply"
         >
-          <option value="domain">{{ $t('gpnKindDomain') }}</option>
-          <option value="domain-suffix">{{ $t('gpnKindSuffix') }}</option>
-          <option value="domain-keyword">{{ $t('gpnKindKeyword') }}</option>
+          <option value="domain">{{ $t('fivegpnKindDomain') }}</option>
+          <option value="domain-suffix">{{ $t('fivegpnKindSuffix') }}</option>
+          <option value="domain-keyword">{{ $t('fivegpnKindKeyword') }}</option>
         </select>
         <input
           v-model="entry.rule.value"
           class="input input-xs min-w-56 flex-1"
-          :placeholder="$t('gpnRuleValue')"
+          :placeholder="$t('fivegpnRuleValue')"
           @change="apply"
         />
         <div class="ml-auto flex gap-1">
@@ -276,15 +280,15 @@
         class="btn btn-sm w-fit"
         @click="addRule"
       >
-        {{ $t('gpnAddRule') }}
+        {{ $t('fivegpnAddRule') }}
       </button>
-      <p class="text-xs opacity-70">{{ $t('gpnRulesHint') }}</p>
+      <p class="text-xs opacity-70">{{ $t('fivegpnRulesHint') }}</p>
     </div>
   </DialogWrapper>
 
   <DialogWrapper
     v-model="subsDialog"
-    :title="$t('gpnDnsSubscriptions')"
+    :title="$t('fivegpnDnsSubscriptions')"
   >
     <div
       v-if="draft"
@@ -294,7 +298,7 @@
         v-if="subscriptionRules.length === 0"
         class="text-base-content/50 py-2 text-xs"
       >
-        {{ $t('gpnSubNone') }}
+        {{ $t('fivegpnSubNone') }}
       </div>
       <div
         v-for="(entry, position) in subscriptionRules"
@@ -315,9 +319,9 @@
             class="select select-xs w-24"
             @change="apply"
           >
-            <option value="block">{{ $t('gpnIntentBlock') }}</option>
-            <option value="direct">{{ $t('gpnIntentDirect') }}</option>
-            <option value="proxy">{{ $t('gpnIntentProxy') }}</option>
+            <option value="block">{{ $t('fivegpnIntentBlock') }}</option>
+            <option value="direct">{{ $t('fivegpnIntentDirect') }}</option>
+            <option value="proxy">{{ $t('fivegpnIntentProxy') }}</option>
           </select>
           <select
             v-model="entry.rule.format"
@@ -334,11 +338,12 @@
             v-model.number="entry.rule.intervalSeconds"
             type="number"
             class="input input-xs w-24"
-            :placeholder="$t('gpnInterval')"
+            :placeholder="$t('fivegpnInterval')"
             @change="apply"
           />
-          <!-- 订阅之间也讲顺序:两张表可以覆盖同一个名字而给出不同的 intent。
-               排序按钮从规则对话框搬过来,因为那边现在看不到订阅了。 -->
+          <!-- Subscription order also matters because two lists may cover the same name with
+               different intents. The ordering controls moved here now that subscriptions are no
+               longer visible in the rules dialog. -->
           <div class="ml-auto flex gap-1">
             <button
               class="btn btn-ghost btn-xs"
@@ -376,27 +381,27 @@
           class="btn btn-sm w-fit"
           @click="addSubscription"
         >
-          {{ $t('gpnSubAdd') }}
+          {{ $t('fivegpnSubAdd') }}
         </button>
-        <!-- 新装的网关由核心种下这两条。已经有文档的网关不会 —— 默认值只对
-             「不存在的文档」生效,而那正是扩展目录当初在所有已有主机上发布即
-             黑屏的原因。所以这里给一个显式的按钮,而不是让升级悄悄改写运维者
-             的策略。 -->
+        <!-- The core seeds these two entries on a fresh gateway, but not when a document already
+             exists. Defaults apply only to a missing document, which is why the extension catalog
+             originally went blank immediately after release on every existing host. Provide an
+             explicit button instead of silently rewriting operator policy during an upgrade. -->
         <button
           class="btn btn-sm w-fit"
           :disabled="defaultsPresent"
           @click="importDefaultSubscriptions"
         >
-          {{ defaultsPresent ? $t('gpnSubDefaultsPresent') : $t('gpnSubImportDefaults') }}
+          {{ defaultsPresent ? $t('fivegpnSubDefaultsPresent') : $t('fivegpnSubImportDefaults') }}
         </button>
       </div>
-      <p class="text-xs opacity-70">{{ $t('gpnSubHint') }}</p>
+      <p class="text-xs opacity-70">{{ $t('fivegpnSubHint') }}</p>
     </div>
   </DialogWrapper>
 
   <DialogWrapper
     v-model="chinaDialog"
-    :title="$t('gpnChinaGroup')"
+    :title="$t('fivegpnChinaGroup')"
   >
     <div class="flex flex-col gap-2 text-sm">
       <textarea
@@ -405,13 +410,13 @@
         rows="6"
         @change="apply"
       />
-      <p class="text-xs opacity-70">{{ $t('gpnUpstreamGrammar') }}</p>
+      <p class="text-xs opacity-70">{{ $t('fivegpnUpstreamGrammar') }}</p>
     </div>
   </DialogWrapper>
 
   <DialogWrapper
     v-model="trustDialog"
-    :title="$t('gpnTrustGroup')"
+    :title="$t('fivegpnTrustGroup')"
   >
     <div class="flex flex-col gap-2 text-sm">
       <textarea
@@ -420,13 +425,13 @@
         rows="6"
         @change="apply"
       />
-      <p class="text-xs opacity-70">{{ $t('gpnUpstreamGrammar') }}</p>
+      <p class="text-xs opacity-70">{{ $t('fivegpnUpstreamGrammar') }}</p>
     </div>
   </DialogWrapper>
 
   <DialogWrapper
     v-model="probeDialog"
-    :title="$t('gpnResolveTest')"
+    :title="$t('fivegpnResolveTest')"
   >
     <div class="flex flex-col gap-3 text-sm">
       <div class="flex flex-wrap items-center gap-2">
@@ -441,7 +446,7 @@
           :disabled="explaining || !probeName"
           @click="runProbe"
         >
-          {{ $t('gpnResolveRun') }}
+          {{ $t('fivegpnResolveRun') }}
         </button>
       </div>
 
@@ -457,34 +462,34 @@
         class="settings-grid"
       >
         <div class="setting-item">
-          <div class="setting-item-label">{{ $t('gpnVerdict') }}</div>
+          <div class="setting-item-label">{{ $t('fivegpnVerdict') }}</div>
           <span class="badge badge-sm">
             {{ explanation.verdict.verdict || '—' }} / {{ explanation.verdict.reason || '—' }}
           </span>
         </div>
         <div class="setting-item">
-          <div class="setting-item-label">{{ $t('gpnDecidedBy') }}</div>
+          <div class="setting-item-label">{{ $t('fivegpnDecidedBy') }}</div>
           <span>{{ decidedBy }}</span>
         </div>
         <div class="setting-item">
-          <div class="setting-item-label">{{ $t('gpnClientAnswer') }}</div>
+          <div class="setting-item-label">{{ $t('fivegpnClientAnswer') }}</div>
           <span class="font-mono text-xs">{{ (explanation.answers ?? []).join(', ') || '—' }}</span>
         </div>
-        <!-- 客户端答案与源站答案在被引导的名字上必然不同,只看前者会读成
-             「DNS 坏了」。 -->
+        <!-- Client and origin answers necessarily differ for guided names. Showing only the client
+             answer would make healthy DNS behavior look broken. -->
         <div class="setting-item">
-          <div class="setting-item-label">{{ $t('gpnOriginAnswer') }}</div>
+          <div class="setting-item-label">{{ $t('fivegpnOriginAnswer') }}</div>
           <span class="font-mono text-xs">{{ (explanation.origin ?? []).join(', ') || '—' }}</span>
         </div>
         <div class="setting-item">
-          <div class="setting-item-label">{{ $t('gpnUpstreamAdopted') }}</div>
+          <div class="setting-item-label">{{ $t('fivegpnUpstreamAdopted') }}</div>
           <span
             >{{ explanation.upstream || '—'
-            }}{{ explanation.cacheHit ? ` (${$t('gpnCacheHit')})` : '' }}</span
+            }}{{ explanation.cacheHit ? ` (${$t('fivegpnCacheHit')})` : '' }}</span
           >
         </div>
         <div class="setting-item">
-          <div class="setting-item-label">{{ $t('gpnRcode') }}</div>
+          <div class="setting-item-label">{{ $t('fivegpnRcode') }}</div>
           <span>{{ explanation.rcode }}</span>
         </div>
       </div>
@@ -493,7 +498,7 @@
 </template>
 
 <script setup lang="ts">
-import type { GpnDnsDocument } from '@/api/gpn'
+import type { FiveGPNDnsDocument } from '@/api/fivegpn'
 import {
   dnsDocument,
   dnsError,
@@ -506,12 +511,12 @@ import {
   flushCache,
   refreshDns,
   saveDns,
-} from '@/assembly/gpn/dns'
+} from '@/assembly/fivegpn/dns'
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
 import SettingItem from '@/components/settings/SettingItem.vue'
 import { useHasAnyVisibleSetting } from '@/composables/settings'
 import { useTooltip } from '@/helper/tooltip'
-import { getAllKeysForCategory, GPN_DNS_ITEM_KEYS } from '@/config/settingsItems'
+import { getAllKeysForCategory, FIVEGPN_DNS_ITEM_KEYS } from '@/config/settingsItems'
 import { SETTINGS_MENU_KEY } from '@/constant'
 import {
   MagnifyingGlassIcon,
@@ -523,16 +528,16 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const { showTip } = useTooltip()
-const k = GPN_DNS_ITEM_KEYS
-const hasVisibleItems = useHasAnyVisibleSetting(getAllKeysForCategory(SETTINGS_MENU_KEY.gpnDns))
+const k = FIVEGPN_DNS_ITEM_KEYS
+const hasVisibleItems = useHasAnyVisibleSetting(getAllKeysForCategory(SETTINGS_MENU_KEY.fivegpnDns))
 
 const FALLBACK_HINT: Record<string, string> = {
-  auto: 'gpnFallbackAutoHint',
-  direct: 'gpnFallbackDirectHint',
-  gateway: 'gpnFallbackGatewayHint',
+  auto: 'fivegpnFallbackAutoHint',
+  direct: 'fivegpnFallbackDirectHint',
+  gateway: 'fivegpnFallbackGatewayHint',
 }
 
-const draft = ref<GpnDnsDocument | null>(null)
+const draft = ref<FiveGPNDnsDocument | null>(null)
 const notice = ref('')
 const noticeIsError = ref(false)
 const probeName = ref('')
@@ -543,9 +548,9 @@ const chinaDialog = ref(false)
 const trustDialog = ref(false)
 const probeDialog = ref(false)
 
-// 草稿是深拷贝。直接改 store 里的文档会让「取消」无处可退,也会在保存失败时
-// 留下一份界面上已生效、后端并不知道的策略。
-const clone = (doc: GpnDnsDocument): GpnDnsDocument => JSON.parse(JSON.stringify(doc))
+// The draft is a deep copy. Editing the store document directly would leave Cancel with nowhere to
+// return and make a failed save look active in the UI while the backend knows nothing about it.
+const clone = (doc: FiveGPNDnsDocument): FiveGPNDnsDocument => JSON.parse(JSON.stringify(doc))
 
 const reset = () => {
   draft.value = dnsDocument.value ? clone(dnsDocument.value) : null
@@ -573,11 +578,12 @@ const trustText = computed({
   },
 })
 
-// 两个对话框各自拿一组,但编辑的是同一个数组,所以每条都连它在整份列表里的绝对
-// 位置一起给出 —— 顺序是策略语义的一部分,筛选不能把它丢掉。
+// Each dialog receives one group but edits the same array, so every entry carries its absolute index
+// in the full list. Order is part of policy semantics and filtering must not discard it.
 //
-// 跨组的先后不在这里决定:核心保证手写规则整体排在订阅之前(Policy.ordered),
-// 每次写入和每次打开文档都会归一。面板只排组内。
+// This panel does not decide cross-group precedence. The core guarantees that manual rules precede
+// subscriptions (Policy.ordered) and normalizes on every write and document open. The panel orders
+// entries only within a group.
 const groupedRules = (subscription: boolean) =>
   computed(() =>
     (draft.value?.policy.rules ?? [])
@@ -592,8 +598,9 @@ const failedSubscriptions = computed(
   () => dnsSubscriptions.value.filter((s) => Boolean(s.error)).length,
 )
 
-// 和核心 DefaultSubscriptionRules 同一份地址与格式。两处描述同一个「默认」,
-// 写成两份迟早会各说各话 —— 这一份是给已经有文档、因此拿不到种子的网关的。
+// Keep the same addresses and format as the core's DefaultSubscriptionRules. Two definitions of the
+// same default will eventually diverge; this copy serves gateways that already have a document and
+// therefore do not receive the seed.
 const DEFAULT_SUBSCRIPTIONS = [
   {
     id: 'china-domains',
@@ -618,8 +625,8 @@ const defaultsPresent = computed(() =>
 const importDefaultSubscriptions = () => {
   if (!draft.value) return
   for (const preset of DEFAULT_SUBSCRIPTIONS) {
-    // 按 URL 判重,不按 ID:运维者可能自己加过同一份表,再加一条只会让两条规则
-    // 抓同一个地址。
+    // Deduplicate by URL, not ID. The operator may already have added the same list manually, and a
+    // second entry would only make two rules fetch the same address.
     if (draft.value.policy.rules.some((r) => r.value === preset.url)) continue
     draft.value.policy.rules.push({
       id: preset.id,
@@ -653,9 +660,10 @@ const removeSubscription = (id: string) => {
   apply()
 }
 
-// 组内移动一格。entries 是某一组的筛选结果,每项带着它在整份列表里的绝对下标;
-// 交换两个绝对下标只动这两条,别的规则原地不动 —— 所以哪怕两组在数组里没有挨着
-// (旧核心写下的文档就可能这样),组内看到的效果仍然正好是「上移/下移一格」。
+// Move one position within a group. entries is a filtered group whose items retain their absolute
+// indices in the full list. Swapping two absolute indices moves only those entries and leaves every
+// other rule in place. Even when the two groups are interleaved in an older core document, the
+// visible result within the group is exactly one step up or down.
 const moveWithin = (entries: { index: number }[], position: number, delta: number) => {
   const rules = draft.value?.policy.rules
   const target = position + delta
@@ -672,7 +680,8 @@ const removeRule = (id: string) => {
   apply()
 }
 
-// 规则 ID 由客户端铸造,因为它同时是订阅缓存文件名;服务端只要求它是路径安全的。
+// The client creates rule IDs because they also name subscription cache files; the server requires
+// only that they are path-safe.
 //
 // A new rule is not applied on creation: it has an empty value, which the core
 // would refuse, and reporting that as an error to someone who has just pressed
@@ -681,9 +690,10 @@ const removeRule = (id: string) => {
 const addRule = () => {
   if (!draft.value) return
   const rules = draft.value.policy.rules
-  // 插在手写组的末尾,不是整份列表的末尾。核心写入时会把手写规则整体挪到订阅之前,
-  // 直接 push 会让草稿在保存前一直和保存后长得不一样;而且 moveWithin 依赖「组是
-  // 连续的」,一条排在订阅后面的手写规则会让它把两组的成员换到一起去。
+  // Insert at the end of the manual group, not the full list. The core moves all manual rules before
+  // subscriptions on write, so push would make the draft differ before and after saving. moveWithin
+  // also assumes groups are contiguous; a manual rule after subscriptions would make it swap members
+  // across the two groups.
   const firstSubscription = rules.findIndex((r) => r.kind === 'subscription')
   rules.splice(firstSubscription === -1 ? rules.length : firstSubscription, 0, {
     id: `r-${Math.random().toString(36).slice(2, 10)}`,
@@ -709,7 +719,7 @@ const apply = async () => {
   noticeIsError.value = Boolean(error)
   // Silence on success. A settings row that announces every accepted change is
   // noise; what an operator needs to see is the one that was refused.
-  notice.value = error === 'conflict' ? t('gpnConflict') : error
+  notice.value = error === 'conflict' ? t('fivegpnConflict') : error
 }
 
 const runProbe = () => explain(probeName.value)
@@ -720,18 +730,18 @@ const decidedBy = computed(() => {
   if (e.capture) {
     const who = e.capture.extensionName || e.capture.extensionId
     return e.capture.ready
-      ? t('gpnDecidedByExtension', { name: who, pattern: e.capture.pattern })
-      : t('gpnDecidedByExtensionInert', { name: who })
+      ? t('fivegpnDecidedByExtension', { name: who, pattern: e.capture.pattern })
+      : t('fivegpnDecidedByExtensionInert', { name: who })
   }
-  if (e.rule) return t('gpnDecidedByRule', { kind: e.rule.kind, value: e.rule.value })
-  return t('gpnDecidedByFallback', { fallback: e.fallback })
+  if (e.rule) return t('fivegpnDecidedByRule', { kind: e.rule.kind, value: e.rule.value })
+  return t('fivegpnDecidedByFallback', { fallback: e.fallback })
 })
 
 const subscriptionNote = (ruleId: string) => {
   const status = dnsSubscriptions.value.find((s) => s.ruleId === ruleId)
-  if (!status) return t('gpnSubNotFetched')
-  if (status.error) return t('gpnSubError', { entries: status.entries })
-  return t('gpnSubEntries', { entries: status.entries })
+  if (!status) return t('fivegpnSubNotFetched')
+  if (status.error) return t('fivegpnSubError', { entries: status.entries })
+  return t('fivegpnSubEntries', { entries: status.entries })
 }
 
 refreshDns()

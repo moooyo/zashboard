@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { interceptionSettingsWrite } from '../src/api/gpnInterceptionSettings.ts'
+import { interceptionSettingsWrite } from '../src/api/fivegpnInterceptionSettings.ts'
 
 test('interception settings writes omit the read-only HTTP/3 snapshot field', () => {
   const body = interceptionSettingsWrite({
@@ -21,24 +21,24 @@ test('interception settings writes omit the read-only HTTP/3 snapshot field', ()
 
 test('interception settings render HTTP/3 as fixed policy, not a control', () => {
   const source = readFileSync(
-    new URL('../src/components/settings/gpn/GpnInterceptionSettings.vue', import.meta.url),
+    new URL('../src/components/settings/fivegpn/FiveGPNInterceptionSettings.vue', import.meta.url),
     'utf8',
   )
   const row = source.match(
-    /<SettingItem :setting-key="k\.gpnHttp3">(?<content>[\s\S]*?)<\/SettingItem>/,
+    /<SettingItem :setting-key="k\.fivegpnHttp3">(?<content>[\s\S]*?)<\/SettingItem>/,
   )
 
   assert.ok(row?.groups?.content, 'the fixed HTTP/3 policy row is missing')
-  assert.match(row.groups.content, /data-testid="gpn-http3-boundary"/)
-  assert.match(row.groups.content, /\$t\('gpnHttp3Unavailable'\)/)
-  assert.match(row.groups.content, /\$t\('gpnHttp3Blocked'\)/)
+  assert.match(row.groups.content, /data-testid="fivegpn-http3-boundary"/)
+  assert.match(row.groups.content, /\$t\('fivegpnHttp3Unavailable'\)/)
+  assert.match(row.groups.content, /\$t\('fivegpnHttp3Blocked'\)/)
   assert.doesNotMatch(row.groups.content, /<input|<select|@change|v-model|:checked/)
 })
 
 test('interception snapshot exposes the fixed protocol boundary and narrow egress groups', () => {
-  const api = readFileSync(new URL('../src/api/gpn.ts', import.meta.url), 'utf8')
+  const api = readFileSync(new URL('../src/api/fivegpn.ts', import.meta.url), 'utf8')
   const extensions = readFileSync(
-    new URL('../src/views/GpnExtensionsPage.vue', import.meta.url),
+    new URL('../src/views/FiveGPNExtensionsPage.vue', import.meta.url),
     'utf8',
   )
 

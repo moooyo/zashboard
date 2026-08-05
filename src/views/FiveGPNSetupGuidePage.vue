@@ -4,20 +4,21 @@
       class="flex flex-col gap-3 p-3"
       :style="padding"
     >
-      <!-- 这一页把网关自己的地址讲给设备听,所以它不问后端要域名 —— 它就是被那台
-           网关服务的。console.<base> 是浏览器地址栏里的东西,dot.<base> 由同一个
-           base 推出。一份需要人手填写的向导,填错的正是它本该消除的那个环节。 -->
+      <!-- This page tells a device the gateway's own address, so it does not ask the backend for a
+           domain: the gateway already serves this page. console.<base> is in the browser address
+           bar and dot.<base> follows from the same base. Manual entry would reintroduce exactly the
+           error this guide is meant to eliminate. -->
       <div
         v-if="!derived"
         class="alert alert-warning"
       >
-        <span>{{ $t('gpnGuideUnknownHost', { host: host }) }}</span>
+        <span>{{ $t('fivegpnGuideUnknownHost', { host: host }) }}</span>
       </div>
 
       <template v-else>
         <div class="base-container flex flex-col gap-3 p-4">
           <div class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
-            {{ $t('gpnGuideDot') }}
+            {{ $t('fivegpnGuideDot') }}
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <code class="bg-base-200/60 rounded-lg px-3 py-1.5 font-mono text-sm">{{
@@ -27,32 +28,32 @@
               class="btn btn-sm"
               @click="copy(derived.dot)"
             >
-              {{ copied === derived.dot ? $t('gpnGuideCopied') : $t('gpnGuideCopy') }}
+              {{ copied === derived.dot ? $t('fivegpnGuideCopied') : $t('fivegpnGuideCopy') }}
             </button>
           </div>
-          <p class="text-base-content/60 max-w-2xl text-xs">{{ $t('gpnGuideDotHint') }}</p>
+          <p class="text-base-content/60 max-w-2xl text-xs">{{ $t('fivegpnGuideDotHint') }}</p>
         </div>
 
         <div class="base-container flex flex-col gap-3 p-4">
           <div class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
-            {{ $t('gpnGuideAndroid') }}
+            {{ $t('fivegpnGuideAndroid') }}
           </div>
           <ol class="text-base-content/80 ml-4 list-decimal space-y-1 text-sm">
-            <li>{{ $t('gpnGuideAndroid1') }}</li>
+            <li>{{ $t('fivegpnGuideAndroid1') }}</li>
             <li>
-              {{ $t('gpnGuideAndroid2') }}
+              {{ $t('fivegpnGuideAndroid2') }}
               <code class="bg-base-200/60 ml-1 rounded px-1.5 py-0.5 font-mono text-xs">{{
                 derived.dot
               }}</code>
             </li>
-            <li>{{ $t('gpnGuideAndroid3') }}</li>
+            <li>{{ $t('fivegpnGuideAndroid3') }}</li>
           </ol>
-          <p class="text-base-content/60 max-w-2xl text-xs">{{ $t('gpnGuideAndroidCa') }}</p>
+          <p class="text-base-content/60 max-w-2xl text-xs">{{ $t('fivegpnGuideAndroidCa') }}</p>
         </div>
 
         <div class="base-container flex flex-col gap-3 p-4">
           <div class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
-            {{ $t('gpnGuideIos') }}
+            {{ $t('fivegpnGuideIos') }}
           </div>
           <div class="flex flex-wrap items-start gap-6">
             <div class="flex flex-col items-center gap-2">
@@ -63,24 +64,25 @@
                 target="_blank"
                 rel="noopener"
               >
-                {{ $t('gpnGuideDownloadProfile') }}
+                {{ $t('fivegpnGuideDownloadProfile') }}
               </a>
             </div>
             <ol class="text-base-content/80 ml-4 max-w-md list-decimal space-y-1 text-sm">
-              <li>{{ $t('gpnGuideIos1') }}</li>
-              <li>{{ $t('gpnGuideIos2') }}</li>
-              <li>{{ $t('gpnGuideIos3') }}</li>
+              <li>{{ $t('fivegpnGuideIos1') }}</li>
+              <li>{{ $t('fivegpnGuideIos2') }}</li>
+              <li>{{ $t('fivegpnGuideIos3') }}</li>
             </ol>
           </div>
         </div>
 
-        <!-- 拦截 CA 单独一块,而且不和 DoT 描述文件并列:装了它才会被解密,那是一个
-             需要单独理解的决定,不是同一步骤的下半截。 -->
+        <!-- Keep the interception CA separate from the DoT profile. Installing it enables
+             decryption, which is a distinct decision to understand rather than the second half of
+             the same setup step. -->
         <div class="base-container border-warning flex flex-col gap-3 border p-4">
           <div class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
-            {{ $t('gpnGuideCa') }}
+            {{ $t('fivegpnGuideCa') }}
           </div>
-          <p class="text-base-content/80 max-w-2xl text-sm">{{ $t('gpnGuideCaWhat') }}</p>
+          <p class="text-base-content/80 max-w-2xl text-sm">{{ $t('fivegpnGuideCaWhat') }}</p>
           <div class="flex flex-wrap items-center gap-2">
             <a
               class="btn btn-sm"
@@ -88,27 +90,27 @@
               target="_blank"
               rel="noopener"
             >
-              {{ $t('gpnGuideDownloadCa') }}
+              {{ $t('fivegpnGuideDownloadCa') }}
             </a>
-            <span class="text-warning text-xs">{{ $t('gpnGuideCaTrust') }}</span>
+            <span class="text-warning text-xs">{{ $t('fivegpnGuideCaTrust') }}</span>
           </div>
         </div>
 
         <div class="base-container flex flex-col gap-2 p-4">
           <div class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
-            {{ $t('gpnGuideVerify') }}
+            {{ $t('fivegpnGuideVerify') }}
           </div>
           <div class="settings-grid">
             <div class="setting-item">
-              <div class="setting-item-label">{{ $t('gpnGateway') }}</div>
+              <div class="setting-item-label">{{ $t('fivegpnGateway') }}</div>
               <span class="font-mono text-sm">{{ gateway || '—' }}</span>
             </div>
             <div class="setting-item">
-              <div class="setting-item-label">{{ $t('gpnGuideDotPort') }}</div>
+              <div class="setting-item-label">{{ $t('fivegpnGuideDotPort') }}</div>
               <span class="font-mono text-sm">{{ dotListen || '—' }}</span>
             </div>
           </div>
-          <p class="text-base-content/60 max-w-2xl text-xs">{{ $t('gpnGuideVerifyHint') }}</p>
+          <p class="text-base-content/60 max-w-2xl text-xs">{{ $t('fivegpnGuideVerifyHint') }}</p>
         </div>
       </template>
     </div>
@@ -116,7 +118,7 @@
 </template>
 
 <script setup lang="ts">
-import { dnsDocument, refreshDns } from '@/assembly/gpn/dns'
+import { dnsDocument, refreshDns } from '@/assembly/fivegpn/dns'
 import QRCodeView from '@/components/tools/QRCodeView.vue'
 import { usePaddingForViews } from '@/composables/paddingViews'
 import { computed, ref } from 'vue'
@@ -126,13 +128,15 @@ const { padding } = usePaddingForViews({ offsetTop: 12, offsetBottom: 8 })
 const host = window.location.hostname
 
 /**
- * 从服务这一页的主机名推出 DoT 名字。
+ * Derive the DoT name from the hostname serving this page.
  *
- * 安装器把面板放在 console.<base>,DoT 放在 dot.<base>,两者共用一个 base。所以
- * 这一页不需要问后端要域名 —— 它就是被那台网关服务的,地址栏里已经写着答案。
+ * The installer places the panel at console.<base> and DoT at dot.<base>, sharing one base.
+ * This page therefore does not need to ask the backend for a domain: the gateway serving it has
+ * already put the answer in the address bar.
  *
- * 主机名不是 console. 开头时不猜:直接说明,并把该看的地方指出来。一份猜错了的
- * 向导,恰恰会在它本该消除的那个环节上骗人。
+ * When the hostname does not begin with console., do not guess. Explain the problem and point to
+ * the authoritative location. A wrong guess would mislead at exactly the step this guide should
+ * make reliable.
  */
 const derived = computed(() => {
   if (!host.startsWith('console.')) return null
@@ -159,8 +163,8 @@ const copy = async (value: string) => {
       if (copied.value === value) copied.value = ''
     }, 1500)
   } catch {
-    // 剪贴板在非安全上下文里不可用,而地址就在旁边显示着 —— 抄一次比弹一个
-    // 错误有用。
+    // Clipboard access is unavailable in insecure contexts, and the address remains visible beside
+    // the button. Manual copying is more useful than showing an error.
   }
 }
 

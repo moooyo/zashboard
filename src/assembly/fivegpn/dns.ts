@@ -1,62 +1,67 @@
 import type {
-  GpnDnsDocument,
-  GpnDnsEnvelope,
-  GpnDnsStats,
-  GpnExplanation,
-  GpnQueryLogEntry,
-  GpnSubscriptionStatus,
-} from '@/api/gpn'
+  FiveGPNDnsDocument,
+  FiveGPNDnsEnvelope,
+  FiveGPNDnsStats,
+  FiveGPNExplanation,
+  FiveGPNQueryLogEntry,
+  FiveGPNSubscriptionStatus,
+} from '@/api/fivegpn'
 import {
   fetchDnsAPI,
   fetchQueryLogAPI,
   flushDnsCacheAPI,
   putDnsAPI,
   resolveTestAPI,
-} from '@/api/gpn'
+} from '@/api/fivegpn'
 import { activeUuid } from '@/store/setup'
 import { ref } from 'vue'
 import { featureSupported } from './capabilities'
 
 /**
- * 解析器状态。
+ * Resolver state.
  *
- * 与拦截面一样是五态而不是「数据 or null」:'absent' 与 'error' 必须分开。
- * 503 是引擎没装上,不是「DNS 关掉了」;把两者渲染成同一个界面,等于告诉
- * 操作者他的策略正在生效,而实际上没有人在读它。
+ * Like the interception surface, this uses five states instead of "data or null".
+ * 'absent' and 'error' must remain distinct. A 503 means the engine is missing,
+ * not that DNS is disabled. Rendering both as the same screen would tell the
+ * operator that policy is active when nothing is actually reading it.
  */
 export type DnsStatus = 'idle' | 'loading' | 'ready' | 'absent' | 'error'
 
 export const dnsStatus = ref<DnsStatus>('idle')
-export const dnsDocument = ref<GpnDnsDocument | null>(null)
+export const dnsDocument = ref<FiveGPNDnsDocument | null>(null)
 export const dnsRevision = ref('')
-export const dnsStats = ref<GpnDnsStats | null>(null)
-export const dnsSubscriptions = ref<GpnSubscriptionStatus[]>([])
+export const dnsStats = ref<FiveGPNDnsStats | null>(null)
+export const dnsSubscriptions = ref<FiveGPNSubscriptionStatus[]>([])
 export const dnsError = ref('')
 
-export const dnsSupported = featureSupported('gpn-dns')
+export const dnsSupported = featureSupported('5gpn-dns')
 
-// 与 capabilities 同样的双重护栏:代数挡住同一后端内的乱序响应,uuid 挡住
-// 切换后端后旧后端的迟到响应。
+// This uses the same double guard as capabilities: generation rejects
+// out-of-order responses from one backend, while UUID rejects late responses
+// from the previous backend after a switch.
 let generation = 0
 let controller: AbortController | undefined
 
 /**
- * 统计采样:只更新 stats,绝不碰 dnsDocument。
+ * Statistics sampling updates only stats and never touches dnsDocument.
  *
- * QPS 是速率,而核心只报累计 total,所以速率必须由前端对相邻两次采样做差 ——
- * 和 zashboard 的流量图同一个做法,只是那边是 websocket 推,这边是拉。
+ * QPS is a rate, but the core reports only a cumulative total, so the frontend
+ * derives the rate from adjacent samples. This mirrors zashboard's traffic
+ * chart, except that chart receives websocket pushes while this path polls.
  *
- * 为什么不复用 refreshDns:它会写 dnsDocument,而设置面板 watch 它并据此重置
- * 草稿。一次落在输入过程中的轮询会把操作者正在敲的值抹掉。采样和编辑共用一个
- * 写入口,就是让「看图」这件事去破坏「改配置」那件事。
+ * refreshDns cannot be reused because it writes dnsDocument, which the settings
+ * panel watches to reset its draft. A poll during input would erase what the
+ * operator is typing. Sharing a write path between sampling and editing would
+ * let viewing a chart disrupt configuration changes.
  */
-export type GpnQpsPoint = { name: number; value: [number, number]; init?: boolean }
+export type FiveGPNQpsPoint = { name: number; value: [number, number]; init?: boolean }
 
 const QPS_SECONDS = 60
-// 屏幕外多留两点:最老的点在网格左缘外被删除,左缘滑出时才不会出现可见断线。
+// Keep two extra off-screen points so removing the oldest point beyond the
+// grid's left edge does not create a visible break as the edge scrolls.
 const QPS_POINTS = QPS_SECONDS + 2
 
-const makeQpsHistory = (): GpnQpsPoint[] => {
+const makeQpsHistory = (): FiveGPNQpsPoint[] => {
   const now = Date.now()
   return new Array(QPS_POINTS).fill(0).map((_, i) => {
     const at = now - (QPS_POINTS - 1 - i) * 1000
@@ -65,11 +70,12 @@ const makeQpsHistory = (): GpnQpsPoint[] => {
 }
 
 export const qps = ref(0)
-export const qpsHistory = ref<GpnQpsPoint[]>(makeQpsHistory())
-// 每个上游组的 p50 时间序列。核心报的是一个 15 分钟的滚动窗口,所以这条线读的是
-// 「最近一次采样时,这一组典型查询有多贵」,不是自启动以来的平均。
-export const chinaLatencyHistory = ref<GpnQpsPoint[]>(makeQpsHistory())
-export const trustLatencyHistory = ref<GpnQpsPoint[]>(makeQpsHistory())
+export const qpsHistory = ref<FiveGPNQpsPoint[]>(makeQpsHistory())
+// p50 time series for each upstream group. The core reports a 15-minute rolling
+// window, so this line represents the cost of a typical query in the group at
+// the latest sample, not the average since startup.
+export const chinaLatencyHistory = ref<FiveGPNQpsPoint[]>(makeQpsHistory())
+export const trustLatencyHistory = ref<FiveGPNQpsPoint[]>(makeQpsHistory())
 
 let sampleTimer: ReturnType<typeof setInterval> | undefined
 let lastTotal = -1
@@ -79,26 +85,29 @@ let samplers = 0
 const sampleOnce = async () => {
   const uuid = activeUuid.value
   if (!uuid) return
-  let data: GpnDnsEnvelope | undefined
+  let data: FiveGPNDnsEnvelope | undefined
   try {
     const res = await fetchDnsAPI()
     if (res.status !== 200 || !res.data) return
     data = res.data
   } catch {
-    // 采样失败不改变状态:一次网络抖动不该把面板判成「引擎缺席」。
+    // A sampling failure does not change status; one network wobble must not mark the engine absent.
     return
   }
   if (uuid !== activeUuid.value) return
 
   dnsStats.value = data.stats
-  // 订阅状态也一起收下。它是只读的抓取结果,不是文档 —— 采样刻意不碰 dnsDocument
-  // (那会抹掉正在编辑的草稿),但「抓了多少条」属于「现在装着什么」,和 stats 同一
-  // 类,而且已经在同一个响应里了。不收下的话,独立概览页上那张卡永远读不到它。
+  // Adopt subscription status as well. It is a read-only fetch result rather
+  // than document state. Sampling intentionally avoids dnsDocument because that
+  // would erase an active draft, but entry counts describe what is currently
+  // installed, belong with stats, and already arrive in the same response. If
+  // ignored here, the standalone overview card can never observe them.
   dnsSubscriptions.value = data.subscriptions ?? []
   const now = Date.now()
   const total = data.stats?.total ?? 0
-  // 第一次采样只建立基线,没有速率可算。核心重启会让 total 回退,那不是负速率,
-  // 是一段新的计数 —— 同样只重建基线。
+  // The first sample establishes a baseline and cannot produce a rate. A core
+  // restart makes total decrease; that starts a new counter rather than a
+  // negative rate, so it also only rebuilds the baseline.
   if (lastTotal >= 0 && total >= lastTotal && lastAt > 0) {
     const seconds = Math.max((now - lastAt) / 1000, 0.001)
     qps.value = (total - lastTotal) / seconds
@@ -111,9 +120,11 @@ const sampleOnce = async () => {
   qpsHistory.value.push({ name: now, value: [now, qps.value] })
   qpsHistory.value = qpsHistory.value.slice(-QPS_POINTS)
 
-  // 上游延迟。窗口有 15 分钟的年龄上限,所以一台安静的网关会真的退回到「没有样本」
-  // —— 那时画一个 0 就是在说「0 毫秒」,是假的。用 init 标记这个点,和 makeQpsHistory
-  // 铺的占位点同一个约定:画在零线上,但没有 tooltip,不冒充一次测量。
+  // Upstream latency has a 15-minute sample age limit, so an idle gateway really
+  // can return to "no samples". Plotting an ordinary zero would falsely claim
+  // zero milliseconds. Mark the point with init, following makeQpsHistory's
+  // placeholder convention: draw it on the zero line without a tooltip and do
+  // not present it as a measurement.
   const pushLatency = (
     history: typeof qpsHistory,
     group?: { latencyCount: number; p50Ms: number },
@@ -130,7 +141,7 @@ const sampleOnce = async () => {
   pushLatency(trustLatencyHistory, data.stats?.trust)
 }
 
-/** 引用计数:多张卡片同时挂载时只跑一个定时器。 */
+/** Reference count so multiple mounted cards share one timer. */
 export const startQpsSampling = () => {
   samplers += 1
   if (sampleTimer) return
@@ -151,7 +162,7 @@ export const stopQpsSampling = () => {
   qps.value = 0
 }
 
-const adopt = (data: GpnDnsEnvelope) => {
+const adopt = (data: FiveGPNDnsEnvelope) => {
   dnsDocument.value = data.document
   dnsRevision.value = data.revision
   dnsStats.value = data.stats
@@ -176,7 +187,7 @@ export const refreshDns = async () => {
   dnsError.value = ''
 
   let status = 0
-  let data: GpnDnsEnvelope | undefined
+  let data: FiveGPNDnsEnvelope | undefined
   try {
     const res = await fetchDnsAPI(controller.signal)
     status = res.status
@@ -203,15 +214,18 @@ export const refreshDns = async () => {
 }
 
 /**
- * 保存整份文档。
+ * Save the complete document.
  *
- * 写整份而不是逐字段,是因为这些编辑不是彼此独立的:换网关地址和换服务它的
- * 上游是一件事,分成两次写就会留下一个中间态,解析器在那一刻两边都不是。
+ * The whole document is written because these edits are not independent.
+ * Changing a gateway address and the upstream that serves it is one operation;
+ * two writes would expose an intermediate state in which the resolver matches
+ * neither side.
  *
- * 409 表示别人在你读之后改过。这里直接把最新状态取回来并让调用方看见冲突,
- * 而不是覆盖 —— 两个标签页同时开着这一页是常态,不是异常。
+ * A 409 means someone changed the document after it was read. Fetch the latest
+ * state and expose the conflict instead of overwriting it; having this page open
+ * in two tabs is normal, not exceptional.
  */
-export const saveDns = async (document: GpnDnsDocument): Promise<string> => {
+export const saveDns = async (document: FiveGPNDnsDocument): Promise<string> => {
   if (!dnsRevision.value) return 'no revision'
   try {
     const res = await putDnsAPI({ revision: dnsRevision.value, document })
@@ -234,9 +248,9 @@ const messageOf = (res: { data?: unknown }) => {
   return data?.message ?? ''
 }
 
-// --- 查询日志 --------------------------------------------------------------
+// --- Query log --------------------------------------------------------------
 
-export const queryLog = ref<GpnQueryLogEntry[]>([])
+export const queryLog = ref<FiveGPNQueryLogEntry[]>([])
 export const queryLogFilter = ref('')
 export const queryLogError = ref('')
 
@@ -261,9 +275,9 @@ export const refreshQueryLog = async () => {
   }
 }
 
-// --- 解析诊断 --------------------------------------------------------------
+// --- Resolution diagnostics ------------------------------------------------
 
-export const explanation = ref<GpnExplanation | null>(null)
+export const explanation = ref<FiveGPNExplanation | null>(null)
 export const explanationError = ref('')
 export const explaining = ref(false)
 

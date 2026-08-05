@@ -1,11 +1,11 @@
 import type {
-  GpnCandidate,
-  GpnCatalogSource,
-  GpnCatalogSourceView,
-  GpnEngineLog,
-  GpnInterception,
-  GpnInterceptionEnvelope,
-} from '@/api/gpn'
+  FiveGPNCandidate,
+  FiveGPNCatalogSource,
+  FiveGPNCatalogSourceView,
+  FiveGPNEngineLog,
+  FiveGPNInterception,
+  FiveGPNInterceptionEnvelope,
+} from '@/api/fivegpn'
 import {
   applyCatalogUpdateAPI,
   applyExtensionUpdateAPI,
@@ -24,34 +24,37 @@ import {
   putInterceptionSettingsAPI,
   reviewCatalogEntryAPI,
   reviewExtensionAPI,
-} from '@/api/gpn'
+} from '@/api/fivegpn'
 import { activeUuid } from '@/store/setup'
 import { ref } from 'vue'
 import { featureSupported } from './capabilities'
 
 /**
- * 拦截子系统的状态。
+ * Interception subsystem state.
  *
- * 五态而非「数据 or null」:'absent' 与 'error' 必须分开。核心在引擎没装上时
- * 返回 503,那与「拦截已关闭」是两回事 —— 后者是一份加载成功并声明 enabled:false
- * 的文档,前者是一份根本没能加载的文档。把两者渲染成同一个界面,等于告诉操作者
- * 他的配置正在被遵守,而实际上没有人在读它。
+ * Five states are used instead of "data or null" because 'absent' and 'error'
+ * must remain distinct. The core returns 503 when the engine is unavailable,
+ * which differs from "interception disabled": the latter is a successfully
+ * loaded document declaring enabled:false, while the former is a document that
+ * could not be loaded at all. Rendering both as the same screen would tell the
+ * operator that configuration is being honored when nothing is reading it.
  */
 export type InterceptionStatus = 'idle' | 'loading' | 'ready' | 'absent' | 'error'
 
 export const interceptionStatus = ref<InterceptionStatus>('idle')
-export const interception = ref<GpnInterception | null>(null)
+export const interception = ref<FiveGPNInterception | null>(null)
 export const interceptionRevision = ref('')
 export const interceptionError = ref('')
 
-export const interceptionSupported = featureSupported('gpn-interception')
+export const interceptionSupported = featureSupported('5gpn-interception')
 
-// 与 capabilities 同样的双重护栏:代数挡住同一后端内的乱序响应,uuid 挡住
-// 切换后端后旧后端的迟到响应。
+// This uses the same double guard as capabilities: generation rejects
+// out-of-order responses from one backend, while UUID rejects late responses
+// from the previous backend after a switch.
 let generation = 0
 let controller: AbortController | undefined
 
-const adopt = (data: GpnInterceptionEnvelope) => {
+const adopt = (data: FiveGPNInterceptionEnvelope) => {
   interception.value = data.snapshot
   interceptionRevision.value = data.revision
   interceptionStatus.value = 'ready'
@@ -74,7 +77,7 @@ export const refreshInterception = async () => {
   interceptionError.value = ''
 
   let status = 0
-  let data: GpnInterceptionEnvelope | undefined
+  let data: FiveGPNInterceptionEnvelope | undefined
   try {
     const res = await fetchInterceptionAPI(controller.signal)
     status = res.status
@@ -106,11 +109,12 @@ const messageOf = (res: { data?: unknown }) => {
 }
 
 /**
- * 每个写操作都走这里。
+ * Every write operation passes through this function.
  *
- * 409 不覆盖,而是把最新状态取回来并让调用方看见冲突:两个标签页同时开着扩展
- * 页是常态,而这一页上的「最后一次写获胜」意味着某个扩展在没有人决定的情况下
- * 开始或停止解密流量。
+ * A 409 does not overwrite state. It fetches the latest state and exposes the
+ * conflict to the caller. Having the extensions page open in two tabs is normal,
+ * and last-write-wins here could make an extension start or stop decrypting
+ * traffic without an operator deciding to do so.
  */
 const write = async (
   call: (revision: string) => Promise<{ status: number; data?: unknown }>,
@@ -119,7 +123,7 @@ const write = async (
   try {
     const res = await call(interceptionRevision.value)
     if (res.status === 200 && res.data) {
-      adopt(res.data as GpnInterceptionEnvelope)
+      adopt(res.data as FiveGPNInterceptionEnvelope)
       return ''
     }
     if (res.status === 409) {
@@ -154,21 +158,21 @@ export const uninstallExtension = (id: string) =>
   write((revision) => deleteExtensionAPI(id, { revision }))
 
 export const installReviewed = (
-  candidate: GpnCandidate,
+  candidate: FiveGPNCandidate,
   source: { url?: string; content?: string },
 ) => write((revision) => installExtensionAPI({ revision, digest: candidate.digest, ...source }))
 
-export const applyReviewedUpdate = (id: string, candidate: GpnCandidate) =>
+export const applyReviewedUpdate = (id: string, candidate: FiveGPNCandidate) =>
   write((revision) => applyExtensionUpdateAPI(id, { revision, digest: candidate.digest }))
 
 /**
- * 审阅一份候选。只读取,不改任何状态 —— 它返回的 digest 才是安装时要带回来的
- * 凭据,而重新审阅一次是免费的。
+ * Review a candidate without changing state. The returned digest is the
+ * credential supplied during installation, and repeating a review is harmless.
  */
 export const reviewExtension = async (source: {
   url?: string
   content?: string
-}): Promise<{ candidate?: GpnCandidate; error: string }> => {
+}): Promise<{ candidate?: FiveGPNCandidate; error: string }> => {
   try {
     const res = await reviewExtensionAPI(source)
     if (res.status === 200 && res.data?.candidate) {
@@ -182,7 +186,7 @@ export const reviewExtension = async (source: {
 
 export const checkExtensionUpdate = async (
   id: string,
-): Promise<{ candidate?: GpnCandidate; error: string }> => {
+): Promise<{ candidate?: FiveGPNCandidate; error: string }> => {
   try {
     const res = await checkExtensionUpdateAPI(id)
     if (res.status === 200 && res.data?.candidate) {
@@ -195,22 +199,26 @@ export const checkExtensionUpdate = async (
 }
 
 // ---------------------------------------------------------------------------
-// 目录
+// Catalog
 // ---------------------------------------------------------------------------
 
 /**
- * 目录状态是独立的一套,不并进 interception。
+ * Catalog state remains separate from interception state.
  *
- * 因为它不是网关的状态:一次抓取失败不该让扩展页说不出已经装了什么。列表拿不到
- * 的时候,已安装的那一半仍然要能读、能开关、能卸载。
+ * The catalog is not gateway state. One fetch failure must not prevent the
+ * extensions page from describing what is already installed. When the listing
+ * is unavailable, installed extensions must still be readable, toggleable, and
+ * removable.
  */
 /**
- * 扩展日志。和 DNS 查询日志同一个形状:一次读取,带过滤器,由操作者按刷新。
+ * Extension logs follow the DNS query-log model: one filtered read refreshed by
+ * the operator.
  *
- * 不做自动轮询。日志是出问题之后去翻的东西,而不是一直盯着的仪表 —— 让它每几秒
- * 拉一次,是在没人看的时候持续给控制面加负载,换一份没人读的列表。
+ * Do not poll automatically. Logs are inspected after a problem rather than
+ * watched as a live instrument. Fetching them every few seconds would add
+ * continuous control-plane load in exchange for an unread list.
  */
-export const engineLogs = ref<GpnEngineLog[]>([])
+export const engineLogs = ref<FiveGPNEngineLog[]>([])
 export const engineLogError = ref('')
 export const engineLogFilter = ref('')
 export const engineLogExtension = ref('')
@@ -247,7 +255,7 @@ export const refreshEngineLogs = async () => {
 }
 
 export const catalogStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
-export const catalogSources = ref<GpnCatalogSourceView[]>([])
+export const catalogSources = ref<FiveGPNCatalogSourceView[]>([])
 export const catalogError = ref('')
 
 let catalogGeneration = 0
@@ -283,27 +291,30 @@ export const refreshCatalog = async (refresh = false) => {
   }
 }
 
-export const setCatalogSources = (sources: GpnCatalogSource[]) =>
+export const setCatalogSources = (sources: FiveGPNCatalogSource[]) =>
   write((revision) => putCatalogSourcesAPI({ revision, sources }))
 
 /**
- * 从目录条目发起更新,会把该扩展的来源改成这个条目的 manifest URL。
+ * Updating from a catalog entry changes the extension source to that entry's
+ * manifest URL.
  *
- * 单独一个调用,不是 applyReviewedUpdate 的分支:后者重读安装时那个 URL,
- * 这个替换它。操作者点的是「这个目录里的这个条目」,所以改来源是他要的结果,
- * 而不是配置带来的副作用。
+ * This is a separate call rather than a branch of applyReviewedUpdate. That path
+ * rereads the URL used at installation, while this one replaces it. The operator
+ * explicitly selected this catalog entry, so changing the source is the intended
+ * result rather than a configuration side effect.
  */
-export const applyCatalogUpdate = (source: string, entry: string, candidate: GpnCandidate) =>
+export const applyCatalogUpdate = (source: string, entry: string, candidate: FiveGPNCandidate) =>
   write((revision) => applyCatalogUpdateAPI(source, entry, { revision, digest: candidate.digest }))
 
 /**
- * 审阅一个目录条目。返回的 url 是安装时要带的来源 —— 由服务端给出,而不是
- * 客户端从列表里拼回来,这样安装读的一定是审阅读过的那一个。
+ * Review a catalog entry. The returned URL is the source supplied during
+ * installation. It comes from the server rather than being reconstructed from
+ * the listing by the client, ensuring installation reads exactly what was reviewed.
  */
 export const reviewCatalogEntry = async (
   source: string,
   entry: string,
-): Promise<{ candidate?: GpnCandidate; url?: string; error: string }> => {
+): Promise<{ candidate?: FiveGPNCandidate; url?: string; error: string }> => {
   try {
     const res = await reviewCatalogEntryAPI(source, entry)
     if (res.status === 200 && res.data?.candidate) {

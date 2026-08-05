@@ -55,7 +55,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-// 宽屏显示文字标签，窄屏只显示图标
+// Show text labels on wide screens and icons only on narrow screens.
 const showLabel = useMediaQuery('(min-width: 1024px)')
 
 const segmentLabelMap: Record<SETTINGS_MENU_KEY, string> = {
@@ -64,9 +64,9 @@ const segmentLabelMap: Record<SETTINGS_MENU_KEY, string> = {
   [SETTINGS_MENU_KEY.proxies]: 'settingsMenuProxies',
   [SETTINGS_MENU_KEY.connections]: 'settingsMenuConnections',
   [SETTINGS_MENU_KEY.overview]: 'settingsMenuOverview',
-  [SETTINGS_MENU_KEY.gpnDns]: 'settingsMenuGpnDns',
-  [SETTINGS_MENU_KEY.gpnInterception]: 'settingsMenuGpnInterception',
-  [SETTINGS_MENU_KEY.gpnBot]: 'settingsMenuGpnBot',
+  [SETTINGS_MENU_KEY.fivegpnDns]: 'settingsMenuFiveGPNDns',
+  [SETTINGS_MENU_KEY.fivegpnInterception]: 'settingsMenuFiveGPNInterception',
+  [SETTINGS_MENU_KEY.fivegpnBot]: 'settingsMenuFiveGPNBot',
 }
 
 const segmentOptions = computed<SegmentOption[]>(() =>

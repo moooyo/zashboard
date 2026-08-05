@@ -4,26 +4,26 @@
     class="base-container w-full p-4"
   >
     <div class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
-      {{ $t('gpnDnsCard') }}
+      {{ $t('fivegpnDnsCard') }}
     </div>
 
-    <!-- 卡片在拿到第一次采样之前不能整个消失。原本 v-if 同时要求 stats,于是它
-         在首帧不存在、采样失败时永远不存在 —— 而"不存在"和"没有数据"在屏幕上
-         是同一个样子,操作者只会以为这张卡没做出来。 -->
+    <!-- Keep the card visible until the first sample arrives. The original v-if also required
+         stats, so the card was absent on the first frame and forever after a sampling failure.
+         "Missing" and "no data" look identical on screen, making the card appear unimplemented. -->
     <div
       v-if="!stats"
       class="text-base-content/50 py-6 text-center text-sm"
     >
-      {{ $t('gpnDnsCardLoading') }}
+      {{ $t('fivegpnDnsCardLoading') }}
     </div>
 
     <template v-else>
-      <!-- 上排:速率与命中率。两者都是「现在怎么样」,和 ChartsCard 的上下行同一种
-         读法 —— 一个大数字加一条 60 秒的曲线。 -->
+      <!-- Top row: rate and hit ratio. Both answer "how is it now" and follow the same pattern
+           as upload/download in ChartsCard: a large number plus a 60-second trend. -->
       <div class="mt-4 grid grid-cols-2 gap-3">
         <div class="bg-base-200/30 flex flex-col gap-1.5 rounded-xl p-4">
           <div class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
-            {{ $t('gpnQps') }}
+            {{ $t('fivegpnQps') }}
           </div>
           <div class="flex items-baseline gap-1.5">
             <span class="text-3xl font-extralight tabular-nums">{{ qps.toFixed(1) }}</span>
@@ -33,27 +33,27 @@
             <MiniSparkline
               :data="qpsHistory"
               :min="1"
-              :name="t('gpnQps')"
+              :name="t('fivegpnQps')"
               :label-formatter="qpsLabel"
               :tooltip-formatter="qpsTooltip"
             />
           </div>
           <div class="text-base-content/50 text-xs">
-            {{ $t('gpnQueriesTotal') }} {{ stats.total }}
+            {{ $t('fivegpnQueriesTotal') }} {{ stats.total }}
           </div>
         </div>
 
         <div class="bg-base-200/30 flex flex-col gap-1.5 rounded-xl p-4">
           <div class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
-            {{ $t('gpnCacheHitRate') }}
+            {{ $t('fivegpnCacheHitRate') }}
           </div>
           <div class="flex items-baseline gap-1.5">
             <span class="text-3xl font-extralight tabular-nums">{{ hitRate }}</span>
             <span class="text-base-content/60 text-sm">%</span>
           </div>
           <div class="mt-1 flex h-14 items-end">
-            <!-- 命中率是一个比例,不是时间序列:一条随机起伏的曲线会暗示它在变化,
-               而它其实是自启动以来的累计比。用一条静态的进度条说实话。 -->
+            <!-- The hit ratio is a proportion, not a time series. A fluctuating curve would imply
+                 change, but this is cumulative since startup. A static progress bar is accurate. -->
             <progress
               class="progress progress-primary w-full"
               :value="lookups ? stats.cacheHits : 0"
@@ -61,23 +61,23 @@
             />
           </div>
           <div class="text-base-content/50 text-xs">
-            {{ stats.cacheHits }} / {{ lookups }} · {{ $t('gpnCacheEntries') }}
+            {{ stats.cacheHits }} / {{ lookups }} · {{ $t('fivegpnCacheEntries') }}
             {{ stats.cacheEntries }}
           </div>
         </div>
       </div>
 
-      <!-- 决策分布。这是这张卡最重要的一块:它回答「网关到底把流量判成了什么」,
-         而那正是 5gpn 唯一在做的事。 -->
+      <!-- Decision distribution. This is the card's most important section because it answers
+           what the gateway classified traffic as, which is precisely what 5gpn does. -->
       <div class="bg-base-200/30 mt-3 flex flex-col gap-2 rounded-xl p-4">
         <div class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
-          {{ $t('gpnDecisionMix') }}
+          {{ $t('fivegpnDecisionMix') }}
         </div>
         <div
           v-if="decidedTotal === 0"
           class="text-base-content/50 py-2 text-xs"
         >
-          {{ $t('gpnNoSamples') }}
+          {{ $t('fivegpnNoSamples') }}
         </div>
         <template v-else>
           <div class="bg-base-300/40 flex h-2.5 w-full overflow-hidden rounded-full">
@@ -106,11 +106,11 @@
         </template>
       </div>
 
-      <!-- 上游健康与延迟。err 比 p95 更重要:一个全错的组延迟会很好看,因为失败得快。
-         所以每一格里 ok/total 和延迟并排,而不是只画一条漂亮的线。 -->
+      <!-- Upstream health and latency. err matters more than p95: a completely failing group can
+           look fast because it fails quickly. Show ok/total beside latency instead of only a curve. -->
       <div class="bg-base-200/30 mt-3 flex flex-col gap-2 rounded-xl p-4">
         <div class="text-base-content/60 text-xs font-semibold tracking-wider uppercase">
-          {{ $t('gpnUpstreamHealth') }}
+          {{ $t('fivegpnUpstreamHealth') }}
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div
@@ -131,7 +131,7 @@
               <span
                 v-if="group.stats.latencyCount === 0"
                 class="text-base-content/50 text-sm"
-                >{{ $t('gpnNoSamples') }}</span
+                >{{ $t('fivegpnNoSamples') }}</span
               >
               <template v-else>
                 <span class="text-3xl font-extralight tabular-nums">{{
@@ -157,29 +157,33 @@
           </div>
         </div>
         <!--
-          「现在到底装着哪些判定数据」是一个问题,不是两个。CN 段是核心自带的
-          IP 集合,订阅是运维者订的域名表,来源不同,但对读的人来说是同一件事:
-          仲裁和规则手里有没有料。所以并排放在一行。
+          "Which decision data is currently loaded?" is one question, not two. CN ranges are the
+          core's built-in IP set, while subscriptions are operator-selected domain lists. Their
+          sources differ, but readers care about the same thing: whether arbitration and rules
+          have data to work with. Show them side by side.
 
-          CN 段为 0 要红:仲裁会把整个国内互联网判成境外,而别处看不出来。订阅
-          抓取失败也要红,但数字仍然是上一次成功的条数 —— 核心在失败时保留旧缓存,
-          所以那条线还在生效,报 0 会是假的。
+          Zero CN ranges must be red because arbitration would classify the entire Chinese
+          internet as foreign without another visible symptom. A failed subscription fetch must
+          also be red, while its count remains the last successful value: the core preserves the
+          old cache after failure, so that list is still active and reporting zero would be false.
         -->
         <div class="flex flex-wrap items-center gap-x-2 text-xs">
-          <span class="text-base-content/60">{{ $t('gpnLoaded') }}</span>
+          <span class="text-base-content/60">{{ $t('fivegpnLoaded') }}</span>
           <span :class="stats.cnRanges === 0 ? 'text-error' : 'text-base-content/50'">
-            {{ $t('gpnCnRanges') }} {{ stats.cnRanges }}
+            {{ $t('fivegpnCnRanges') }} {{ stats.cnRanges }}
           </span>
           <template v-if="loadedLists.lists > 0">
             <span class="text-base-content/30">·</span>
             <span class="text-base-content/50">
-              {{ $t('gpnLoadedLists', { lists: loadedLists.lists, entries: loadedLists.entries }) }}
+              {{
+                $t('fivegpnLoadedLists', { lists: loadedLists.lists, entries: loadedLists.entries })
+              }}
             </span>
           </template>
           <template v-if="loadedLists.failed > 0">
             <span class="text-base-content/30">·</span>
             <span class="text-error">
-              {{ $t('gpnLoadedListsFailed', { count: loadedLists.failed }) }}
+              {{ $t('fivegpnLoadedListsFailed', { count: loadedLists.failed }) }}
             </span>
           </template>
         </div>
@@ -199,7 +203,7 @@ import {
   startQpsSampling,
   stopQpsSampling,
   trustLatencyHistory,
-} from '@/assembly/gpn/dns'
+} from '@/assembly/fivegpn/dns'
 import MiniSparkline from '@/components/overview/MiniSparkline.vue'
 import { getToolTipForParams } from '@/helper'
 import { computed, onBeforeUnmount, onMounted } from 'vue'
@@ -209,8 +213,8 @@ const { t } = useI18n()
 
 const stats = computed(() => dnsStats.value)
 
-// 采样只在这张卡挂载期间跑。概览不在屏幕上时每秒拉一次控制面,是拿网关的开销
-// 换一张没人看的图。
+// Sample only while this card is mounted. Polling the control plane every second while the
+// overview is off screen spends gateway resources on a chart nobody can see.
 onMounted(startQpsSampling)
 onBeforeUnmount(stopQpsSampling)
 
@@ -219,18 +223,19 @@ const hitRate = computed(() =>
   lookups.value === 0 ? '0.0' : (((stats.value?.cacheHits ?? 0) / lookups.value) * 100).toFixed(1),
 )
 
-// 只列互斥的终局判定。chnrouteCn/chnrouteForeign 是 fallback 仲裁的两个结果,
-// block/forceDirect/forceProxy 是规则命中的三个结果,合起来正好是一次查询的去向。
+// List only mutually exclusive terminal decisions. chnrouteCn/chnrouteForeign are the two
+// fallback arbitration results; block/forceDirect/forceProxy are the three rule-hit results.
+// Together they account for exactly one destination per query.
 const decisions = computed(() => {
   const s = stats.value
   return [
-    { key: 'block', label: 'gpnIntentBlock', value: s?.block ?? 0, bar: 'bg-error' },
-    { key: 'direct', label: 'gpnIntentDirect', value: s?.forceDirect ?? 0, bar: 'bg-success' },
-    { key: 'proxy', label: 'gpnIntentProxy', value: s?.forceProxy ?? 0, bar: 'bg-primary' },
-    { key: 'cn', label: 'gpnChnrouteCn', value: s?.chnrouteCn ?? 0, bar: 'bg-info' },
+    { key: 'block', label: 'fivegpnIntentBlock', value: s?.block ?? 0, bar: 'bg-error' },
+    { key: 'direct', label: 'fivegpnIntentDirect', value: s?.forceDirect ?? 0, bar: 'bg-success' },
+    { key: 'proxy', label: 'fivegpnIntentProxy', value: s?.forceProxy ?? 0, bar: 'bg-primary' },
+    { key: 'cn', label: 'fivegpnChnrouteCn', value: s?.chnrouteCn ?? 0, bar: 'bg-info' },
     {
       key: 'foreign',
-      label: 'gpnChnrouteForeign',
+      label: 'fivegpnChnrouteForeign',
       value: s?.chnrouteForeign ?? 0,
       bar: 'bg-secondary',
     },
@@ -239,19 +244,19 @@ const decisions = computed(() => {
 
 const decidedTotal = computed(() => decisions.value.reduce((n, d) => n + d.value, 0))
 
-// 两组用不同的颜色,和 ChartsCard 的上行/下行同一种区分方式 —— 一眼看出哪条线是谁,
-// 不用去读标签。
+// Give the two groups different colors, just like upload/download in ChartsCard, so each curve
+// is recognizable at a glance without reading its label.
 const groups = computed(() => [
   {
     key: 'china',
-    label: 'gpnChinaGroup',
+    label: 'fivegpnChinaGroup',
     stats: stats.value!.china,
     history: chinaLatencyHistory.value,
     color: 'info' as const,
   },
   {
     key: 'trust',
-    label: 'gpnTrustGroup',
+    label: 'fivegpnTrustGroup',
     stats: stats.value!.trust,
     history: trustLatencyHistory.value,
     color: 'primary' as const,
@@ -261,9 +266,9 @@ const groups = computed(() => [
 const qpsLabel = (value: number) => `${value.toFixed(1)}/s`
 const msLabel = (value: number) => `${value.toFixed(0)}ms`
 
-// 只统计真的加载进来的表。核心的状态表是抓过之后才有条目的,所以一条从未抓取过的
-// 订阅在这里不出现 —— 这一行报的是「装着什么」,不是「配置了什么」,后者在设置页
-// 的规则订阅那一行,连失败角标一起。
+// Count only lists that were actually loaded. The core's status table gains entries only after a
+// fetch, so a never-fetched subscription is absent here. This row reports what is loaded, not what
+// is configured; the subscription-rules row in Settings reports the latter, including failures.
 const loadedLists = computed(() => {
   const statuses = dnsSubscriptions.value
   return {
@@ -272,8 +277,8 @@ const loadedLists = computed(() => {
     failed: statuses.filter((s) => Boolean(s.error)).length,
   }
 })
-// 用 ChartsCard 同一个助手,而不是自己拼字符串:tooltip 的标记、颜色和数字格式
-// 都在那里定义,重写一遍就是让这一张图慢慢长得和别的不一样。
+// Reuse the ChartsCard helper instead of assembling strings here. It owns tooltip markers, colors,
+// and number formatting; duplicating them would let this chart gradually diverge from the others.
 const qpsTooltip = (params: ToolTipParams[]) =>
   params.map((item) => getToolTipForParams(item, { binary: false, suffix: '/s' })).join('')
 const msTooltip = (params: ToolTipParams[]) =>

@@ -2,7 +2,7 @@
 // Every i18n key referenced with a literal must exist.
 //
 // A missing key does not throw. vue-i18n falls back to compiling the key itself
-// as a message, so the UI silently renders "gpnDnsPolicy" where a label should
+// as a message, so the UI silently renders "fivegpnDnsPolicy" where a label should
 // be -- and on a page you cannot open in CI, nobody sees it. That is the same
 // shape as the three faults this console shipped in one day: valid code, clean
 // build, wrong only in a browser.

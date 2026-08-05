@@ -5,7 +5,7 @@
   >
     <template v-if="botStatus === 'absent'">
       <div class="alert alert-warning py-2">
-        <span>{{ $t('gpnBotAbsent') }}</span>
+        <span>{{ $t('fivegpnBotAbsent') }}</span>
       </div>
     </template>
 
@@ -16,8 +16,8 @@
     </template>
 
     <template v-else-if="data">
-      <!-- 状态与文档是两回事:一个 bot 可以既开着又配好,同时够不到 Telegram。
-           那不是配置错误,而是网络,所以它自己一行。 -->
+      <!-- Runtime status and configuration are separate concerns: a bot can be enabled and
+           configured while Telegram is unreachable. That is a network issue, so it gets its own row. -->
       <div
         v-if="data.enabled && data.last_error"
         class="alert alert-warning py-2"
@@ -26,8 +26,8 @@
       </div>
 
       <div class="settings-grid">
-        <SettingItem :setting-key="k.gpnBotEnabled">
-          <div class="setting-item-label">{{ $t('gpnBotEnabled') }}</div>
+        <SettingItem :setting-key="k.fivegpnBotEnabled">
+          <div class="setting-item-label">{{ $t('fivegpnBotEnabled') }}</div>
           <input
             type="checkbox"
             class="toggle toggle-sm"
@@ -37,8 +37,8 @@
           />
         </SettingItem>
 
-        <SettingItem :setting-key="k.gpnBotState">
-          <div class="setting-item-label">{{ $t('gpnBotState') }}</div>
+        <SettingItem :setting-key="k.fivegpnBotState">
+          <div class="setting-item-label">{{ $t('fivegpnBotState') }}</div>
           <div
             class="badge badge-sm"
             :class="data.state === 'running' ? 'badge-success' : 'badge-ghost'"
@@ -47,16 +47,18 @@
           </div>
         </SettingItem>
 
-        <!-- token 是只写的。这里永远只说明有没有,绝不回显 —— 读回来的
-             载荷里根本没有这个字段。 -->
-        <SettingItem :setting-key="k.gpnBotToken">
-          <div class="setting-item-label">{{ $t('gpnBotToken') }}</div>
+        <!-- The token is write-only. This UI reports only whether one exists and never echoes it;
+             the response payload does not contain this field. -->
+        <SettingItem :setting-key="k.fivegpnBotToken">
+          <div class="setting-item-label">{{ $t('fivegpnBotToken') }}</div>
           <div class="flex items-center gap-2">
             <input
               v-model="token"
               type="password"
               class="input input-sm w-48"
-              :placeholder="data.token_set ? $t('gpnBotTokenStored') : $t('gpnBotTokenUnset')"
+              :placeholder="
+                data.token_set ? $t('fivegpnBotTokenStored') : $t('fivegpnBotTokenUnset')
+              "
               :disabled="busy"
               autocomplete="off"
             />
@@ -66,15 +68,15 @@
               :disabled="busy"
               @click="clearToken"
             >
-              {{ $t('gpnBotTokenClear') }}
+              {{ $t('fivegpnBotTokenClear') }}
             </button>
           </div>
         </SettingItem>
 
-        <!-- 一个开着但没有管理员的 bot 谁都不回答,操作者会以为它坏了然后去查
-             网络。所以它是要求,而不是留白。 -->
-        <SettingItem :setting-key="k.gpnBotAdmins">
-          <div class="setting-item-label">{{ $t('gpnBotAdmins') }}</div>
+        <!-- An enabled bot without an administrator answers nobody, which looks like a network
+             failure to the operator. Treat an administrator as required rather than optional. -->
+        <SettingItem :setting-key="k.fivegpnBotAdmins">
+          <div class="setting-item-label">{{ $t('fivegpnBotAdmins') }}</div>
           <input
             v-model="adminText"
             class="input input-sm w-48"
@@ -83,8 +85,8 @@
           />
         </SettingItem>
 
-        <SettingItem :setting-key="k.gpnBotAlerts">
-          <div class="setting-item-label">{{ $t('gpnBotAlerts') }}</div>
+        <SettingItem :setting-key="k.fivegpnBotAlerts">
+          <div class="setting-item-label">{{ $t('fivegpnBotAlerts') }}</div>
           <input
             type="checkbox"
             class="toggle toggle-sm"
@@ -94,19 +96,19 @@
           />
         </SettingItem>
 
-        <SettingItem :setting-key="k.gpnBotSave">
-          <div class="setting-item-label">{{ $t('gpnBotSave') }}</div>
+        <SettingItem :setting-key="k.fivegpnBotSave">
+          <div class="setting-item-label">{{ $t('fivegpnBotSave') }}</div>
           <button
             class="btn btn-primary btn-sm"
             :disabled="busy"
             @click="save"
           >
-            {{ $t('gpnBotSave') }}
+            {{ $t('fivegpnBotSave') }}
           </button>
         </SettingItem>
       </div>
 
-      <p class="text-xs opacity-70">{{ $t('gpnBotReadOnlyNote') }}</p>
+      <p class="text-xs opacity-70">{{ $t('fivegpnBotReadOnlyNote') }}</p>
 
       <div
         v-if="notice"
@@ -120,17 +122,17 @@
 </template>
 
 <script setup lang="ts">
-import { bot, botError, botStatus, refreshBot, saveBot } from '@/assembly/gpn/bot'
+import { bot, botError, botStatus, refreshBot, saveBot } from '@/assembly/fivegpn/bot'
 import SettingItem from '@/components/settings/SettingItem.vue'
 import { useHasAnyVisibleSetting } from '@/composables/settings'
-import { GPN_BOT_ITEM_KEYS, getAllKeysForCategory } from '@/config/settingsItems'
+import { FIVEGPN_BOT_ITEM_KEYS, getAllKeysForCategory } from '@/config/settingsItems'
 import { SETTINGS_MENU_KEY } from '@/constant'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
-const k = GPN_BOT_ITEM_KEYS
-const hasVisibleItems = useHasAnyVisibleSetting(getAllKeysForCategory(SETTINGS_MENU_KEY.gpnBot))
+const k = FIVEGPN_BOT_ITEM_KEYS
+const hasVisibleItems = useHasAnyVisibleSetting(getAllKeysForCategory(SETTINGS_MENU_KEY.fivegpnBot))
 
 const data = computed(() => bot.value)
 const busy = ref(false)
@@ -141,8 +143,8 @@ const draft = reactive({ enabled: false, alerts: false })
 const adminText = ref('')
 const token = ref('')
 
-// 服务端是权威。每次读回来都覆盖草稿,否则一次并发写会让界面继续显示一份
-// 谁都没保存过的配置。
+// The server is authoritative. Replace the draft after every read; otherwise a concurrent write
+// could leave the UI displaying a configuration that nobody saved.
 watch(
   data,
   (next) => {
@@ -166,7 +168,7 @@ const parsedAdmins = computed(() =>
 
 const report = (error: string) => {
   noticeIsError.value = Boolean(error)
-  notice.value = error === 'conflict' ? t('gpnConflict') : error || t('gpnSaved')
+  notice.value = error === 'conflict' ? t('fivegpnConflict') : error || t('fivegpnSaved')
 }
 
 const write = async (payload: { token?: string }) => {
@@ -184,7 +186,7 @@ const write = async (payload: { token?: string }) => {
 
 const save = () => write(token.value.trim() ? { token: token.value.trim() } : {})
 
-// 清除必须是明示的,因为「留空」已经用来表示「别动」了。
+// Clearing must be explicit because an empty value already means "leave unchanged."
 const clearToken = () => {
   draft.enabled = false
   return write({ token: '-' })

@@ -1,4 +1,4 @@
-export type GpnInterceptionSettingsWrite = {
+export type FiveGPNInterceptionSettingsWrite = {
   revision: string
   enabled: boolean
   http2: boolean
@@ -9,4 +9,8 @@ export const interceptionSettingsWrite = ({
   revision,
   enabled,
   http2,
-}: GpnInterceptionSettingsWrite): GpnInterceptionSettingsWrite => ({ revision, enabled, http2 })
+}: FiveGPNInterceptionSettingsWrite): FiveGPNInterceptionSettingsWrite => ({
+  revision,
+  enabled,
+  http2,
+})

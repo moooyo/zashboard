@@ -14,53 +14,65 @@ export type SettingsCategory = {
 export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   {
     // DNS policy, upstreams and the resolve diagnostic. They used to live on
-    // the gpn-dns page beside the query log, which put configuration and a
+    // the 5gpn-dns page beside the query log, which put configuration and a
     // read-only stream of traffic in the same place and in neither of the two
     // idioms this console otherwise has. The page keeps the log.
-    key: SETTINGS_MENU_KEY.gpnDns,
-    label: 'gpnDnsSettings',
+    key: SETTINGS_MENU_KEY.fivegpnDns,
+    label: 'fivegpnDnsSettings',
     items: [
-      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsFallback`, label: 'gpnDnsFallback' },
-      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsRules`, label: 'gpnDnsRules' },
-      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsSubscriptions`, label: 'gpnDnsSubscriptions' },
-      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsGateway`, label: 'gpnDnsGateway' },
-      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsChina`, label: 'gpnDnsChina' },
-      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsTrust`, label: 'gpnDnsTrust' },
-      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsEcs`, label: 'gpnDnsEcs' },
-      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsResolve`, label: 'gpnDnsResolve' },
-      { key: `${SETTINGS_MENU_KEY.gpnDns}.gpnDnsFlush`, label: 'gpnDnsFlush' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnDns}.fivegpnDnsFallback`, label: 'fivegpnDnsFallback' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnDns}.fivegpnDnsRules`, label: 'fivegpnDnsRules' },
+      {
+        key: `${SETTINGS_MENU_KEY.fivegpnDns}.fivegpnDnsSubscriptions`,
+        label: 'fivegpnDnsSubscriptions',
+      },
+      { key: `${SETTINGS_MENU_KEY.fivegpnDns}.fivegpnDnsGateway`, label: 'fivegpnDnsGateway' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnDns}.fivegpnDnsChina`, label: 'fivegpnDnsChina' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnDns}.fivegpnDnsTrust`, label: 'fivegpnDnsTrust' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnDns}.fivegpnDnsEcs`, label: 'fivegpnDnsEcs' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnDns}.fivegpnDnsResolve`, label: 'fivegpnDnsResolve' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnDns}.fivegpnDnsFlush`, label: 'fivegpnDnsFlush' },
     ],
   },
   {
-    key: SETTINGS_MENU_KEY.gpnInterception,
-    label: 'gpnInterceptionSettings',
+    key: SETTINGS_MENU_KEY.fivegpnInterception,
+    label: 'fivegpnInterceptionSettings',
     items: [
-      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnMitmMaster`, label: 'gpnMitmMaster' },
-      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnHttp2`, label: 'gpnHttp2' },
-      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnHttp3`, label: 'gpnHttp3' },
-      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnModules`, label: 'gpnModules' },
-      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnCaptureHosts`, label: 'gpnCaptureHosts' },
-      { key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnUnboundEgress`, label: 'gpnUnboundEgress' },
       {
-        key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnCertificateExpiry`,
-        label: 'gpnCertificateExpiry',
+        key: `${SETTINGS_MENU_KEY.fivegpnInterception}.fivegpnMitmMaster`,
+        label: 'fivegpnMitmMaster',
+      },
+      { key: `${SETTINGS_MENU_KEY.fivegpnInterception}.fivegpnHttp2`, label: 'fivegpnHttp2' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnInterception}.fivegpnHttp3`, label: 'fivegpnHttp3' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnInterception}.fivegpnModules`, label: 'fivegpnModules' },
+      {
+        key: `${SETTINGS_MENU_KEY.fivegpnInterception}.fivegpnCaptureHosts`,
+        label: 'fivegpnCaptureHosts',
       },
       {
-        key: `${SETTINGS_MENU_KEY.gpnInterception}.gpnInterceptionRefresh`,
-        label: 'gpnInterceptionRefresh',
+        key: `${SETTINGS_MENU_KEY.fivegpnInterception}.fivegpnUnboundEgress`,
+        label: 'fivegpnUnboundEgress',
+      },
+      {
+        key: `${SETTINGS_MENU_KEY.fivegpnInterception}.fivegpnCertificateExpiry`,
+        label: 'fivegpnCertificateExpiry',
+      },
+      {
+        key: `${SETTINGS_MENU_KEY.fivegpnInterception}.fivegpnInterceptionRefresh`,
+        label: 'fivegpnInterceptionRefresh',
       },
     ],
   },
   {
-    key: SETTINGS_MENU_KEY.gpnBot,
-    label: 'gpnBotSettings',
+    key: SETTINGS_MENU_KEY.fivegpnBot,
+    label: 'fivegpnBotSettings',
     items: [
-      { key: `${SETTINGS_MENU_KEY.gpnBot}.gpnBotEnabled`, label: 'gpnBotEnabled' },
-      { key: `${SETTINGS_MENU_KEY.gpnBot}.gpnBotState`, label: 'gpnBotState' },
-      { key: `${SETTINGS_MENU_KEY.gpnBot}.gpnBotToken`, label: 'gpnBotToken' },
-      { key: `${SETTINGS_MENU_KEY.gpnBot}.gpnBotAdmins`, label: 'gpnBotAdmins' },
-      { key: `${SETTINGS_MENU_KEY.gpnBot}.gpnBotAlerts`, label: 'gpnBotAlerts' },
-      { key: `${SETTINGS_MENU_KEY.gpnBot}.gpnBotSave`, label: 'gpnBotSave' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnBot}.fivegpnBotEnabled`, label: 'fivegpnBotEnabled' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnBot}.fivegpnBotState`, label: 'fivegpnBotState' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnBot}.fivegpnBotToken`, label: 'fivegpnBotToken' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnBot}.fivegpnBotAdmins`, label: 'fivegpnBotAdmins' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnBot}.fivegpnBotAlerts`, label: 'fivegpnBotAlerts' },
+      { key: `${SETTINGS_MENU_KEY.fivegpnBot}.fivegpnBotSave`, label: 'fivegpnBotSave' },
     ],
   },
   {
@@ -161,9 +173,9 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     key: SETTINGS_MENU_KEY.overview,
     label: 'overviewSettings',
     items: [
-      // 这一条对应设置页内嵌概览里的 5gpn DNS 卡片。它和 chartsCard /
-      // networkCard 是同一层的东西 —— 都是「内嵌概览里显示哪几张卡」。
-      { key: `${SETTINGS_MENU_KEY.overview}.gpnDnsCard`, label: 'gpnDnsCard' },
+      // This entry controls the 5gpn DNS card in the overview embedded on the
+      // Settings page. It is a peer of chartsCard and networkCard.
+      { key: `${SETTINGS_MENU_KEY.overview}.fivegpnDnsCard`, label: 'fivegpnDnsCard' },
       { key: `${SETTINGS_MENU_KEY.overview}.overviewCard`, label: 'chartsCard' },
       { key: `${SETTINGS_MENU_KEY.overview}.networkCard`, label: 'networkCard' },
       { key: `${SETTINGS_MENU_KEY.overview}.splitOverviewPage`, label: 'splitOverviewPage' },
@@ -283,11 +295,11 @@ export const PROXIES_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.proxies)
 /** Key map for connections settings. */
 export const CONNECTIONS_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.connections)
 /** Key map for 5gpn interception settings. */
-export const GPN_DNS_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.gpnDns)
+export const FIVEGPN_DNS_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.fivegpnDns)
 /** Key map for the DNS settings. */
-export const GPN_INTERCEPTION_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.gpnInterception)
+export const FIVEGPN_INTERCEPTION_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.fivegpnInterception)
 /** Key map for the Telegram bot settings. */
-export const GPN_BOT_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.gpnBot)
+export const FIVEGPN_BOT_ITEM_KEYS = keyMapByLabel(SETTINGS_MENU_KEY.fivegpnBot)
 
 function keyMapByLabel(categoryKey: SETTINGS_MENU_KEY): Record<string, string> {
   const category = SETTINGS_CATEGORIES.find((c) => c.key === categoryKey)

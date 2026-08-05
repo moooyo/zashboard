@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url'
 // fileURLToPath, not URL.pathname: on Windows the latter yields "/D:/..." and
 // join() then produces "D:\D:\...".
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
-const FILE = join(ROOT, 'src', 'assembly', 'gpn', 'capabilities.ts')
+const FILE = join(ROOT, 'src', 'assembly', 'fivegpn', 'capabilities.ts')
 
 const body = readFileSync(FILE, 'utf8')
 const failures = []
@@ -38,7 +38,7 @@ if (!/^\s*activeUuid,\s*$/m.test(body)) {
   failures.push('the probe is not triggered by activeUuid; it would not follow a backend switch')
 }
 if (!/immediate:\s*true/.test(body)) {
-  failures.push('the probe trigger is not immediate; the first load would render no gpn surface')
+  failures.push('the probe trigger is not immediate; the first load would render no 5gpn surface')
 }
 // The call has to be the watcher's, not only the retry timer's.
 const callSites = (body.match(/initCapabilityDiscovery\(\)/g) || []).length

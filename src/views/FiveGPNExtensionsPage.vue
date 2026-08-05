@@ -8,7 +8,7 @@
         v-if="interceptionStatus === 'absent'"
         class="alert alert-warning"
       >
-        <span>{{ $t('gpnInterceptionAbsent') }}</span>
+        <span>{{ $t('fivegpnInterceptionAbsent') }}</span>
       </div>
       <div
         v-else-if="interceptionStatus === 'error'"
@@ -26,14 +26,17 @@
           <span>{{ notice }}</span>
         </div>
 
-        <!-- SAN 集与已启用扩展要求捕获的集合不符,是唯一一个在客户端表现为信任
-             错误、而网关日志里什么都没有的故障。它必须比其他任何一行都显眼。 -->
+        <!-- A SAN set that differs from the capture set required by enabled extensions is the only
+             failure that appears as a client trust error with no gateway log entry. Make it more
+             prominent than every other row. -->
         <div
           v-if="certificateGap"
           class="alert alert-error"
         >
           <span>{{
-            $t('gpnCertificateGap', { hosts: (data.certificate.missing_hosts ?? []).join(', ') })
+            $t('fivegpnCertificateGap', {
+              hosts: (data.certificate.missing_hosts ?? []).join(', '),
+            })
           }}</span>
         </div>
 
@@ -44,26 +47,31 @@
             class="badge badge-sm"
             :class="data.enabled ? 'badge-success' : 'badge-ghost'"
           >
-            {{ $t('gpnMitmMaster') }}: {{ $t(data.enabled ? 'gpnEnabled' : 'gpnDisabled') }}
+            {{ $t('fivegpnMitmMaster') }}:
+            {{ $t(data.enabled ? 'fivegpnEnabled' : 'fivegpnDisabled') }}
           </span>
           <span class="text-xs opacity-70">
             {{
-              $t('gpnModuleCount', { enabled: enabledCount, total: (data.modules ?? []).length })
+              $t('fivegpnModuleCount', {
+                enabled: enabledCount,
+                total: (data.modules ?? []).length,
+              })
             }}
-            · {{ $t('gpnCaptureHosts') }}: {{ (data.active_capture_hosts ?? []).length }}
+            · {{ $t('fivegpnCaptureHosts') }}: {{ (data.active_capture_hosts ?? []).length }}
           </span>
         </div>
 
-        <!-- 顶部标签,而不是一摞卡片。从清单 URL 安装原本是最后一张卡,要滚过
-             整个市场和已安装列表才够得着 —— 它是这一页最主动的动作之一,不该
-             排在最后。SegmentedControl 是 zashboard 自己的标签控件,连计数角标
-             一起用,和工具页、连接页是同一个东西。 -->
+        <!-- Use top tabs instead of a stack of cards. Installation from a manifest URL was the last
+             card, reachable only after scrolling through the entire marketplace and installed list.
+             It is one of this page's primary actions and should not be last. SegmentedControl is
+             zashboard's own tab control, including count badges, as used on Tools and Connections. -->
         <SegmentedControl
           v-model="tab"
           :options="tabOptions"
         />
 
-        <!-- 审阅。启用之前操作者要看到的全部影响都在这里,而不是分散在几次确认里。 -->
+        <!-- Review every effect the operator must see before enabling in one place rather than
+             distributing it across several confirmations. -->
         <div
           v-if="candidate"
           class="base-container border-warning flex flex-col gap-2 border p-3"
@@ -77,7 +85,7 @@
               v-if="candidate.installedVersion"
               class="badge badge-info badge-sm"
             >
-              {{ $t('gpnUpdateFrom', { from: candidate.installedVersion }) }}
+              {{ $t('fivegpnUpdateFrom', { from: candidate.installedVersion }) }}
             </span>
           </div>
           <p
@@ -89,36 +97,36 @@
 
           <div class="settings-grid">
             <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnCaptureHosts') }}</span>
+              <span class="setting-item-label">{{ $t('fivegpnCaptureHosts') }}</span>
               <span class="font-mono text-xs">{{ candidate.detail.capture_hosts.join(', ') }}</span>
             </div>
             <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnActions') }}</span>
+              <span class="setting-item-label">{{ $t('fivegpnActions') }}</span>
               <span>{{ (candidate.detail.actions ?? []).length }}</span>
             </div>
             <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnStorage') }}</span>
+              <span class="setting-item-label">{{ $t('fivegpnStorage') }}</span>
               <span>{{
-                $t(candidate.detail.persistent_storage ? 'gpnEnabled' : 'gpnDisabled')
+                $t(candidate.detail.persistent_storage ? 'fivegpnEnabled' : 'fivegpnDisabled')
               }}</span>
             </div>
             <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnRoutingRules') }}</span>
+              <span class="setting-item-label">{{ $t('fivegpnRoutingRules') }}</span>
               <span>{{ (candidate.detail.routing_rules ?? []).length }}</span>
             </div>
             <div class="setting-item">
-              <span class="setting-item-label">{{ $t('gpnDigest') }}</span>
+              <span class="setting-item-label">{{ $t('fivegpnDigest') }}</span>
               <span class="font-mono text-xs">{{ candidate.digest.slice(0, 16) }}</span>
             </div>
           </div>
 
-          <!-- 这个授权不带目的地清单。把它写成一组「已审阅的目标」会是在描述一条
-               并不存在的边界,所以每个界面都必须说「任何它能到达的主机」。 -->
+          <!-- This grant has no destination list. Presenting "reviewed targets" would describe a
+               boundary that does not exist, so every UI must say "any host it can reach." -->
           <div
             v-if="candidate.detail.network"
             class="alert alert-warning py-2"
           >
-            <span>{{ $t('gpnNetworkGrantWarning') }}</span>
+            <span>{{ $t('fivegpnNetworkGrantWarning') }}</span>
           </div>
 
           <div class="flex gap-2">
@@ -127,16 +135,18 @@
               :disabled="busy"
               @click="install"
             >
-              {{ $t(candidate.installed || catalogTarget ? 'gpnApplyUpdate' : 'gpnInstall') }}
+              {{
+                $t(candidate.installed || catalogTarget ? 'fivegpnApplyUpdate' : 'fivegpnInstall')
+              }}
             </button>
             <button
               class="btn btn-sm"
               @click="clearReview"
             >
-              {{ $t('gpnCancel') }}
+              {{ $t('fivegpnCancel') }}
             </button>
           </div>
-          <p class="text-xs opacity-70">{{ $t('gpnInstallLandsDisabled') }}</p>
+          <p class="text-xs opacity-70">{{ $t('fivegpnInstallLandsDisabled') }}</p>
         </div>
 
         <div
@@ -147,8 +157,8 @@
         </div>
 
         <template v-if="tab === 'installed'">
-          <!-- 已安装。顺序即优先级:重叠捕获主机归执行顺序里靠前的那个扩展所有,
-               它同时决定动作组合、egress 与源站解析组。 -->
+          <!-- Installed extensions. Order is priority: the earlier extension owns overlapping capture
+               hosts, and the order also determines action composition, egress, and origin resolution. -->
           <div class="flex flex-col gap-2">
             <div
               v-for="(module, index) in orderedModules"
@@ -170,7 +180,7 @@
                   v-if="module.egress_group_required && !module.egress_group"
                   class="badge badge-error badge-sm"
                 >
-                  {{ $t('gpnUnboundEgress') }}
+                  {{ $t('fivegpnUnboundEgress') }}
                 </span>
                 <div class="ml-auto flex gap-1">
                   <button
@@ -192,28 +202,28 @@
                     :disabled="busy"
                     @click="checkUpdate(module.id)"
                   >
-                    {{ $t('gpnCheckUpdate') }}
+                    {{ $t('fivegpnCheckUpdate') }}
                   </button>
                   <button
                     class="btn btn-ghost btn-xs text-error"
                     :disabled="busy"
                     @click="remove(module)"
                   >
-                    {{ $t('gpnUninstall') }}
+                    {{ $t('fivegpnUninstall') }}
                   </button>
                 </div>
               </div>
 
               <div class="flex flex-wrap items-center gap-3 pl-8 text-xs">
                 <label class="flex items-center gap-1">
-                  <span class="opacity-70">{{ $t('gpnEgressGroup') }}</span>
+                  <span class="opacity-70">{{ $t('fivegpnEgressGroup') }}</span>
                   <select
                     class="select select-xs w-40"
                     :value="module.egress_group ?? ''"
                     :disabled="busy"
                     @change="setEgress(module, $event)"
                   >
-                    <option value="">{{ $t('gpnNoBinding') }}</option>
+                    <option value="">{{ $t('fivegpnNoBinding') }}</option>
                     <option
                       v-for="group in data.available_egress_groups"
                       :key="group"
@@ -224,7 +234,7 @@
                   </select>
                 </label>
                 <label class="flex items-center gap-1">
-                  <span class="opacity-70">{{ $t('gpnCaptureDns') }}</span>
+                  <span class="opacity-70">{{ $t('fivegpnCaptureDns') }}</span>
                   <select
                     class="select select-xs w-28"
                     :value="module.capture_dns"
@@ -241,18 +251,18 @@
           </div>
         </template>
         <template v-else-if="tab === 'market'">
-          <!-- 目录。它只是一份 manifest 清单:点「审阅」走的仍然是审阅 → 确认
-               digest → 安装那条路,digest 由重新抓取 manifest 算出,不是目录说了算。
-               所以这里没有「一键安装」。 -->
+          <!-- The catalog is only a manifest index. Review still follows review, digest confirmation,
+               then installation; the digest comes from refetching the manifest rather than trusting
+               the catalog. There is therefore no one-click installation here. -->
           <div class="base-container flex flex-col gap-2 p-3">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="text-sm font-medium">{{ $t('gpnCatalog') }}</span>
+              <span class="text-sm font-medium">{{ $t('fivegpnCatalog') }}</span>
               <button
                 class="btn btn-xs"
                 :disabled="catalogStatus === 'loading'"
                 @click="refreshCatalog(true)"
               >
-                {{ $t('gpnCatalogRefresh') }}
+                {{ $t('fivegpnCatalogRefresh') }}
               </button>
               <span
                 v-if="catalogStatus === 'loading'"
@@ -263,13 +273,14 @@
               </span>
             </div>
 
-            <!-- 来源管理。目录条目不授予任何权限,所以加一个来源只是多一份清单 ——
-                 安装仍然是审阅 → 核对 digest → 确认。校验规则和核心一致,写在这里
-                 是为了当场说明白拒绝的理由,不是替核心把关:提交仍然由核心裁定。 -->
+            <!-- Source management. Catalog entries grant no permissions, so adding a source only adds
+                 an index. Installation still requires review, digest verification, and confirmation.
+                 Validation mirrors the core to explain rejection immediately, not to replace core
+                 enforcement: the core still decides whether a submission is accepted. -->
             <div class="border-base-300 flex flex-col gap-2 border-t pt-2">
               <div class="flex flex-wrap items-end gap-2">
                 <label class="flex flex-col gap-1">
-                  <span class="text-xs opacity-70">{{ $t('gpnCatalogSourceId') }}</span>
+                  <span class="text-xs opacity-70">{{ $t('fivegpnCatalogSourceId') }}</span>
                   <input
                     v-model="newSourceId"
                     class="input input-sm input-bordered w-48"
@@ -277,7 +288,7 @@
                   />
                 </label>
                 <label class="flex flex-col gap-1">
-                  <span class="text-xs opacity-70">{{ $t('gpnCatalogSourceUrl') }}</span>
+                  <span class="text-xs opacity-70">{{ $t('fivegpnCatalogSourceUrl') }}</span>
                   <input
                     v-model="newSourceUrl"
                     class="input input-sm input-bordered w-80"
@@ -285,7 +296,7 @@
                   />
                 </label>
                 <label class="flex flex-col gap-1">
-                  <span class="text-xs opacity-70">{{ $t('gpnCatalogSourceName') }}</span>
+                  <span class="text-xs opacity-70">{{ $t('fivegpnCatalogSourceName') }}</span>
                   <input
                     v-model="newSourceName"
                     class="input input-sm input-bordered w-48"
@@ -296,7 +307,7 @@
                   :disabled="!canAddSource || sourceBusy"
                   @click="addCatalogSource"
                 >
-                  {{ $t('gpnCatalogSourceAdd') }}
+                  {{ $t('fivegpnCatalogSourceAdd') }}
                 </button>
               </div>
               <div
@@ -324,7 +335,7 @@
                 <span
                   v-if="!source.enabled"
                   class="badge badge-ghost badge-xs"
-                  >{{ $t('gpnDisabled') }}</span
+                  >{{ $t('fivegpnDisabled') }}</span
                 >
                 <span
                   v-else-if="source.error"
@@ -338,7 +349,9 @@
                   @click="toggleCatalogSource(source.id)"
                 >
                   {{
-                    source.enabled ? $t('gpnCatalogSourceDisable') : $t('gpnCatalogSourceEnable')
+                    source.enabled
+                      ? $t('fivegpnCatalogSourceDisable')
+                      : $t('fivegpnCatalogSourceEnable')
                   }}
                 </button>
                 <button
@@ -346,7 +359,7 @@
                   :disabled="sourceBusy"
                   @click="removeCatalogSource(source.id)"
                 >
-                  {{ $t('gpnCatalogSourceRemove') }}
+                  {{ $t('fivegpnCatalogSourceRemove') }}
                 </button>
               </div>
 
@@ -360,17 +373,17 @@
                 <span
                   v-if="entry.installed_version === entry.version"
                   class="badge badge-success badge-sm"
-                  >{{ $t('gpnInstalled') }}</span
+                  >{{ $t('fivegpnInstalled') }}</span
                 >
                 <span
                   v-else-if="entry.installed_version"
                   class="badge badge-info badge-sm"
-                  >{{ $t('gpnUpdateFrom', { from: entry.installed_version }) }}</span
+                  >{{ $t('fivegpnUpdateFrom', { from: entry.installed_version }) }}</span
                 >
                 <span
                   v-if="entry.capabilities?.network"
                   class="badge badge-warning badge-sm"
-                  >{{ $t('gpnNetworkGrant') }}</span
+                  >{{ $t('fivegpnNetworkGrant') }}</span
                 >
                 <span class="flex-1 truncate text-xs opacity-70">{{ entry.description }}</span>
                 <button
@@ -378,18 +391,18 @@
                   :disabled="reviewing || busy"
                   @click="reviewEntry(source.id, entry.id)"
                 >
-                  {{ entry.installed_version ? $t('gpnReviewUpdate') : $t('gpnReview') }}
+                  {{ entry.installed_version ? $t('fivegpnReviewUpdate') : $t('fivegpnReview') }}
                 </button>
               </div>
             </div>
           </div>
         </template>
         <template v-else-if="tab === 'install'">
-          <!-- 导入 -->
+          <!-- Import -->
           <div class="base-container flex flex-col gap-2 p-3">
             <div class="flex flex-wrap items-end gap-2">
               <label class="flex flex-1 flex-col gap-1">
-                <span class="text-sm font-medium">{{ $t('gpnImportUrl') }}</span>
+                <span class="text-sm font-medium">{{ $t('fivegpnImportUrl') }}</span>
                 <input
                   v-model="importUrl"
                   class="input input-sm w-full"
@@ -401,12 +414,12 @@
                 :disabled="reviewing || (!importUrl && !importContent)"
                 @click="review"
               >
-                {{ $t('gpnReview') }}
+                {{ $t('fivegpnReview') }}
               </button>
             </div>
             <details>
               <summary class="cursor-pointer text-xs opacity-70">
-                {{ $t('gpnPasteManifest') }}
+                {{ $t('fivegpnPasteManifest') }}
               </summary>
               <textarea
                 v-model="importContent"
@@ -418,14 +431,14 @@
         </template>
 
         <template v-else-if="tab === 'logs'">
-          <!-- 和 DNS 查询日志同一个形状:一次读取,手动刷新。日志是出问题之后去翻
-               的东西,自动轮询只是在没人看的时候给控制面加负载。 -->
+          <!-- Follow the DNS query log pattern: one read with manual refresh. Logs are consulted after
+               a problem; automatic polling only loads the control plane while nobody is looking. -->
           <div class="base-container flex flex-col gap-2 p-3">
             <div class="flex flex-wrap items-center gap-2">
               <input
                 v-model="engineLogFilter"
                 class="input input-sm w-56"
-                :placeholder="$t('gpnLogSearch')"
+                :placeholder="$t('fivegpnLogSearch')"
                 @keyup.enter="refreshEngineLogs"
               />
               <select
@@ -433,7 +446,7 @@
                 class="select select-sm w-48"
                 @change="refreshEngineLogs"
               >
-                <option value="">{{ $t('gpnLogAllExtensions') }}</option>
+                <option value="">{{ $t('fivegpnLogAllExtensions') }}</option>
                 <option
                   v-for="module in data.modules ?? []"
                   :key="module.id"
@@ -447,7 +460,7 @@
                 class="select select-sm w-28"
                 @change="refreshEngineLogs"
               >
-                <option value="">{{ $t('gpnLogAllLevels') }}</option>
+                <option value="">{{ $t('fivegpnLogAllLevels') }}</option>
                 <option value="info">info</option>
                 <option value="warn">warn</option>
                 <option value="error">error</option>
@@ -456,9 +469,9 @@
                 class="btn btn-sm"
                 @click="refreshEngineLogs"
               >
-                {{ $t('gpnInterceptionRefresh') }}
+                {{ $t('fivegpnInterceptionRefresh') }}
               </button>
-              <span class="text-xs opacity-70">{{ $t('gpnLogWindow') }}</span>
+              <span class="text-xs opacity-70">{{ $t('fivegpnLogWindow') }}</span>
             </div>
 
             <div
@@ -472,7 +485,7 @@
               v-else-if="engineLogs.length === 0"
               class="text-base-content/50 py-4 text-center text-sm"
             >
-              {{ $t('gpnLogEmpty') }}
+              {{ $t('fivegpnLogEmpty') }}
             </div>
 
             <div
@@ -482,11 +495,11 @@
               <table class="table-xs table">
                 <thead>
                   <tr>
-                    <th>{{ $t('gpnLogTime') }}</th>
-                    <th>{{ $t('gpnLogLevel') }}</th>
-                    <th>{{ $t('gpnLogExtension') }}</th>
-                    <th>{{ $t('gpnLogAction') }}</th>
-                    <th>{{ $t('gpnLogMessage') }}</th>
+                    <th>{{ $t('fivegpnLogTime') }}</th>
+                    <th>{{ $t('fivegpnLogLevel') }}</th>
+                    <th>{{ $t('fivegpnLogExtension') }}</th>
+                    <th>{{ $t('fivegpnLogAction') }}</th>
+                    <th>{{ $t('fivegpnLogMessage') }}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -521,7 +534,7 @@
 </template>
 
 <script setup lang="ts">
-import type { GpnCandidate, GpnModuleSummary } from '@/api/gpn'
+import type { FiveGPNCandidate, FiveGPNModuleSummary } from '@/api/fivegpn'
 import {
   applyCatalogUpdate,
   applyReviewedUpdate,
@@ -549,7 +562,7 @@ import {
   setExtensionEgress,
   setExtensionEnabled,
   uninstallExtension,
-} from '@/assembly/gpn/interception'
+} from '@/assembly/fivegpn/interception'
 import SegmentedControl, { type SegmentOption } from '@/components/common/SegmentedControl.vue'
 import { usePaddingForViews } from '@/composables/paddingViews'
 import { computed, ref, watch } from 'vue'
@@ -558,23 +571,29 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 const { padding } = usePaddingForViews({ offsetTop: 12, offsetBottom: 8 })
 
-// 已安装排在第一个,因为它是「这台网关现在在做什么」;市场和安装都是往里加东西。
+// Installed comes first because it describes what this gateway is doing now; Marketplace and Install
+// both add things to it.
 const tab = ref<'installed' | 'market' | 'install' | 'logs'>('installed')
 const tabOptions = computed<SegmentOption[]>(() => [
-  { value: 'installed', label: t('gpnInstalledTab'), count: (data.value?.modules ?? []).length },
-  { value: 'market', label: t('gpnCatalog'), count: catalogEntryCount.value },
-  { value: 'install', label: t('gpnImportTab') },
-  { value: 'logs', label: t('gpnLogsTab') },
+  {
+    value: 'installed',
+    label: t('fivegpnInstalledTab'),
+    count: (data.value?.modules ?? []).length,
+  },
+  { value: 'market', label: t('fivegpnCatalog'), count: catalogEntryCount.value },
+  { value: 'install', label: t('fivegpnImportTab') },
+  { value: 'logs', label: t('fivegpnLogsTab') },
 ])
 
-// 市场里可安装条目的总数,跨来源。停用的来源不抓取,自然也不计数。
+// Total installable marketplace entries across all sources. Disabled sources are not fetched and
+// therefore are not counted.
 const logTime = (iso: string) => new Date(iso).toLocaleTimeString()
 
 const levelClass = (level: string) =>
   level === 'error' ? 'badge-error' : level === 'warn' ? 'badge-warning' : 'badge-ghost'
 
-// 切到日志标签时拉一次。进来看到空表、还得再按一下刷新,是让操作者替界面做它
-// 自己知道该做的事。
+// Fetch once when switching to the Logs tab. Requiring a second click after showing an empty table
+// makes the operator perform work the UI already knows it should do.
 watch(tab, (next) => {
   if (next === 'logs') void refreshEngineLogs()
 })
@@ -584,17 +603,18 @@ const catalogEntryCount = computed(() =>
 )
 
 /**
- * 目录来源的增删启停。
+ * Add, remove, enable, and disable catalog sources.
  *
- * 文档一直支持 16 个来源,核心一直有 PUT /gpn/interception/catalog/sources,
- * 前端也一直把它们全部列出来 —— 唯独没有加进去的入口,所以第二个来源只能用
- * curl 加。这里补的是那个入口。
+ * The document has always supported 16 sources, the core has always exposed
+ * PUT /5gpn/interception/catalog/sources, and the frontend has always listed every source. Only the
+ * add entry point was missing, forcing operators to add a second source with curl. This fills that gap.
  *
- * 写入是整份替换而不是增量:核心的契约就是「这就是全部来源」,带 revision 做
- * 乐观并发。所以每个操作都从当前列表出发构造新列表。
+ * Writes replace the full collection rather than applying deltas. The core contract says "these are
+ * all sources" and uses revision for optimistic concurrency, so every operation derives a new list
+ * from the current one.
  */
 const CATALOG_SOURCE_LIMIT = 16
-// 和核心的 nativeExtensionIDPattern 同形,长度另按 validModuleID 限 3..40。
+// Match the core's nativeExtensionIDPattern shape, with the separate validModuleID length limit of 3..40.
 const SOURCE_ID_PATTERN = /^[a-z0-9](?:[a-z0-9.-]{1,126}[a-z0-9])$/
 
 const newSourceId = ref('')
@@ -605,7 +625,7 @@ const sourceBusy = ref(false)
 const validSourceId = (id: string) =>
   id.length >= 3 && id.length <= 40 && SOURCE_ID_PATTERN.test(id)
 
-/** 和核心 checkResourceURL 相同的四条:https、有 host、无 userinfo、无 fragment。 */
+/** Mirror checkResourceURL's four core rules: HTTPS, a host, no userinfo, and no fragment. */
 const validSourceUrl = (raw: string) => {
   let u: URL
   try {
@@ -623,7 +643,7 @@ const canAddSource = computed(
     validSourceUrl(newSourceUrl.value.trim()),
 )
 
-/** 当前来源的可写副本 —— 视图类型带着 entries/metadata,提交时不能捎上。 */
+/** Writable copies of current sources; view types include entries/metadata that writes must omit. */
 const currentSources = () =>
   catalogSources.value.map((s) => ({
     id: s.id,
@@ -644,7 +664,7 @@ const writeSources = async (sources: ReturnType<typeof currentSources>) => {
   // where every other write on this page reports.
   report(err)
   if (err) {
-    sourceError.value = err === 'conflict' ? t('gpnConflict') : err
+    sourceError.value = err === 'conflict' ? t('fivegpnConflict') : err
     return false
   }
   // The source list changed, so the listing did too. The core does not refetch
@@ -658,13 +678,13 @@ const addCatalogSource = async () => {
   const url = newSourceUrl.value.trim()
   const name = newSourceName.value.trim()
   const sources = currentSources()
-  // 重复由核心判定失败,但当场说出来比等一个 400 清楚。
+  // The core rejects duplicates, but explaining one immediately is clearer than waiting for a 400.
   if (sources.some((s) => s.id === id)) {
-    sourceError.value = t('gpnCatalogSourceDuplicateId', { id })
+    sourceError.value = t('fivegpnCatalogSourceDuplicateId', { id })
     return
   }
   if (sources.some((s) => s.url === url)) {
-    sourceError.value = t('gpnCatalogSourceDuplicateUrl', { url })
+    sourceError.value = t('fivegpnCatalogSourceDuplicateUrl', { url })
     return
   }
   sources.push({ id, name, url, enabled: true })
@@ -690,9 +710,10 @@ const noticeIsError = ref(false)
 
 const importUrl = ref('')
 const importContent = ref('')
-const candidate = ref<GpnCandidate | null>(null)
+const candidate = ref<FiveGPNCandidate | null>(null)
 const updateTarget = ref('')
-// 目录坐标。非空表示这次确认要走 applyCatalogUpdate —— 那会改变扩展的来源。
+// Catalog coordinates. A non-null value means confirmation uses applyCatalogUpdate, which changes
+// the extension's source.
 const catalogTarget = ref<{ source: string; entry: string } | null>(null)
 const reviewing = ref(false)
 const reviewError = ref('')
@@ -703,13 +724,13 @@ const certificateGap = computed(
   () => data.value?.certificate.loaded === true && !data.value.certificate.covers_all_capture_hosts,
 )
 
-// 执行顺序是权威的;modules 数组只是集合。按顺序渲染,否则界面上的「第 1 个」
-// 与真正先匹配的那个不是同一个扩展。
+// Execution order is authoritative; the modules array is only a set. Render in execution order, or
+// the extension shown as first would differ from the one that actually matches first.
 const orderedModules = computed(() => {
   const modules = data.value?.modules ?? []
   const order = data.value?.execution_order ?? []
   const byID = new Map(modules.map((m) => [m.id, m]))
-  const out: GpnModuleSummary[] = []
+  const out: FiveGPNModuleSummary[] = []
   for (const id of order) {
     const module = byID.get(id)
     if (module) {
@@ -722,7 +743,7 @@ const orderedModules = computed(() => {
 
 const report = (error: string) => {
   noticeIsError.value = Boolean(error)
-  notice.value = error === 'conflict' ? t('gpnConflict') : error || t('gpnSaved')
+  notice.value = error === 'conflict' ? t('fivegpnConflict') : error || t('fivegpnSaved')
 }
 
 const run = async (action: () => Promise<string>) => {
@@ -731,13 +752,13 @@ const run = async (action: () => Promise<string>) => {
   busy.value = false
 }
 
-const toggleModule = (module: GpnModuleSummary) =>
+const toggleModule = (module: FiveGPNModuleSummary) =>
   run(() => setExtensionEnabled(module.id, !module.enabled))
 
-const setEgress = (module: GpnModuleSummary, event: Event) =>
+const setEgress = (module: FiveGPNModuleSummary, event: Event) =>
   run(() => setExtensionEgress(module.id, (event.target as HTMLSelectElement).value))
 
-const setCaptureDNS = (module: GpnModuleSummary, event: Event) =>
+const setCaptureDNS = (module: FiveGPNModuleSummary, event: Event) =>
   run(() => setExtensionCaptureDNS(module.id, (event.target as HTMLSelectElement).value))
 
 const moveModule = (index: number, delta: number) => {
@@ -749,8 +770,8 @@ const moveModule = (index: number, delta: number) => {
   return run(() => setExecutionOrder(order))
 }
 
-const remove = (module: GpnModuleSummary) => {
-  if (!window.confirm(t('gpnUninstallConfirm', { name: module.name || module.id }))) return
+const remove = (module: FiveGPNModuleSummary) => {
+  if (!window.confirm(t('fivegpnUninstallConfirm', { name: module.name || module.id }))) return
   return run(() => uninstallExtension(module.id))
 }
 
@@ -778,15 +799,15 @@ const checkUpdate = async (id: string) => {
 }
 
 /**
- * 目录条目的审阅走同一个候选框。
+ * Review catalog entries in the same candidate dialog.
  *
- * 服务端把 manifest URL 一并返回,这里把它填进导入框 —— 于是安装用的是审阅
- * 读过的那一个来源,而操作者在确认之前看得见它。从列表里拼回一个 URL 会让
- * 「审阅的东西」和「安装的东西」在理论上可以不是同一个。
+ * The server returns the manifest URL, which is placed into the import field so installation uses
+ * the same source that review read and the operator can see it before confirmation. Reconstructing
+ * a URL from the list could make the reviewed and installed resources differ in principle.
  *
- * 如果这个 id 已经装了,记下条目坐标:确认时走 applyCatalogUpdate,那会把
- * 扩展的来源改成这个条目的 URL。这是操作者点这一行的意思,但它是一次改来源,
- * 所以确认按钮说的是「更新」而不是「安装」。
+ * If this ID is already installed, retain the entry coordinates. Confirmation then uses
+ * applyCatalogUpdate to change the extension source to this entry's URL. That is what selecting the
+ * row means, but because it changes a source, the confirmation button says Update rather than Install.
  */
 const reviewEntry = async (sourceId: string, entryId: string) => {
   reviewing.value = true
@@ -806,7 +827,8 @@ const reviewEntry = async (sourceId: string, entryId: string) => {
   reviewing.value = false
 }
 
-// 取消要把目录坐标一并清掉,否则下一次「安装」会带着上一次的条目走更新路径。
+// Cancel must also clear catalog coordinates, or the next Install would reuse the previous entry and
+// follow the update path.
 const clearReview = () => {
   candidate.value = null
   updateTarget.value = ''

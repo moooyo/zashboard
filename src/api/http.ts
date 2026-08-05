@@ -1,6 +1,7 @@
-// api 层 · axios 实例的全局拦截器。
-// 这是 api 层唯一允许依赖 store/setup 的地方:请求需要从 activeBackend 取得
-// 当前连接目标(baseURL / 鉴权)。其余 api 文件不得依赖上层。
+// API layer · global interceptors for the Axios instance.
+// This is the only API-layer module allowed to depend on store/setup: requests
+// obtain the current target (baseURL and authentication) from activeBackend.
+// All other API modules must remain independent of higher layers.
 import { ROUTE_NAME } from '@/constant'
 import { showNotification } from '@/helper/notification'
 import { getUrlFromBackend } from '@/helper/utils'
@@ -25,11 +26,11 @@ const ignoreNotificationUrls = [
   // the expected answer there, not something to raise a toast about — and
   // resolving instead of rejecting is what lets the caller branch on `status`.
   '/capabilities',
-  '/gpn',
+  '/5gpn',
 ]
 
 // endsWith alone never matched the entries that name a path *prefix*:
-// '/gpn' is listed, but the request is '/gpn/<subsystem>', so every probe
+// '/5gpn' is listed, but the request is '/5gpn/<subsystem>', so every probe
 // against a stock core raised a toast the list existed to suppress. Sub-paths
 // have to be matched as sub-paths.
 const ignoresNotification = (url?: string) =>

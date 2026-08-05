@@ -1,7 +1,7 @@
 import { capabilities } from '@/assembly/backend'
 import { connectionAccessor } from '@/assembly/connections'
-import { dnsSupported } from '@/assembly/gpn/dns'
-import { interceptionSupported } from '@/assembly/gpn/interception'
+import { dnsSupported } from '@/assembly/fivegpn/dns'
+import { interceptionSupported } from '@/assembly/fivegpn/interception'
 import { hiddenGroupMap, proxyMap } from '@/assembly/proxies'
 import { NOT_CONNECTED, PROXY_CHAIN_DIRECTION, PROXY_TYPE, ROUTE_NAME } from '@/constant'
 import { showNotification } from '@/helper/notification'
@@ -44,8 +44,9 @@ export const isProxyGroup = (name: string) => {
   ].includes(proxyNode.type.toLowerCase() as PROXY_TYPE)
 }
 
-// 以下 getConnectionXxx 均委托给 assembly 层「按当前后端动态选用」的访问器,
-// view / store 直接读取这些 view 友好的派生值,无需感知后端差异。
+// The getConnectionXxx helpers below delegate to assembly accessors that select
+// the active backend dynamically. Views and stores consume these view-friendly
+// derived values without knowing backend-specific details.
 export const getConnectionChains = (connection: Connection) =>
   connectionAccessor().chains(connection)
 
@@ -155,9 +156,9 @@ export const renderRoutes = computed(() => {
   const routeCapable: Partial<Record<ROUTE_NAME, boolean>> = {
     [ROUTE_NAME.rules]: caps.rules,
     [ROUTE_NAME.tools]: caps.tools,
-    [ROUTE_NAME.gpnDns]: dnsSupported.value,
-    [ROUTE_NAME.gpnSetupGuide]: dnsSupported.value,
-    [ROUTE_NAME.gpnExtensions]: interceptionSupported.value,
+    [ROUTE_NAME.fivegpnDns]: dnsSupported.value,
+    [ROUTE_NAME.fivegpnSetupGuide]: dnsSupported.value,
+    [ROUTE_NAME.fivegpnExtensions]: interceptionSupported.value,
   }
   return Object.values(ROUTE_NAME).filter((r) => {
     if (r === ROUTE_NAME.setup) return false

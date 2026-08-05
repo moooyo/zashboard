@@ -6,14 +6,16 @@
     @transitionend="handleTransitionEnd"
   >
     <!--
-      侧边栏是一个滚动容器(overflow-x-hidden 让 overflow-y 变成 auto),而
-      .scrollbar-hidden 又把滚动条藏了 —— 于是"装不下"的表现不是可滚动,而是
-      直接消失。列内的三块都带着默认的 min-height:auto,谁都不能被压缩,窗口一
-      矮整列就顶出边界:先掉统计,再掉路由表的最后一行(设置)。少的那一格没有任
-      何提示,读起来就是"tab 少了一个"。
+      The sidebar is a scroll container (overflow-x-hidden makes overflow-y auto), while
+      .scrollbar-hidden hides the scrollbar. Content that does not fit therefore appears to vanish
+      instead of looking scrollable. All three column sections default to min-height:auto, so none
+      can shrink. A shorter window pushes the column past its boundary: statistics disappear first,
+      followed by the last route row (Settings). Nothing signals the missing row, so it looks like
+      the tab was never present.
 
-      导航是唯一不能被裁掉的东西 —— 掉一格就等于一个页面再也点不到。所以下面
-      的次要块显式 min-h-0 + 自己滚动,由它们吸收压缩;nav 保持自然高度。
+      Navigation is the one section that must never be clipped, because losing a row makes a page
+      unreachable. Secondary sections below explicitly use min-h-0 and their own scrolling to absorb
+      compression, while nav keeps its natural height.
       The sidebar is a scroll container with its scrollbar hidden, so anything
       that does not fit does not scroll — it vanishes. Navigation is the one
       block that must never be the one to go.
@@ -30,11 +32,11 @@
           :style="indicatorStyle"
         />
         <!--
-          h-full 曾经把这个 ul 钉死在 nav 的高度上。两个后果:daisyUI 的 .menu 是
-          flex-flow: column wrap,一旦 nav 被压到比内容矮,行就会折进第二列并被
-          overflow-x-hidden 裁掉;而且 ul 的尺寸永远不变,useResizeObserver 永远
-          不触发,能力探测在首帧之后补上 5gpn 那几个 tab 时没有任何东西重新量过
-          指示条。让它取自然高度,两个问题一起没了。
+          h-full previously fixed this ul to nav's height. That caused two problems. DaisyUI's .menu
+          uses flex-flow: column wrap, so once nav became shorter than its content, rows wrapped into
+          a second column and were clipped by overflow-x-hidden. Also, the ul size never changed, so
+          useResizeObserver never fired and nothing remeasured the indicator when capability discovery
+          added the 5gpn tabs after the first frame. Natural height fixes both problems.
         -->
         <ul
           ref="menuRef"
@@ -79,8 +81,8 @@
         />
       </template>
       <template v-else>
-        <!-- min-h-28 而不是 min-h-0:图表是最该让位的一块,但让到零就不是"让位"
-             而是"消失"了。留一格图表的高度,它自己有滚动条。 -->
+        <!-- Use min-h-28 rather than min-h-0. The chart should yield space first, but shrinking to
+             zero makes it disappear rather than yield. Preserve one chart row; it has its own scrollbar. -->
         <OverviewCarousel class="min-h-28" />
         <CommonSidebar class="base-container scrollbar-hidden min-h-0 shrink overflow-y-auto" />
       </template>
@@ -151,9 +153,10 @@ const syncTabIndicator = () => {
   }
 }
 
-// renderRoutes 也要在这里:能力探测在首帧之后才回答,5gpn 的三个 tab 大约晚一帧
-// 补进来。路由名没变、折叠状态也没变,所以在此之前没有任何东西会重新量指示条 ——
-// 刷新落在 gpn 页面上时,高亮就停在探测前的位置。
+// Include renderRoutes here because capability discovery responds after the first frame, adding the
+// three 5gpn tabs roughly one frame later. Neither the route name nor collapse state changes, so
+// nothing else remeasures the indicator. Refreshing on a 5gpn page would leave the highlight at its
+// pre-discovery position.
 watch(
   [() => route.name, isSidebarCollapsed, renderRoutes],
   async () => {

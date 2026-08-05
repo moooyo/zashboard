@@ -4,14 +4,14 @@
       class="flex flex-col gap-3 p-3"
       :style="padding"
     >
-      <!-- 引擎缺席不是「DNS 关掉了」。关掉是一份加载成功并声明如此的文档;
-           缺席是一份没能加载的文档。渲染成同一个界面,等于告诉操作者他的策略
-           正在生效,而实际上没有人在读它。 -->
+      <!-- A missing engine does not mean DNS is disabled. Disabled means a successfully loaded
+           document says so; missing means the document could not be loaded. Rendering both states
+           alike would tell the operator that policy is active when nothing reads it. -->
       <div
         v-if="dnsStatus === 'absent'"
         class="alert alert-warning"
       >
-        <span>{{ $t('gpnDnsAbsent') }}</span>
+        <span>{{ $t('fivegpnDnsAbsent') }}</span>
       </div>
       <div
         v-else-if="dnsStatus === 'error'"
@@ -20,25 +20,26 @@
         <span>{{ dnsError }}</span>
       </div>
 
-      <!-- 这一页只剩查询日志。策略、上游与诊断是配置,它们和其它配置一起住在
-           设置页的「DNS」分区里 —— 分散在两个地方是原来的样子,不是有意的。
-           日志是一份读取出来的流水,不是一份要保存的草稿,所以它留在这里。 -->
+      <!-- Only query logs remain on this page. Policy, upstreams, and diagnostics are configuration
+           and live with other configuration in the DNS section of Settings; their previous split
+           across two locations was accidental. Logs are a read-only stream rather than a draft to
+           save, so they remain here. -->
       <div class="base-container flex flex-col gap-2 p-3">
         <div class="flex flex-wrap items-center gap-2">
-          <span class="text-sm font-medium">{{ $t('gpnTabQueryLog') }}</span>
+          <span class="text-sm font-medium">{{ $t('fivegpnTabQueryLog') }}</span>
           <input
             v-model="queryLogFilter"
             class="input input-sm w-64"
-            :placeholder="$t('gpnQueryLogFilter')"
+            :placeholder="$t('fivegpnQueryLogFilter')"
             @keyup.enter="refreshQueryLog"
           />
           <button
             class="btn btn-sm"
             @click="refreshQueryLog"
           >
-            {{ $t('gpnInterceptionRefresh') }}
+            {{ $t('fivegpnInterceptionRefresh') }}
           </button>
-          <span class="text-xs opacity-70">{{ $t('gpnQueryLogWindow') }}</span>
+          <span class="text-xs opacity-70">{{ $t('fivegpnQueryLogWindow') }}</span>
         </div>
         <div
           v-if="queryLogError"
@@ -50,13 +51,13 @@
           <table class="table-xs table">
             <thead>
               <tr>
-                <th>{{ $t('gpnLogTime') }}</th>
-                <th>{{ $t('gpnLogName') }}</th>
-                <th>{{ $t('gpnLogType') }}</th>
-                <th>{{ $t('gpnVerdict') }}</th>
-                <th>{{ $t('gpnUpstreamAdopted') }}</th>
-                <th>{{ $t('gpnLogAnswer') }}</th>
-                <th>{{ $t('gpnLogDuration') }}</th>
+                <th>{{ $t('fivegpnLogTime') }}</th>
+                <th>{{ $t('fivegpnLogName') }}</th>
+                <th>{{ $t('fivegpnLogType') }}</th>
+                <th>{{ $t('fivegpnVerdict') }}</th>
+                <th>{{ $t('fivegpnUpstreamAdopted') }}</th>
+                <th>{{ $t('fivegpnLogAnswer') }}</th>
+                <th>{{ $t('fivegpnLogDuration') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -75,7 +76,7 @@
                     {{ entry.reason || entry.verdict || '—' }}
                   </span>
                 </td>
-                <td>{{ entry.upstream || (entry.cacheHit ? $t('gpnCacheHit') : '—') }}</td>
+                <td>{{ entry.upstream || (entry.cacheHit ? $t('fivegpnCacheHit') : '—') }}</td>
                 <td class="font-mono text-xs">{{ (entry.ips ?? []).join(', ') }}</td>
                 <td class="whitespace-nowrap">{{ entry.durationMs.toFixed(1) }} ms</td>
               </tr>
@@ -96,7 +97,7 @@ import {
   queryLogFilter,
   refreshDns,
   refreshQueryLog,
-} from '@/assembly/gpn/dns'
+} from '@/assembly/fivegpn/dns'
 import { usePaddingForViews } from '@/composables/paddingViews'
 
 const { padding } = usePaddingForViews({ offsetTop: 12, offsetBottom: 8 })

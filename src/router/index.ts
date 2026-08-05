@@ -43,19 +43,19 @@ const childrenRouter = [
     component: RulesPage,
   },
   {
-    path: 'gpn-setup-guide',
-    name: ROUTE_NAME.gpnSetupGuide,
-    component: () => import('@/views/GpnSetupGuidePage.vue'),
+    path: '5gpn-setup-guide',
+    name: ROUTE_NAME.fivegpnSetupGuide,
+    component: () => import('@/views/FiveGPNSetupGuidePage.vue'),
   },
   {
-    path: 'gpn-dns',
-    name: ROUTE_NAME.gpnDns,
-    component: () => import('@/views/GpnDnsPage.vue'),
+    path: '5gpn-dns',
+    name: ROUTE_NAME.fivegpnDns,
+    component: () => import('@/views/FiveGPNDnsPage.vue'),
   },
   {
-    path: 'gpn-extensions',
-    name: ROUTE_NAME.gpnExtensions,
-    component: () => import('@/views/GpnExtensionsPage.vue'),
+    path: '5gpn-extensions',
+    name: ROUTE_NAME.fivegpnExtensions,
+    component: () => import('@/views/FiveGPNExtensionsPage.vue'),
   },
   {
     path: 'tools',

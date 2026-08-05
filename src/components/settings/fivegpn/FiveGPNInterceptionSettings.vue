@@ -3,12 +3,12 @@
     v-if="hasVisibleItems"
     class="flex flex-col gap-3 text-sm"
   >
-    <!-- 引擎缺席不是「拦截已关闭」。关闭是一份加载成功并声明 enabled:false 的
-         文档;缺席是一份没能加载的文档。渲染成同一个界面,等于告诉操作者他的
-         配置正在被遵守,而实际上没有人在读它。 -->
+    <!-- A missing engine does not mean interception is disabled. Disabled means a successfully
+         loaded document declares enabled:false; missing means the document could not be loaded.
+         Rendering both states alike would claim the configuration is honored when nothing reads it. -->
     <template v-if="interceptionStatus === 'absent'">
       <div class="alert alert-warning py-2">
-        <span>{{ $t('gpnInterceptionAbsent') }}</span>
+        <span>{{ $t('fivegpnInterceptionAbsent') }}</span>
       </div>
     </template>
 
@@ -18,22 +18,22 @@
       </div>
     </template>
 
-    <!-- 渲染条件是「有数据」而不是「状态为 ready」:刷新期间状态会变成
-         loading,若按状态渲染,整个面板会在每次刷新时闪空一下。留住已有的数字,
-         把刷新的可见性交给按钮自己。 -->
+    <!-- Render when data exists rather than only while status is ready. Refreshing changes status
+         to loading, so status-based rendering would blank the panel on every refresh. Preserve the
+         existing values and let the button communicate refresh activity. -->
     <template v-else-if="data">
-      <!-- SAN 集与已启用扩展要求捕获的集合不符,是唯一一个在客户端表现为信任
-           错误、而网关日志里什么都没有的故障。它必须比其他任何一行都显眼。 -->
+      <!-- A SAN set that differs from the capture set required by enabled extensions is the only
+           failure that appears as a client trust error with no gateway log entry. Make it prominent. -->
       <div
         v-if="certificateGap"
         class="alert alert-error py-2"
       >
-        <span>{{ $t('gpnCertificateGap', { hosts: missingHosts }) }}</span>
+        <span>{{ $t('fivegpnCertificateGap', { hosts: missingHosts }) }}</span>
       </div>
 
       <div class="settings-grid">
-        <SettingItem :setting-key="k.gpnMitmMaster">
-          <div class="setting-item-label">{{ $t('gpnMitmMaster') }}</div>
+        <SettingItem :setting-key="k.fivegpnMitmMaster">
+          <div class="setting-item-label">{{ $t('fivegpnMitmMaster') }}</div>
           <input
             type="checkbox"
             class="toggle"
@@ -43,8 +43,8 @@
           />
         </SettingItem>
 
-        <SettingItem :setting-key="k.gpnHttp2">
-          <div class="setting-item-label">{{ $t('gpnHttp2') }}</div>
+        <SettingItem :setting-key="k.fivegpnHttp2">
+          <div class="setting-item-label">{{ $t('fivegpnHttp2') }}</div>
           <input
             type="checkbox"
             class="toggle"
@@ -54,58 +54,59 @@
           />
         </SettingItem>
 
-        <SettingItem :setting-key="k.gpnHttp3">
-          <div class="setting-item-label">{{ $t('gpnHttp3') }}</div>
+        <SettingItem :setting-key="k.fivegpnHttp3">
+          <div class="setting-item-label">{{ $t('fivegpnHttp3') }}</div>
           <div
-            data-testid="gpn-http3-boundary"
+            data-testid="fivegpn-http3-boundary"
             class="flex max-w-xl flex-col items-end gap-1 text-right"
           >
-            <span class="badge badge-warning badge-sm">{{ $t('gpnHttp3Unavailable') }}</span>
-            <span class="text-xs opacity-70">{{ $t('gpnHttp3Blocked') }}</span>
+            <span class="badge badge-warning badge-sm">{{ $t('fivegpnHttp3Unavailable') }}</span>
+            <span class="text-xs opacity-70">{{ $t('fivegpnHttp3Blocked') }}</span>
           </div>
         </SettingItem>
 
-        <!-- 「已安装」与「正在捕获」是两个数字,而不是一个。被禁用的扩展照样
-             声明主机;把声明集报告成生效集,等于告诉操作者他的流量正在被拦截,
-             而实际上没有任何东西在拦。 -->
-        <SettingItem :setting-key="k.gpnModules">
-          <div class="setting-item-label">{{ $t('gpnModules') }}</div>
+        <!-- "Installed" and "currently captured" are different counts. Disabled extensions still
+             declare hosts; reporting declarations as the active set would falsely claim that traffic
+             is being intercepted. -->
+        <SettingItem :setting-key="k.fivegpnModules">
+          <div class="setting-item-label">{{ $t('fivegpnModules') }}</div>
           <div>
-            {{ $t('gpnModuleCount', { enabled: enabledCount, total: data.modules.length }) }}
+            {{ $t('fivegpnModuleCount', { enabled: enabledCount, total: data.modules.length }) }}
           </div>
         </SettingItem>
 
-        <SettingItem :setting-key="k.gpnCaptureHosts">
-          <div class="setting-item-label">{{ $t('gpnCaptureHosts') }}</div>
+        <SettingItem :setting-key="k.fivegpnCaptureHosts">
+          <div class="setting-item-label">{{ $t('fivegpnCaptureHosts') }}</div>
           <div>{{ data.active_capture_hosts.length }}</div>
         </SettingItem>
 
-        <!-- 空的 egress group 本身没有含义。在要求它的模块上,它就是「已安装、
-             已启用、却什么都没捕获」的全部原因,所以只在真的缺失时才出现。 -->
+        <!-- An empty egress group has no meaning by itself. For a module that requires one, however,
+             it fully explains why an installed and enabled module captures nothing. Show it only
+             when the binding is genuinely missing. -->
         <SettingItem
-          :setting-key="k.gpnUnboundEgress"
+          :setting-key="k.fivegpnUnboundEgress"
           :when="unboundEgress.length > 0"
         >
-          <div class="setting-item-label">{{ $t('gpnUnboundEgress') }}</div>
+          <div class="setting-item-label">{{ $t('fivegpnUnboundEgress') }}</div>
           <div class="text-error">{{ unboundEgress.join(', ') }}</div>
         </SettingItem>
 
         <SettingItem
-          :setting-key="k.gpnCertificateExpiry"
+          :setting-key="k.fivegpnCertificateExpiry"
           :when="Boolean(data.certificate.loaded && data.certificate.not_after)"
         >
-          <div class="setting-item-label">{{ $t('gpnCertificateExpiry') }}</div>
+          <div class="setting-item-label">{{ $t('fivegpnCertificateExpiry') }}</div>
           <div>{{ expiry }}</div>
         </SettingItem>
 
-        <SettingItem :setting-key="k.gpnInterceptionRefresh">
-          <div class="setting-item-label">{{ $t('gpnInterceptionRefresh') }}</div>
+        <SettingItem :setting-key="k.fivegpnInterceptionRefresh">
+          <div class="setting-item-label">{{ $t('fivegpnInterceptionRefresh') }}</div>
           <button
             class="btn btn-sm"
             :disabled="interceptionStatus === 'loading'"
             @click="refreshInterception"
           >
-            {{ $t('gpnInterceptionRefresh') }}
+            {{ $t('fivegpnInterceptionRefresh') }}
           </button>
         </SettingItem>
       </div>
@@ -120,16 +121,16 @@ import {
   interceptionStatus,
   refreshInterception,
   setInterceptionSettings,
-} from '@/assembly/gpn/interception'
+} from '@/assembly/fivegpn/interception'
 import SettingItem from '@/components/settings/SettingItem.vue'
 import { useHasAnyVisibleSetting } from '@/composables/settings'
-import { GPN_INTERCEPTION_ITEM_KEYS, getAllKeysForCategory } from '@/config/settingsItems'
+import { FIVEGPN_INTERCEPTION_ITEM_KEYS, getAllKeysForCategory } from '@/config/settingsItems'
 import { SETTINGS_MENU_KEY } from '@/constant'
 import { computed, ref } from 'vue'
 
-const k = GPN_INTERCEPTION_ITEM_KEYS
+const k = FIVEGPN_INTERCEPTION_ITEM_KEYS
 const hasVisibleItems = useHasAnyVisibleSetting(
-  getAllKeysForCategory(SETTINGS_MENU_KEY.gpnInterception),
+  getAllKeysForCategory(SETTINGS_MENU_KEY.fivegpnInterception),
 )
 
 const data = computed(() => interception.value)
@@ -150,7 +151,7 @@ const apply = async (next: ReturnType<typeof settingsOf>) => {
   const error = await setInterceptionSettings(next)
   busy.value = false
   if (error) {
-    // 失败时把界面拉回核心的真实状态,而不是留下一个看起来已经生效的开关。
+    // On failure, restore the core's actual state instead of leaving a toggle that appears active.
     void refreshInterception()
   }
 }
