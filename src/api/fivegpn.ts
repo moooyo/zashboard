@@ -295,10 +295,9 @@ export const fetchCatalogAPI = (refresh = false, signal?: AbortSignal) =>
 /**
  * Extension logs. This is a single read, not a subscription.
  *
- * The engine also exposes a websocket for live following, but operators usually
- * need to know what happened before a failure, after it has already occurred.
- * A stream starting "now" cannot answer that question, so the core retains a
- * bounded ring buffer.
+ * Operators usually need to know what happened before a failure, after it has
+ * already occurred. The core therefore retains a bounded in-memory ring for
+ * authenticated reads instead of exposing a second log listener.
  */
 export type FiveGPNEngineLog = {
   time: string
