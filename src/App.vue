@@ -12,7 +12,7 @@ import {
 } from './helper/autoImportSettings'
 import { backgroundImage } from './helper/indexeddb'
 import { initNotification } from './helper/notification'
-import { getBackendFromUrl, isPreferredDark } from './helper/utils'
+import { isPreferredDark } from './helper/utils'
 import {
   blurIntensity,
   dashboardTransparent,
@@ -21,8 +21,6 @@ import {
   font,
   theme,
 } from './store/settings'
-import { activeUuid, backendList } from './store/setup'
-import type { Backend } from './types'
 
 const app = ref<HTMLElement>()
 const toast = ref<HTMLElement>()
@@ -144,33 +142,6 @@ watch(
     immediate: true,
   },
 )
-
-const isSameBackend = (b1: Omit<Backend, 'uuid' | 'type'>, b2: Omit<Backend, 'uuid' | 'type'>) => {
-  return (
-    b1.host === b2.host &&
-    b1.port === b2.port &&
-    b1.password === b2.password &&
-    b1.protocol === b2.protocol &&
-    b1.secondaryPath === b2.secondaryPath &&
-    b1.disableUpgradeCore === b2.disableUpgradeCore &&
-    b1.disableTunMode === b2.disableTunMode
-  )
-}
-
-const autoSwitchToURLBackendIfExists = () => {
-  const backend = getBackendFromUrl()
-
-  if (backend) {
-    for (const b of backendList.value) {
-      if (isSameBackend(b, backend)) {
-        activeUuid.value = b.uuid
-        return
-      }
-    }
-  }
-}
-
-autoSwitchToURLBackendIfExists()
 
 onMounted(async () => {
   setThemeColor()

@@ -467,6 +467,9 @@ const en = {
   editBackend: 'Edit backend',
   editBackendTitle: 'Edit backend configuration',
   selectBackend: 'Select backend',
+  setupHostScopeHint:
+    'Use the host serving this page. 127.0.0.1 means the device running this browser, not the remote 5gpn server.',
+  setupLinkInvalid: 'This one-time connection link is invalid or incomplete.',
   backendConnectionFailed: 'Backend connection failed. Please check your configuration.',
   backendConfigSaved: 'Backend configuration saved successfully',
   saveFailed: 'Save failed',

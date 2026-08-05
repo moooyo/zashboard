@@ -1,11 +1,12 @@
+import { backendConfigurationsEqual } from '@/helper/setupHandoff'
 import type { Backend } from '@/types'
 import { useStorage } from '@vueuse/core'
-import { isEqual, omit } from 'lodash'
+import { omit } from 'lodash'
 import { v4 as uuid } from 'uuid'
 import { computed, ref } from 'vue'
 import { sourceIPLabelList } from './settings'
 
-// 旧版本的后端结构:没有 `type` 字段,且 sing-box 以附属通道 `singboxChannel` 存在。
+// Legacy backends had no `type` and stored sing-box as a nested channel.
 type LegacySingboxChannel = {
   protocol?: string
   host?: string
@@ -14,7 +15,7 @@ type LegacySingboxChannel = {
 }
 type LegacyBackend = Partial<Backend> & { singboxChannel?: LegacySingboxChannel }
 
-// 一次性迁移:补全 `type`;把旧的 singboxChannel 拆分为独立的 sing-box 后端。
+// One-time migration adds `type` and splits singboxChannel into its own backend.
 const migrateBackendList = (list: LegacyBackend[]): Backend[] => {
   const migrated: Backend[] = []
 
@@ -81,9 +82,9 @@ export const switchActiveBackend = (direction: 1 | -1) => {
 }
 
 export const addBackend = (backend: Omit<Backend, 'uuid'>) => {
-  const currentEnd = backendList.value.find((end) => {
-    return isEqual(omit(end, 'uuid'), backend)
-  })
+  const currentEnd = backendList.value.find((end) =>
+    backendConfigurationsEqual(omit(end, 'uuid'), backend),
+  )
 
   if (currentEnd) {
     activeUuid.value = currentEnd.uuid

@@ -458,6 +458,9 @@ const zhTW: LANG_MESSAGE = {
   editBackend: '編輯後端',
   editBackendTitle: '修改後端配置',
   selectBackend: '選擇後端',
+  setupHostScopeHint:
+    '請使用目前頁面所在的主機。127.0.0.1 指執行此瀏覽器的裝置，並不代表遠端 5gpn 伺服器。',
+  setupLinkInvalid: '這個一次性連線連結無效或不完整。',
   backendConnectionFailed: '後端連接失敗，請檢查配置資訊',
   backendConfigSaved: '後端配置儲存成功',
   saveFailed: '儲存失敗',

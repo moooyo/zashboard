@@ -1,5 +1,5 @@
 import { MIN_PROXY_CARD_WIDTH, PROXY_CARD_SIZE } from '@/constant'
-import type { Backend, BackendType } from '@/types'
+import type { Backend } from '@/types'
 import { useMediaQuery } from '@vueuse/core'
 import dayjs from 'dayjs'
 import prettyBytes, { type Options } from 'pretty-bytes'
@@ -124,34 +124,4 @@ export const findScrollableParent = (el: HTMLElement | null): HTMLElement | null
   }
 
   return parent ? findScrollableParent(parent) : null
-}
-
-export const getBackendFromUrl = () => {
-  const query = new URLSearchParams(
-    window.location.search || location.hash.match(/\?.*$/)?.[0]?.replace('?', ''),
-  )
-
-  if (query.has('hostname')) {
-    return {
-      // 后端类型:'singbox' 走 sing-box native gRPC,其余(含缺省)按 'clash' 处理。
-      type: (query.get('type') === 'singbox' ? 'singbox' : 'clash') as BackendType,
-      protocol: query.get('http')
-        ? 'http'
-        : query.get('https')
-          ? 'https'
-          : window.location.protocol.replace(':', ''),
-      secondaryPath: query.get('secondaryPath') || '',
-      host: query.get('hostname') as string,
-      port: query.get('port') as string,
-      password: query.get('secret') || '',
-      // proxyAuth=1 表示 secret 只是占位符,真实凭据由反向代理注入 Authorization。
-      // 这样交接方可以显式声明「代理替我鉴权」,而不是靠塞一个假 secret 蒙混过去。
-      authMode: (query.get('proxyAuth') === '1' ? 'proxy' : 'secret') as 'secret' | 'proxy',
-      label: query.get('label') || '',
-      disableUpgradeCore:
-        query.get('disableUpgradeCore') === '1' || query.get('disableUpgradeCore') === 'core',
-      disableTunMode: query.get('disableTunMode') === '1' || query.get('disableTunMode') === 'tun',
-    }
-  }
-  return null
 }

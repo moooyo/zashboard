@@ -15,7 +15,9 @@ const isEdge = /Edg\//.test(navigator.userAgent)
 if (isEdge) {
   const originalReplaceState = history.replaceState
   history.replaceState = function (...args) {
-    if (document.visibilityState === 'hidden') return
+    // Edge only needs the hidden-page scroll snapshot suppressed. Route URL
+    // replacements must still run or history state can diverge from the URL.
+    if (document.visibilityState === 'hidden' && args.length < 3) return
     return originalReplaceState.apply(this, args)
   }
 }

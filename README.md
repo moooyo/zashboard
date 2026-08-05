@@ -70,37 +70,29 @@ docker run -d -p 80:80 ghcr.io/zephyruso/zashboard:latest
 4. 面板支持PWA（Progressive Web App），可以在移动设备上通过"添加到主屏幕"获得类原生app的体验
 5. 面板的更新按钮和自动更新功能需要正确的配置核心的ui下载路径 ([mihomo](https://wiki.metacubex.one/config/general/#_9) | [sing-box](https://sing-box.sagernet.org/configuration/experimental/clash-api/#external_ui_download_url)), 否则可能会在点击更新后更新为核心默认面板
 
-## URL params format
+## One-time setup link
 
-#### basic example
+Zashboard accepts controller credentials only from the `/setup` hash-route fragment:
 
-http://host:port/#/setup?hostname=ipordomain&port=9090&secret=123456
+```text
+https://console.example.com/ui/#/setup?type=clash&hostname=console.example.com&port=443&https=1&secret=URL_ENCODED_CONTROLLER_SECRET&label=5gpn&disableUpgradeCore=1&disableTunMode=1
+```
 
-1. **`http` / `https`**
-   - Determines the protocol (`http` or `https`).
-   - Default: current page protocol
+The values must be encoded with `URLSearchParams` or an equivalent URL encoder. The required
+fields are `type=clash`, `hostname`, `port`, `https=1`, and a non-empty `secret`. `label`,
+`disableUpgradeCore`, and `disableTunMode` are optional; the two flags accept `0` or `1`.
+The page itself must be served over HTTPS, and `hostname` plus the effective `port` must match that
+page's serving origin exactly. A setup link cannot send its Bearer secret to another origin.
 
-2. **`hostname`**
-   - The Clash API's IP or domain.
+This is a one-time handoff. Zashboard synchronously removes the complete fragment query with
+`history.replaceState` before probing the controller. Invalid links and failed probes do not write
+the backend or its secret to `localStorage`. After a successful probe, the backend and secret are
+stored in the browser's normal backend list and the setup history entry is replaced. Reloading or
+going back cannot consume the link again. The same rules apply when a link opens in an existing
+tab or installed PWA: it is captured and scrubbed before vue-router handles the hash navigation.
 
-3. **`port`**
-   - The Clash API port.
-
-4. **`secondaryPath`**
-   - Optional path appended to the base URL.
-   - Default: An empty string.
-
-5. **`secret`**
-   - Password for authentication.
-
-6. **`disableUpgradeCore`**
-   - Set '1' to hide upgrade core button
-
-7. **`disableTunMode`**
-   - Set '1' to hide tun switch
-
-8. **`type`**
-   - Selects the backend API: `clash` (Clash REST/WS) or `singbox` (sing-box native).
-   - Default: `clash`
+Credentials in the outer URL query (for example `/ui/?secret=...#/setup`) or on any route other
+than `/setup` are rejected and scrubbed without being used. Never generate the deprecated outer
+query form.
 
 ### I code just for fun, not for money. If you really want to donate, please consider donating to [UNICEF](https://www.unicef.org/) to help hungry children.

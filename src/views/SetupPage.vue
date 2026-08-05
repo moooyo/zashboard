@@ -62,6 +62,7 @@
           />
         </div>
       </div>
+      <p class="text-base-content/60 text-xs">{{ $t('setupHostScopeHint') }}</p>
 
       <div class="flex gap-2">
         <div
@@ -171,7 +172,13 @@ import LanguageSelect from '@/components/settings/general/LanguageSelect.vue'
 import { ROUTE_NAME } from '@/constant'
 import { syncSettingsFromCore } from '@/helper/autoImportSettings'
 import { showNotification } from '@/helper/notification'
-import { getBackendFromUrl, getLabelFromBackend } from '@/helper/utils'
+import {
+  getServedOriginDefaults,
+  startSetupHandoff,
+  subscribeSetupHandoff,
+  takeSetupHandoff,
+} from '@/helper/setupHandoff'
+import { getLabelFromBackend } from '@/helper/utils'
 import router from '@/router'
 import { activeUuid, addBackend, backendList, removeBackend } from '@/store/setup'
 import type { Backend, BackendType } from '@/types'
@@ -181,7 +188,7 @@ import {
   QuestionMarkCircleIcon,
   TrashIcon,
 } from '@heroicons/vue/24/outline'
-import { reactive, ref, watch } from 'vue'
+import { onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Draggable from 'vuedraggable'
 
@@ -203,21 +210,7 @@ const { t } = useI18n()
  * Same-origin is the only answer that requires no guess. Non-HTTP(S) contexts such as file:// have
  * no usable origin and fall back to the upstream default.
  */
-const servedOrigin = () => {
-  const { protocol, hostname, port } = window.location
-  if ((protocol !== 'http:' && protocol !== 'https:') || !hostname) {
-    return null
-  }
-  return {
-    protocol: protocol.replace(':', ''),
-    host: hostname,
-    // An omitted same-origin port means the protocol default, while the backend form requires an
-    // explicit value.
-    port: port || (protocol === 'https:' ? '443' : '80'),
-  }
-}
-
-const served = servedOrigin()
+const served = getServedOriginDefaults()
 
 const form = reactive({
   type: 'clash' as BackendType,
@@ -231,8 +224,6 @@ const form = reactive({
 
 const showEditModal = ref(false)
 const editingBackendUuid = ref('')
-const isManualSetupRoute = () => router.currentRoute.value.query.setupMode === 'manual'
-const isEditBackendRoute = () => typeof router.currentRoute.value.query.editBackend === 'string'
 
 watch(
   () => router.currentRoute.value.query.editBackend,
@@ -258,14 +249,20 @@ const editBackend = (backend: Backend) => {
 
 type SetupForm = Omit<Backend, 'uuid'>
 
-const finishLogin = async () => {
+const finishLogin = async (replaceCurrentEntry = false) => {
+  if (replaceCurrentEntry) {
+    await router.replace({ name: ROUTE_NAME.proxies })
+  }
+
   try {
     const synced = await syncSettingsFromCore()
     if (synced) return
   } catch (error) {
     console.error('Failed to sync settings after login:', error)
   }
-  router.push({ name: ROUTE_NAME.proxies })
+  if (!replaceCurrentEntry) {
+    await router.push({ name: ROUTE_NAME.proxies })
+  }
 }
 
 const handleSubmit = async (setupForm: SetupForm, quiet = false) => {
@@ -307,11 +304,44 @@ const handleSubmit = async (setupForm: SetupForm, quiet = false) => {
   }
 }
 
-const backend = isManualSetupRoute() || isEditBackendRoute() ? null : getBackendFromUrl()
+let handoffGeneration = 0
 
-if (backend) {
-  handleSubmit(backend)
-} else if (backendList.value.length === 0) {
+const processPendingSetupHandoff = () => {
+  const handoff = takeSetupHandoff()
+  if (handoff.kind === 'absent') return false
+
+  const generation = ++handoffGeneration
+  if (handoff.kind === 'invalid') {
+    alert(t('setupLinkInvalid'))
+    return true
+  }
+
+  const setupHandoff = startSetupHandoff(handoff, {
+    prepare: (backend) => Object.assign(form, backend),
+    probe: async (backend) => {
+      const available = await isBackendAvailable({ uuid: '', ...backend }, 10000)
+      return generation === handoffGeneration && available
+    },
+    persist: addBackend,
+    navigate: () => finishLogin(true),
+  })
+  if (setupHandoff.kind !== 'ready') return true
+
+  void setupHandoff.completion.then((result) => {
+    if (generation === handoffGeneration && result.kind === 'failed') {
+      alert(t('backendConnectionFailed'))
+    }
+  })
+  return true
+}
+
+const unsubscribeSetupHandoff = subscribeSetupHandoff(processPendingSetupHandoff)
+onUnmounted(() => {
+  handoffGeneration++
+  unsubscribeSetupHandoff()
+})
+
+if (!processPendingSetupHandoff() && backendList.value.length === 0) {
   handleSubmit(form, true)
 }
 </script>

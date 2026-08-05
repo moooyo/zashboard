@@ -458,6 +458,9 @@ const zh: LANG_MESSAGE = {
   editBackend: '编辑后端',
   editBackendTitle: '修改后端配置',
   selectBackend: '选择后端',
+  setupHostScopeHint:
+    '请使用当前页面所在的主机。127.0.0.1 指运行此浏览器的设备，并不代表远端 5gpn 服务器。',
+  setupLinkInvalid: '这个一次性连接链接无效或不完整。',
   backendConnectionFailed: '后端连接失败，请检查配置信息',
   backendConfigSaved: '后端配置保存成功',
   saveFailed: '保存失败',
