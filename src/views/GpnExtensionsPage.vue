@@ -37,9 +37,8 @@
           }}</span>
         </div>
 
-        <!-- 拦截主开关、HTTP/2 与 HTTP/3 是设置,住在设置页的「拦截」分区。
-             留在这里的是状态:管理扩展时需要知道现在有多少在跑、捕获了多少主机,
-             那不是一个可以在这里改的东西。 -->
+        <!-- The MITM master and HTTP/2 controls live in Interception settings.
+             HTTP/3 is intentionally unavailable because the gateway blocks UDP/443. -->
         <div class="base-container flex flex-wrap items-center gap-3 p-3 text-sm">
           <span
             class="badge badge-sm"
@@ -216,7 +215,7 @@
                   >
                     <option value="">{{ $t('gpnNoBinding') }}</option>
                     <option
-                      v-for="group in proxyGroupList"
+                      v-for="group in data.available_egress_groups"
                       :key="group"
                       :value="group"
                     >
@@ -551,7 +550,6 @@ import {
   setExtensionEnabled,
   uninstallExtension,
 } from '@/assembly/gpn/interception'
-import { proxyGroupList } from '@/assembly/proxies'
 import SegmentedControl, { type SegmentOption } from '@/components/common/SegmentedControl.vue'
 import { usePaddingForViews } from '@/composables/paddingViews'
 import { computed, ref, watch } from 'vue'

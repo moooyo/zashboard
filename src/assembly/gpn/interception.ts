@@ -132,11 +132,8 @@ const write = async (
   }
 }
 
-export const setInterceptionSettings = (settings: {
-  enabled: boolean
-  http2: boolean
-  http3: boolean
-}) => write((revision) => putInterceptionSettingsAPI({ revision, ...settings }))
+export const setInterceptionSettings = (settings: { enabled: boolean; http2: boolean }) =>
+  write((revision) => putInterceptionSettingsAPI({ revision, ...settings }))
 
 export const setExecutionOrder = (order: string[]) =>
   write((revision) => putInterceptionOrderAPI({ revision, order }))

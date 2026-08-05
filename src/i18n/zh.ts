@@ -569,7 +569,10 @@ const zh: LANG_MESSAGE = {
     '拦截证书未覆盖 {hosts}。对这些主机的捕获会呈上一张不包含它们的证书，客户端会以信任错误拒绝，而网关日志里什么都没有。',
   gpnMitmMaster: 'MITM 总开关',
   gpnHttp2: 'HTTP/2',
-  gpnHttp3: 'HTTP/3 捕获',
+  gpnHttp3: 'HTTP/3',
+  gpnHttp3Unavailable: '不可用 · UDP/443 已固定阻断',
+  gpnHttp3Blocked:
+    '拦截仅支持 HTTP/1.1 与可选的 HTTP/2。仅支持 HTTP/3 的客户端会失败；具备协议回退能力的客户端可能改用 TCP。',
   gpnCatalog: '扩展市场',
   gpnInstalledTab: '已安装',
   gpnImportTab: '从 URL 安装',

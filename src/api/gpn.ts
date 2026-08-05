@@ -1,4 +1,8 @@
 import axios from 'axios'
+import {
+  interceptionSettingsWrite,
+  type GpnInterceptionSettingsWrite,
+} from './gpnInterceptionSettings'
 import './http'
 
 /**
@@ -55,9 +59,10 @@ export type GpnCertificateState = {
 export type GpnInterception = {
   enabled: boolean
   http2: boolean
-  http3: boolean
+  http3: false
   modules: GpnModuleSummary[]
   execution_order: string[]
+  available_egress_groups: string[]
   active_capture_hosts: string[]
   certificate: GpnCertificateState
 }
@@ -136,12 +141,8 @@ export type GpnInterceptionEnvelope = {
 export const fetchInterceptionAPI = (signal?: AbortSignal) =>
   axios.get<GpnInterceptionEnvelope>('/gpn/interception', { signal, timeout: 5000 })
 
-export const putInterceptionSettingsAPI = (body: {
-  revision: string
-  enabled: boolean
-  http2: boolean
-  http3: boolean
-}) => axios.put<GpnInterceptionEnvelope>('/gpn/interception/settings', body)
+export const putInterceptionSettingsAPI = (body: GpnInterceptionSettingsWrite) =>
+  axios.put<GpnInterceptionEnvelope>('/gpn/interception/settings', interceptionSettingsWrite(body))
 
 export const putInterceptionOrderAPI = (body: { revision: string; order: string[] }) =>
   axios.put<GpnInterceptionEnvelope>('/gpn/interception/order', body)

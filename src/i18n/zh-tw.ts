@@ -569,7 +569,10 @@ const zhTW: LANG_MESSAGE = {
     '攝取憑證未涵蓋 {hosts}。對這些主機的捕獲會呈上一張不包含它們的憑證，客戶端會以信任錯誤拒絕，而閘道日誌裡什麼都沒有。',
   gpnMitmMaster: 'MITM 總開關',
   gpnHttp2: 'HTTP/2',
-  gpnHttp3: 'HTTP/3 擷取',
+  gpnHttp3: 'HTTP/3',
+  gpnHttp3Unavailable: '不可用 · UDP/443 已固定封鎖',
+  gpnHttp3Blocked:
+    '攔截僅支援 HTTP/1.1 與可選的 HTTP/2。僅支援 HTTP/3 的客戶端會失敗；具備協定回退能力的客戶端可能改用 TCP。',
   gpnCatalog: '擴充市集',
   gpnInstalledTab: '已安裝',
   gpnImportTab: '從 URL 安裝',

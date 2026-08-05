@@ -579,7 +579,10 @@ const en = {
     'The interception certificate does not cover {hosts}. Capture for those hosts will present a certificate that does not name them, which clients reject with a trust error and the gateway does not log.',
   gpnMitmMaster: 'MITM master',
   gpnHttp2: 'HTTP/2',
-  gpnHttp3: 'HTTP/3 capture',
+  gpnHttp3: 'HTTP/3',
+  gpnHttp3Unavailable: 'Unavailable · UDP/443 blocked',
+  gpnHttp3Blocked:
+    'Interception supports HTTP/1.1 and optional HTTP/2 only. HTTP/3-only clients fail; clients with protocol fallback may retry over TCP.',
   gpnCatalog: 'Extension marketplace',
   gpnInstalledTab: 'Installed',
   gpnImportTab: 'Install from URL',

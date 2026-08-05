@@ -56,13 +56,13 @@
 
         <SettingItem :setting-key="k.gpnHttp3">
           <div class="setting-item-label">{{ $t('gpnHttp3') }}</div>
-          <input
-            type="checkbox"
-            class="toggle"
-            :checked="data.http3"
-            :disabled="busy"
-            @change="toggleHttp3"
-          />
+          <div
+            data-testid="gpn-http3-boundary"
+            class="flex max-w-xl flex-col items-end gap-1 text-right"
+          >
+            <span class="badge badge-warning badge-sm">{{ $t('gpnHttp3Unavailable') }}</span>
+            <span class="text-xs opacity-70">{{ $t('gpnHttp3Blocked') }}</span>
+          </div>
         </SettingItem>
 
         <!-- 「已安装」与「正在捕获」是两个数字,而不是一个。被禁用的扩展照样
@@ -134,17 +134,14 @@ const hasVisibleItems = useHasAnyVisibleSetting(
 
 const data = computed(() => interception.value)
 
-// 这三个开关原本在扩展页面上。它们是设置,归设置页 —— 而这个面板在此之前只把它们
-// 渲染成只读徽章,于是同一件事在两个地方各有一半。
-//
-// 和其它写后端的设置行一样:改即生效,没有保存按钮。busy 只挡住重入,不是一个
-// 「未保存」状态。
+// The mutable interception controls live in Settings and apply immediately.
+// HTTP/3 is deliberately not one of them: the fixed gateway guard blocks
+// UDP/443, and the request boundary below omits this read-only snapshot field.
 const busy = ref(false)
 
 const settingsOf = () => ({
   enabled: data.value?.enabled ?? false,
   http2: data.value?.http2 ?? false,
-  http3: data.value?.http3 ?? false,
 })
 
 const apply = async (next: ReturnType<typeof settingsOf>) => {
@@ -160,7 +157,6 @@ const apply = async (next: ReturnType<typeof settingsOf>) => {
 
 const toggleMaster = () => apply({ ...settingsOf(), enabled: !data.value?.enabled })
 const toggleHttp2 = () => apply({ ...settingsOf(), http2: !data.value?.http2 })
-const toggleHttp3 = () => apply({ ...settingsOf(), http3: !data.value?.http3 })
 
 const enabledCount = computed(() => (data.value?.modules ?? []).filter((m) => m.enabled).length)
 
