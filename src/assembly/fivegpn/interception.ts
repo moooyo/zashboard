@@ -10,8 +10,6 @@ import type {
 } from '@/api/fivegpn'
 import {
   applyCatalogUpdateAPI,
-  applyExtensionUpdateAPI,
-  checkExtensionUpdateAPI,
   deleteExtensionAPI,
   fetchCatalogAPI,
   fetchEngineLogsAPI,
@@ -211,18 +209,6 @@ export const installReviewed = (
     expectedRevision,
   )
 
-export const applyReviewedUpdate = (
-  id: string,
-  candidate: FiveGPNCandidate,
-  expectedRevision: string,
-  values?: Record<string, FiveGPNSettingValue>,
-) =>
-  write(
-    (revision) => applyExtensionUpdateAPI(id, { revision, digest: candidate.digest, values }),
-    [200],
-    expectedRevision,
-  )
-
 let detailGeneration = 0
 let detailController: AbortController | undefined
 
@@ -289,28 +275,6 @@ export const reviewExtension = async (source: {
       return { candidate: res.data.candidate, revision: res.data.revision, error: '' }
     }
     return { error: messageOf(res) || `review returned ${res.status}` }
-  } catch (e) {
-    if (inspectionStale(context)) return { error: '' }
-    return { error: e instanceof Error ? e.message : String(e) }
-  }
-}
-
-export const checkExtensionUpdate = async (
-  id: string,
-): Promise<{ candidate?: FiveGPNCandidate; revision?: string; error: string }> => {
-  const context = inspectionContext()
-  if (!context.uuid) return { error: 'no backend' }
-  try {
-    const res = await checkExtensionUpdateAPI(id, context.signal)
-    if (inspectionStale(context)) return { error: 'backend changed' }
-    if (res.status === 200 && res.data?.candidate) {
-      if (res.data.revision !== interceptionRevision.value) {
-        await refreshInterception(true)
-        return { error: 'conflict' }
-      }
-      return { candidate: res.data.candidate, revision: res.data.revision, error: '' }
-    }
-    return { error: messageOf(res) || `update check returned ${res.status}` }
   } catch (e) {
     if (inspectionStale(context)) return { error: '' }
     return { error: e instanceof Error ? e.message : String(e) }
@@ -421,10 +385,9 @@ export const setCatalogSources = (sources: FiveGPNCatalogSource[], expectedRevis
  * Updating from a catalog entry changes the extension source to that entry's
  * manifest URL.
  *
- * This is a separate call rather than a branch of applyReviewedUpdate. That path
- * rereads the URL used at installation, while this one replaces it. The operator
- * explicitly selected this catalog entry, so changing the source is the intended
- * result rather than a configuration side effect.
+ * The operator explicitly selected this marketplace entry, so changing the
+ * source is the intended reviewed result. No ordinary installed-source update
+ * path is exposed by the Console.
  */
 export const applyCatalogUpdate = (
   source: string,

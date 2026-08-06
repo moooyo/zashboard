@@ -50,8 +50,8 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
         label: 'fivegpnCaptureHosts',
       },
       {
-        key: `${SETTINGS_MENU_KEY.fivegpnInterception}.fivegpnUnboundEgress`,
-        label: 'fivegpnUnboundEgress',
+        key: `${SETTINGS_MENU_KEY.fivegpnInterception}.fivegpnUnavailableEgress`,
+        label: 'fivegpnUnavailableEgressLabel',
       },
       {
         key: `${SETTINGS_MENU_KEY.fivegpnInterception}.fivegpnCertificateExpiry`,

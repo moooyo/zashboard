@@ -89,15 +89,14 @@
           <div>{{ data.active_capture_hosts.length }}</div>
         </SettingItem>
 
-        <!-- An empty egress group has no meaning by itself. For a module that requires one, however,
-             it fully explains why an installed and enabled module captures nothing. Show it only
-             when the binding is genuinely missing. -->
+        <!-- A selected group can disappear after a mihomo config reload. Keep the
+             persisted name visible while the runtime fails closed. -->
         <SettingItem
-          :setting-key="k.fivegpnUnboundEgress"
-          :when="unboundEgress.length > 0"
+          :setting-key="k.fivegpnUnavailableEgress"
+          :when="unavailableEgress.length > 0"
         >
-          <div class="setting-item-label">{{ $t('fivegpnUnboundEgress') }}</div>
-          <div class="text-error">{{ unboundEgress.join(', ') }}</div>
+          <div class="setting-item-label">{{ $t('fivegpnUnavailableEgressLabel') }}</div>
+          <div class="text-error">{{ unavailableEgress.join(', ') }}</div>
         </SettingItem>
 
         <SettingItem
@@ -178,9 +177,9 @@ const certificateGap = computed(
 
 const missingHosts = computed(() => (data.value?.certificate.missing_hosts ?? []).join(', '))
 
-const unboundEgress = computed(() =>
+const unavailableEgress = computed(() =>
   (data.value?.modules ?? [])
-    .filter((m) => m.enabled && m.egress_group_required && !m.egress_group)
+    .filter((m) => !(data.value?.available_egress_groups ?? []).includes(m.egress_group))
     .map((m) => m.name || m.id),
 )
 

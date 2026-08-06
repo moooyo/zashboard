@@ -618,7 +618,7 @@ const en = {
   fivegpnModules: 'Extensions',
   fivegpnModuleCount: '{enabled} enabled of {total}',
   fivegpnCaptureHosts: 'Hosts being captured',
-  fivegpnUnboundEgress: 'Missing egress binding',
+  fivegpnUnavailableEgressLabel: 'Unavailable egress',
   fivegpnCertificateExpiry: 'Certificate expires',
   fivegpnInterceptionRefresh: 'Refresh',
   fivegpnEnabled: 'On',
@@ -762,7 +762,8 @@ const en = {
   fivegpnUpdateAvailable: 'Update available',
   fivegpnInstall: 'Install',
   fivegpnApplyUpdate: 'Apply update',
-  fivegpnCheckUpdate: 'Check for update',
+  fivegpnMarketplaceUpdateOnly:
+    'This extension is already installed. Review its update from the marketplace.',
   fivegpnUninstall: 'Uninstall',
   fivegpnUninstallConfirm: 'Uninstall {name}?',
   fivegpnCancel: 'Cancel',
@@ -773,7 +774,7 @@ const en = {
   fivegpnUpdateFrom: 'installed: {from}',
   fivegpnEgressGroup: 'Egress',
   fivegpnCaptureDns: 'Origin resolver',
-  fivegpnNoBinding: 'none',
+  fivegpnUnavailableEgress: '{group} (unavailable)',
   fivegpnInstallLandsDisabled:
     'An install always lands disabled. Enabling it is a separate decision about letting it see traffic.',
   fivegpnNetworkGrantWarning:
@@ -784,11 +785,8 @@ const en = {
   fivegpnCertificateBoundaryGap:
     'The active certificate does not cover: {hosts}. Those names remain on the gateway, but their HTTP/TLS connections are rejected.',
   fivegpnRetryCertificate: 'Retry certificate',
-  fivegpnNotRequired: 'not required',
   fivegpnUpdateChanges: 'Changes in this update',
   fivegpnExactRoutingRules: 'Exact routing rules',
-  fivegpnUpdateNeedsEgress:
-    'Bind an egress group on the installed extension before applying this update.',
   fivegpnConfigureCount: 'Configure ({count})',
   fivegpnExtensionConfiguration: 'Extension configuration',
   fivegpnSaveConfiguration: 'Save configuration',
@@ -815,7 +813,6 @@ const en = {
   fivegpnEnableReview: 'Review and enable extension',
   fivegpnNoRoutingRules: 'This extension declares no mihomo routing rules.',
   fivegpnAuthorizeAndEnable: 'Authorize and enable',
-  fivegpnEnableNeedsEgress: 'Bind the required egress group before enabling this extension.',
   fivegpnEnableNeedsSettings: 'Complete the required configuration before enabling this extension.',
   fivegpnLifecycleDisabled: 'Disabled',
   fivegpnLifecycleArmed: 'Authorized',
@@ -835,7 +832,7 @@ const en = {
   fivegpnLifecycleDescription_boundary_unavailable:
     'The interception boundary is not safe, so traffic is not being captured.',
   fivegpnLifecycleDescription_egress_unavailable:
-    'The required egress group is unavailable, so this extension is not active.',
+    'The selected egress is unavailable, so this extension is not active.',
   fivegpnLifecycleDescription_active: 'New matching requests use this extension snapshot.',
   fivegpnSettingsConflictPreserved:
     'The gateway changed while you were editing. Your entries are preserved; review the latest state before saving again.',

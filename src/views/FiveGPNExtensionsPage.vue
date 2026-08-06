@@ -134,13 +134,7 @@
             </div>
             <div class="setting-item">
               <span class="setting-item-label">{{ $t('fivegpnEgressGroup') }}</span>
-              <span>
-                {{
-                  candidate.detail.egress_group_required
-                    ? candidate.detail.egress_group || $t('fivegpnNoBinding')
-                    : $t('fivegpnNotRequired')
-                }}
-              </span>
+              <span>{{ candidate.detail.egress_group }}</span>
             </div>
             <div class="setting-item">
               <span class="setting-item-label">{{ $t('fivegpnDigest') }}</span>
@@ -193,19 +187,11 @@
             <span>{{ $t('fivegpnNetworkGrantWarning') }}</span>
           </div>
 
-          <div
-            v-if="updateNeedsEgress"
-            class="alert alert-error py-2"
-          >
-            <span>{{ $t('fivegpnUpdateNeedsEgress') }}</span>
-          </div>
-
           <FiveGPNExtensionSettingsEditor
             v-if="isUpdateCandidate && (candidate.detail.settings ?? []).length"
             :settings="candidate.detail.settings ?? []"
             :id-prefix="`update-${candidate.detail.id}`"
             :busy="busy"
-            :disabled="updateNeedsEgress"
             :submit-label="updateActionLabel"
             :cancel-label="$t('fivegpnCancel')"
             :conflict-message="candidateConflict"
@@ -219,7 +205,7 @@
           >
             <button
               class="btn btn-primary btn-sm"
-              :disabled="busy || updateNeedsEgress"
+              :disabled="busy"
               @click="install()"
             >
               {{ isUpdateCandidate ? updateActionLabel : $t('fivegpnInstall') }}
@@ -281,11 +267,7 @@
                 </div>
                 <div class="setting-item">
                   <span class="setting-item-label">{{ $t('fivegpnEgressGroup') }}</span>
-                  <span>{{
-                    authorizationDetail.egress_group_required
-                      ? authorizationDetail.egress_group || $t('fivegpnNoBinding')
-                      : $t('fivegpnNotRequired')
-                  }}</span>
+                  <span>{{ authorizationDetail.egress_group }}</span>
                 </div>
                 <div
                   v-if="authorizationDetail.source_digest"
@@ -381,10 +363,10 @@
                   {{ runtimeLabel(module) }}
                 </span>
                 <span
-                  v-if="module.egress_group_required && !module.egress_group"
+                  v-if="!egressAvailable(module.egress_group)"
                   class="badge badge-error badge-sm"
                 >
-                  {{ $t('fivegpnUnboundEgress') }}
+                  {{ $t('fivegpnUnavailableEgress', { group: module.egress_group }) }}
                 </span>
                 <div class="ml-auto flex gap-1">
                   <button
@@ -412,13 +394,6 @@
                     {{ $t('fivegpnConfigureCount', { count: module.setting_count }) }}
                   </button>
                   <button
-                    class="btn btn-ghost btn-xs"
-                    :disabled="busy"
-                    @click="checkUpdate(module.id)"
-                  >
-                    {{ $t('fivegpnCheckUpdate') }}
-                  </button>
-                  <button
                     class="btn btn-ghost btn-xs text-error"
                     :disabled="busy"
                     @click="remove(module)"
@@ -433,11 +408,17 @@
                   <span class="opacity-70">{{ $t('fivegpnEgressGroup') }}</span>
                   <select
                     class="select select-xs w-40"
-                    :value="module.egress_group ?? ''"
+                    :value="module.egress_group"
                     :disabled="busy"
                     @change="setEgress(module, $event)"
                   >
-                    <option value="">{{ $t('fivegpnNoBinding') }}</option>
+                    <option
+                      v-if="!egressAvailable(module.egress_group)"
+                      :value="module.egress_group"
+                      disabled
+                    >
+                      {{ $t('fivegpnUnavailableEgress', { group: module.egress_group }) }}
+                    </option>
                     <option
                       v-for="group in data.available_egress_groups"
                       :key="group"
@@ -808,12 +789,10 @@ import type {
 } from '@/api/fivegpn'
 import {
   applyCatalogUpdate,
-  applyReviewedUpdate,
   catalogError,
   catalogRevision,
   catalogSources,
   catalogStatus,
-  checkExtensionUpdate,
   installReviewed,
   interception,
   interceptionError,
@@ -997,6 +976,8 @@ const toggleCatalogSource = async (id: string) => {
 }
 
 const data = computed(() => interception.value)
+const egressAvailable = (group: string) =>
+  Boolean(group && data.value?.available_egress_groups.includes(group))
 const busy = ref(false)
 const notice = ref('')
 const noticeIsError = ref(false)
@@ -1007,7 +988,6 @@ const importContent = ref('')
 const candidate = ref<FiveGPNCandidate | null>(null)
 const candidatePanel = ref<HTMLElement>()
 const candidateRevision = ref('')
-const updateTarget = ref('')
 // Catalog coordinates. A non-null value means confirmation uses applyCatalogUpdate, which changes
 // the extension's source.
 const catalogTarget = ref<{ source: string; entry: string } | null>(null)
@@ -1123,7 +1103,9 @@ const requiredSettingMissing = (detail: FiveGPNModuleDetail) =>
 const authorizationBlockingReason = computed(() => {
   const detail = authorizationDetail.value
   if (!detail) return ''
-  if (detail.egress_group_required && !detail.egress_group) return t('fivegpnEnableNeedsEgress')
+  if (!egressAvailable(detail.egress_group)) {
+    return t('fivegpnUnavailableEgress', { group: detail.egress_group })
+  }
   if (requiredSettingMissing(detail)) return t('fivegpnEnableNeedsSettings')
   const flatLocation = findFlatLocationSettings(detail.settings ?? [])
   if (flatLocation) {
@@ -1230,8 +1212,11 @@ const saveSettings = async (id: string, values: Record<string, FiveGPNSettingVal
   closeSettings()
 }
 
-const setEgress = (module: FiveGPNModuleSummary, event: Event) =>
-  run(() => setExtensionEgress(module.id, (event.target as HTMLSelectElement).value))
+const setEgress = (module: FiveGPNModuleSummary, event: Event) => {
+  const group = (event.target as HTMLSelectElement).value.trim()
+  if (!group) return
+  return run(() => setExtensionEgress(module.id, group))
+}
 
 const setCaptureDNS = (module: FiveGPNModuleSummary, event: Event) =>
   run(() => setExtensionCaptureDNS(module.id, (event.target as HTMLSelectElement).value))
@@ -1272,7 +1257,6 @@ const review = async () => {
   reviewError.value = ''
   candidate.value = null
   candidateRevision.value = ''
-  updateTarget.value = ''
   catalogTarget.value = null
   updatePreviousDetail.value = null
   candidateConflict.value = ''
@@ -1281,36 +1265,11 @@ const review = async () => {
   candidate.value = result.candidate ?? null
   candidateRevision.value = result.revision ?? ''
   reviewError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
-  reviewing.value = false
-  if (candidate.value) await focusCandidate()
-}
-
-const checkUpdate = async (id: string) => {
-  const epoch = ++pageInspectionEpoch
-  const uuid = activeUuid.value
-  reviewing.value = true
-  reviewError.value = ''
-  candidate.value = null
-  candidateRevision.value = ''
-  updateTarget.value = ''
-  catalogTarget.value = null
-  updatePreviousDetail.value = null
-  candidateConflict.value = ''
-  const [current, result] = await Promise.all([fetchExtensionDetail(id), checkExtensionUpdate(id)])
-  if (epoch !== pageInspectionEpoch || uuid !== activeUuid.value) return
-  if (!result.revision || result.revision !== current.revision) {
+  if (result.candidate?.installed) {
     candidate.value = null
     candidateRevision.value = ''
-    reviewError.value = t('fivegpnConflict')
-    reviewing.value = false
-    return
+    reviewError.value = t('fivegpnMarketplaceUpdateOnly')
   }
-  candidate.value = result.candidate ?? null
-  candidateRevision.value = result.revision
-  updateTarget.value = result.candidate ? id : ''
-  updatePreviousDetail.value = current.detail ?? null
-  const error = result.error || current.error
-  reviewError.value = error === 'conflict' ? t('fivegpnConflict') : error
   reviewing.value = false
   if (candidate.value) await focusCandidate()
 }
@@ -1333,7 +1292,6 @@ const reviewEntry = async (sourceId: string, entryId: string) => {
   reviewError.value = ''
   candidate.value = null
   candidateRevision.value = ''
-  updateTarget.value = ''
   catalogTarget.value = null
   updatePreviousDetail.value = null
   candidateConflict.value = ''
@@ -1374,29 +1332,18 @@ const focusCandidate = async () => {
 const clearReview = () => {
   candidate.value = null
   candidateRevision.value = ''
-  updateTarget.value = ''
   catalogTarget.value = null
   updatePreviousDetail.value = null
   candidateConflict.value = ''
 }
 
-const isUpdateCandidate = computed(() =>
-  Boolean(
-    candidate.value && (updateTarget.value || catalogTarget.value || candidate.value.installed),
-  ),
-)
+const isUpdateCandidate = computed(() => Boolean(candidate.value && catalogTarget.value))
 const updateModule = computed(() =>
   (data.value?.modules ?? []).find((module) => module.id === candidate.value?.detail.id),
 )
 const updateActionLabel = computed(() =>
   updateModule.value?.enabled ? t('fivegpnUpdateAndKeepEnabled') : t('fivegpnApplyUpdate'),
 )
-const updateNeedsEgress = computed(
-  () =>
-    Boolean(isUpdateCandidate.value && candidate.value?.detail.egress_group_required) &&
-    !updateModule.value?.egress_group,
-)
-
 const sameJSON = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
 const candidateDiff = computed(() => {
   const before = updatePreviousDetail.value
@@ -1448,8 +1395,6 @@ const candidateDiff = computed(() => {
 const install = async (values?: Record<string, FiveGPNSettingValue>) => {
   const reviewed = candidate.value
   if (!reviewed || !candidateRevision.value) return
-  if (updateNeedsEgress.value) return
-  const target = updateTarget.value
   const fromCatalog = catalogTarget.value
   candidateConflict.value = ''
   const result = await run(() => {
@@ -1457,14 +1402,6 @@ const install = async (values?: Record<string, FiveGPNSettingValue>) => {
       return applyCatalogUpdate(
         fromCatalog.source,
         fromCatalog.entry,
-        reviewed,
-        candidateRevision.value,
-        values,
-      )
-    }
-    if (target || reviewed.installed) {
-      return applyReviewedUpdate(
-        target || reviewed.detail.id,
         reviewed,
         candidateRevision.value,
         values,
@@ -1480,7 +1417,6 @@ const install = async (values?: Record<string, FiveGPNSettingValue>) => {
   if (result.error) return
   candidate.value = null
   candidateRevision.value = ''
-  updateTarget.value = ''
   catalogTarget.value = null
   importUrl.value = ''
   importContent.value = ''

@@ -53,7 +53,7 @@ test('flat coordinates support an omitted accuracy field with a local default', 
   )
 })
 
-test('interception v2 exposes transactional settings and desired-versus-ready state', () => {
+test('interception v3 exposes explicit egress, transactional settings, and runtime state', () => {
   const api = readFileSync(new URL('../src/api/fivegpn.ts', import.meta.url), 'utf8')
   const assembly = readFileSync(
     new URL('../src/assembly/fivegpn/interception.ts', import.meta.url),
@@ -87,7 +87,7 @@ test('interception v2 exposes transactional settings and desired-versus-ready st
   assert.doesNotMatch(pendingProjection?.groups?.body ?? '', /armed/)
   assert.match(assembly, /catalogRevision\.value = res\.data\.revision/)
   assert.match(page, /setCatalogSources\(sources, baselineRevision\)/)
-  assert.match(capabilities, /'5gpn-interception': 2/)
+  assert.match(capabilities, /'5gpn-interception': 3/)
   assert.match(page, /@change="requestToggle\(module, \$event\)"/)
   assert.match(page, /fivegpnNetworkGrantWarning/)
   assert.match(page, /fivegpnUpdateAndKeepEnabled/)
@@ -97,4 +97,32 @@ test('interception v2 exposes transactional settings and desired-versus-ready st
   assert.match(page, /candidateRevision/)
   assert.match(editor, /conflictMessage/)
   assert.match(editor, /location\.accuracy\.type === 'text' \? '25' : 25/)
+})
+
+test('every installed extension has a non-empty egress selector', () => {
+  const api = readFileSync(new URL('../src/api/fivegpn.ts', import.meta.url), 'utf8')
+  const page = readFileSync(
+    new URL('../src/views/FiveGPNExtensionsPage.vue', import.meta.url),
+    'utf8',
+  )
+  const settings = readFileSync(
+    new URL(
+      '../src/components/settings/fivegpn/FiveGPNInterceptionSettings.vue',
+      import.meta.url,
+    ),
+    'utf8',
+  )
+
+  assert.match(api, /egress_group:\s*string/u)
+  assert.doesNotMatch(api, /egress_group\?:/u)
+  assert.doesNotMatch(page, /fivegpnNoBinding|fivegpnUnboundEgress/u)
+  const egressSelect = page.match(
+    /<select[\s\S]*?:value="module\.egress_group"[\s\S]*?<\/select>/u,
+  )?.[0]
+  assert.ok(egressSelect, 'the installed-extension egress selector is missing')
+  assert.doesNotMatch(egressSelect, /<option value="">/u)
+  assert.match(page, /!egressAvailable\(module\.egress_group\)/u)
+  assert.match(page, /:value="module\.egress_group"[\s\S]*disabled/u)
+  assert.match(page, /if \(!group\) return/u)
+  assert.match(settings, /available_egress_groups[\s\S]*includes\(m\.egress_group\)/u)
 })

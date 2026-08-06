@@ -48,7 +48,7 @@ export type FiveGPNModuleSummary = {
   enabled: boolean
   capture_hosts: string[]
   capture_dns: string
-  egress_group?: string
+  egress_group: string
   egress_group_required: boolean
   setting_count: number
   runtime: FiveGPNModuleRuntime
@@ -256,26 +256,6 @@ export const installExtensionAPI = (body: {
     timeout: 120000,
   })
 
-export const checkExtensionUpdateAPI = (id: string, signal?: AbortSignal) =>
-  axios.get<{ candidate: FiveGPNCandidate; revision: string }>(
-    `/5gpn/interception/extensions/${encodeURIComponent(id)}/update`,
-    { signal, timeout: 120000 },
-  )
-
-export const applyExtensionUpdateAPI = (
-  id: string,
-  body: {
-    revision: string
-    digest: string
-    values?: Record<string, FiveGPNSettingValue>
-  },
-) =>
-  axios.post<FiveGPNInterceptionEnvelope>(
-    `/5gpn/interception/extensions/${encodeURIComponent(id)}/update`,
-    body,
-    { timeout: 120000 },
-  )
-
 // ---------------------------------------------------------------------------
 // Extension catalog (marketplace)
 // ---------------------------------------------------------------------------
@@ -389,11 +369,10 @@ export const reviewCatalogEntryAPI = (source: string, entry: string, signal?: Ab
   )
 
 /**
- * Update from a catalog entry. This **changes** the extension's source, which is
- * why it is separate from /extensions/{id}/update: that endpoint rereads the
- * operator-selected source, while this one replaces it. Combining them behind
- * a flag would turn a source change into an option on an operation that normally
- * preserves the source.
+ * Update from a catalog entry. This changes the installed extension's source
+ * to the explicitly selected marketplace entry. Installed-extension updates
+ * have no URL/source-check path in the Console; this reviewed catalog action is
+ * the only update flow.
  */
 export const applyCatalogUpdateAPI = (
   source: string,

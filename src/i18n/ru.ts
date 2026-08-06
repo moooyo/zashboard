@@ -620,7 +620,7 @@ const ru: LANG_MESSAGE = {
   fivegpnModules: 'Расширения',
   fivegpnModuleCount: 'включено {enabled} из {total}',
   fivegpnCaptureHosts: 'Перехватываемые хосты',
-  fivegpnUnboundEgress: 'Нет привязки выхода',
+  fivegpnUnavailableEgressLabel: 'Недоступный выход',
   fivegpnCertificateExpiry: 'Сертификат истекает',
   fivegpnInterceptionRefresh: 'Обновить',
   fivegpnEnabled: 'Вкл.',
@@ -765,7 +765,8 @@ const ru: LANG_MESSAGE = {
   fivegpnUpdateAvailable: 'Доступно обновление',
   fivegpnInstall: 'Установить',
   fivegpnApplyUpdate: 'Применить обновление',
-  fivegpnCheckUpdate: 'Проверить обновление',
+  fivegpnMarketplaceUpdateOnly:
+    'Расширение уже установлено. Проверьте и примените обновление через магазин расширений.',
   fivegpnUninstall: 'Удалить',
   fivegpnUninstallConfirm: 'Удалить {name}?',
   fivegpnCancel: 'Отмена',
@@ -776,7 +777,7 @@ const ru: LANG_MESSAGE = {
   fivegpnUpdateFrom: 'установлено: {from}',
   fivegpnEgressGroup: 'Выход',
   fivegpnCaptureDns: 'Резолвер источника',
-  fivegpnNoBinding: 'нет',
+  fivegpnUnavailableEgress: '{group} (недоступно)',
   fivegpnInstallLandsDisabled:
     'Установка всегда завершается в выключенном состоянии. Включение — отдельное решение о том, дать ли расширению видеть трафик.',
   fivegpnNetworkGrantWarning:
@@ -787,11 +788,8 @@ const ru: LANG_MESSAGE = {
   fivegpnCertificateBoundaryGap:
     'Активный сертификат не покрывает: {hosts}. Эти имена остаются на шлюзе, но их HTTP/TLS-соединения отклоняются.',
   fivegpnRetryCertificate: 'Повторить выпуск сертификата',
-  fivegpnNotRequired: 'не требуется',
   fivegpnUpdateChanges: 'Изменения в обновлении',
   fivegpnExactRoutingRules: 'Точные правила маршрутизации',
-  fivegpnUpdateNeedsEgress:
-    'Привяжите группу выхода к установленному расширению перед обновлением.',
   fivegpnConfigureCount: 'Настроить ({count})',
   fivegpnExtensionConfiguration: 'Настройки расширения',
   fivegpnSaveConfiguration: 'Сохранить настройки',
@@ -818,7 +816,6 @@ const ru: LANG_MESSAGE = {
   fivegpnEnableReview: 'Проверить и включить расширение',
   fivegpnNoRoutingRules: 'Расширение не объявляет правил маршрутизации mihomo.',
   fivegpnAuthorizeAndEnable: 'Разрешить и включить',
-  fivegpnEnableNeedsEgress: 'Перед включением привяжите требуемую группу выхода.',
   fivegpnEnableNeedsSettings: 'Перед включением заполните обязательные настройки.',
   fivegpnLifecycleDisabled: 'Выключено',
   fivegpnLifecycleArmed: 'Разрешено',
@@ -838,7 +835,7 @@ const ru: LANG_MESSAGE = {
   fivegpnLifecycleDescription_boundary_unavailable:
     'Граница перехвата небезопасна, поэтому трафик не перехватывается.',
   fivegpnLifecycleDescription_egress_unavailable:
-    'Требуемая группа выхода недоступна, расширение не активно.',
+    'Выбранный выход недоступен, поэтому расширение не активно.',
   fivegpnLifecycleDescription_active: 'Новые подходящие запросы используют этот снимок расширения.',
   fivegpnSettingsConflictPreserved:
     'Шлюз изменился во время редактирования. Введённые значения сохранены; проверьте актуальное состояние и повторите.',
