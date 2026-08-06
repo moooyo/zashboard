@@ -625,14 +625,19 @@
                 <span class="font-medium">{{ entry.name || entry.id }}</span>
                 <span class="badge badge-ghost badge-sm">{{ entry.version }}</span>
                 <span
-                  v-if="entry.installed_version === entry.version"
+                  v-if="catalogInstallState(entry) === 'current'"
                   class="badge badge-success badge-sm"
                   >{{ $t('fivegpnInstalled') }}</span
                 >
                 <span
-                  v-else-if="entry.installed_version"
+                  v-else-if="entry.installed_version && entry.installed_version !== entry.version"
                   class="badge badge-info badge-sm"
                   >{{ $t('fivegpnUpdateFrom', { from: entry.installed_version }) }}</span
+                >
+                <span
+                  v-else-if="entry.installed_version"
+                  class="badge badge-info badge-sm"
+                  >{{ $t('fivegpnUpdateAvailable') }}</span
                 >
                 <span
                   v-if="entry.capabilities?.network"
@@ -642,10 +647,16 @@
                 <span class="flex-1 truncate text-xs opacity-70">{{ entry.description }}</span>
                 <button
                   class="btn btn-xs"
-                  :disabled="reviewing || busy"
+                  :disabled="reviewing || busy || catalogInstallState(entry) === 'current'"
                   @click="reviewEntry(source.id, entry.id)"
                 >
-                  {{ entry.installed_version ? $t('fivegpnReviewUpdate') : $t('fivegpnReview') }}
+                  {{
+                    catalogInstallState(entry) === 'current'
+                      ? $t('fivegpnUpToDate')
+                      : entry.installed_version
+                        ? $t('fivegpnReviewUpdate')
+                        : $t('fivegpnReview')
+                  }}
                 </button>
               </div>
             </div>
@@ -829,6 +840,7 @@ import {
   stopInterceptionLifecyclePolling,
   uninstallExtension,
 } from '@/assembly/fivegpn/interception'
+import { catalogInstallState } from '@/assembly/fivegpn/catalog'
 import SegmentedControl, { type SegmentOption } from '@/components/common/SegmentedControl.vue'
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
 import FiveGPNExtensionSettingsEditor from '@/components/fivegpn/FiveGPNExtensionSettingsEditor.vue'
@@ -1472,7 +1484,7 @@ const install = async (values?: Record<string, FiveGPNSettingValue>) => {
   catalogTarget.value = null
   importUrl.value = ''
   importContent.value = ''
-  refreshCatalog()
+  await refreshCatalog()
 }
 
 onMounted(async () => {

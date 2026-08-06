@@ -68,10 +68,9 @@
           <div class="setting-item-label">{{ $t('fivegpnHttp3') }}</div>
           <div
             data-testid="fivegpn-http3-boundary"
-            class="flex max-w-xl flex-col items-end gap-1 text-right"
+            class="text-sm"
           >
-            <span class="badge badge-warning badge-sm">{{ $t('fivegpnHttp3Unavailable') }}</span>
-            <span class="text-xs opacity-70">{{ $t('fivegpnHttp3Blocked') }}</span>
+            {{ $t('fivegpnHttp3Disabled') }}
           </div>
         </SettingItem>
 

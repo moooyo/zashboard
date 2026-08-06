@@ -29,10 +29,10 @@ test('interception settings render HTTP/3 as fixed policy, not a control', () =>
   )
 
   assert.ok(row?.groups?.content, 'the fixed HTTP/3 policy row is missing')
-  assert.match(row.groups.content, /data-testid="fivegpn-http3-boundary"/)
-  assert.match(row.groups.content, /\$t\('fivegpnHttp3Unavailable'\)/)
-  assert.match(row.groups.content, /\$t\('fivegpnHttp3Blocked'\)/)
-  assert.doesNotMatch(row.groups.content, /<input|<select|@change|v-model|:checked/)
+  assert.match(
+    row.groups.content,
+    /^\s*<div class="setting-item-label">\{\{ \$t\('fivegpnHttp3'\) \}\}<\/div>\s*<div\s+data-testid="fivegpn-http3-boundary"\s+class="text-sm"\s*>\s*\{\{ \$t\('fivegpnHttp3Disabled'\) \}\}\s*<\/div>\s*$/u,
+  )
 })
 
 test('interception snapshot exposes the fixed protocol boundary and narrow egress groups', () => {

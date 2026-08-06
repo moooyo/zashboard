@@ -310,6 +310,8 @@ export type FiveGPNCatalogEntry = {
   capabilities: FiveGPNCatalogCapabilities
   /** Version installed on this gateway, or empty when absent. The gateway supplies this value. */
   installed_version?: string
+  /** True only when the installed version and manifest bytes match this catalog entry. */
+  installed_current?: boolean
 }
 
 export type FiveGPNCatalogSource = {
