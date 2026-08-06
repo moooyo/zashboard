@@ -30,9 +30,9 @@
             <span class="text-base-content/60 text-sm">/s</span>
           </div>
           <div class="mt-1 h-14">
-            <MiniSparkline
+            <SparklineChart
               :data="qpsHistory"
-              :min="1"
+              :y-axis-floor="1"
               :name="t('fivegpnQps')"
               :label-formatter="qpsLabel"
               :tooltip-formatter="qpsTooltip"
@@ -141,9 +141,9 @@
               </template>
             </div>
             <div class="mt-1 h-14">
-              <MiniSparkline
+              <SparklineChart
                 :data="group.history"
-                :min="1"
+                :y-axis-floor="1"
                 :color="group.color"
                 :name="t(group.label)"
                 :label-formatter="msLabel"
@@ -204,8 +204,9 @@ import {
   stopQpsSampling,
   trustLatencyHistory,
 } from '@/assembly/fivegpn/dns'
-import MiniSparkline from '@/components/overview/MiniSparkline.vue'
-import { getToolTipForParams } from '@/helper'
+import SparklineChart from '@/components/charts/SparklineChart.vue'
+import { formatTimeSeriesTooltipParam } from '@/components/charts/chartTooltip'
+import type { ChartTooltipParam } from '@/components/charts/chartTypes'
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -277,10 +278,8 @@ const loadedLists = computed(() => {
     failed: statuses.filter((s) => Boolean(s.error)).length,
   }
 })
-// Reuse the ChartsCard helper instead of assembling strings here. It owns tooltip markers, colors,
-// and number formatting; duplicating them would let this chart gradually diverge from the others.
-const qpsTooltip = (params: ToolTipParams[]) =>
-  params.map((item) => getToolTipForParams(item, { binary: false, suffix: '/s' })).join('')
-const msTooltip = (params: ToolTipParams[]) =>
-  params.map((item) => getToolTipForParams(item, { binary: false, suffix: 'ms' })).join('')
+const qpsTooltip = (params: ChartTooltipParam[]) =>
+  params.map((item) => formatTimeSeriesTooltipParam(item, qpsLabel)).join('')
+const msTooltip = (params: ChartTooltipParam[]) =>
+  params.map((item) => formatTimeSeriesTooltipParam(item, msLabel)).join('')
 </script>

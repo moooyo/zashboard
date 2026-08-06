@@ -148,7 +148,7 @@
       <KeyboardShortcutsSettings />
       <SettingItem
         :setting-key="k.displayAllFeatures"
-        :when="isSingBoxCore"
+        :when="showDisplayAllFeatures"
       >
         <div class="setting-item-label">
           {{ $t('displayAllFeatures') }}
@@ -168,7 +168,7 @@
 </template>
 
 <script setup lang="ts">
-import { isSingBoxCore } from '@/assembly/version'
+import { showDisplayAllFeatures } from '@/assembly/backend'
 import DashboardSettings from '@/components/common/DashboardSettings.vue'
 import KeyboardShortcutsSettings from '@/components/settings/general/KeyboardShortcutsSettings.vue'
 import LanguageSelect from '@/components/settings/general/LanguageSelect.vue'
@@ -226,7 +226,7 @@ const hasVisibleGeneralItems = computed(() => {
     isVisibleSwipeInPages.value ||
     (swipeInPages.value && isVisibleSwipeInTabs.value) ||
     isVisibleDisablePullToRefresh.value ||
-    (isSingBoxCore.value && isVisibleDisplayAllFeatures.value)
+    (showDisplayAllFeatures.value && isVisibleDisplayAllFeatures.value)
   )
 })
 </script>

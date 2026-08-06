@@ -1,41 +1,59 @@
-// Assembly layer for runtime version discovery.
-// fetchVersionAPI normalizes Clash /version and sing-box gRPC GetVersion.
-// isSingBoxCore follows the runtime version string, while isSingboxBackend
-// follows the configured transport type; a Clash-compatible endpoint can still
-// expose a sing-box core.
+// Assembly layer for runtime version discovery. The configured transport
+// selects Clash /version or sing-box gRPC GetVersion, while the returned
+// version identifies the actual core. Component upgrades are intentionally not
+// controller capabilities in the 5gpn fork.
 import { fetchClashVersion, restartCoreAPI } from '@/api/clash'
-import { MIHOMO } from '@/constant'
-import { activeBackend, activeUuid } from '@/store/setup'
-import { computed, ref, watch } from 'vue'
-import { isSingboxBackend } from './backend'
+import HonkLogo from '@/assets/images/honk.svg'
+import MetacubexLogo from '@/assets/images/metacubex.jpg'
+import SingBoxLogo from '@/assets/images/sing-box.svg'
+import { MIHOMO, MIHOMO_CHANNEL } from '@/constant'
+import { activeBackend } from '@/store/setup'
+import type { Backend } from '@/types'
+import { computed, nextTick, ref, watch } from 'vue'
+import { apiVersion, can, Channel, channel, core, Core, resetCore } from './backend'
 
 export const version = ref()
 export const zashboardVersion = ref(__APP_VERSION__)
 
-// sing-box gRPC API version (0 when unknown / non-sing-box). Gates capabilities
-// such as usbip, which requires apiVersion >= 2.
-export const singboxApiVersion = ref(0)
-
-// sing-box 内核启动时刻(ms epoch);0 表示未知 / 当前后端无此能力。
-// 仅 sing-box native gRPC(GetStartedAt)提供,Clash /version 无运行时长。
+// sing-box start time (milliseconds since epoch); zero means unavailable.
 export const startedAt = ref(0)
 
-export const isSingBoxCore = computed(() => version.value?.includes('sing-box'))
+// honk identifies itself as "honk <semver>" on its Clash-compatible endpoint.
+const detectCore = (versionString: string): Core => {
+  if (!versionString) return Core.Unknown
+  if (versionString.includes('sing-box')) return Core.Singbox
+  if (/\bhonk\b/i.test(versionString)) return Core.Honk
+  return Core.Mihomo
+}
+
+// Branding is presentation only and must not be used as a capability gate.
+export const coreBrand = computed(() => {
+  switch (core.value) {
+    case Core.Singbox:
+      return { logo: SingBoxLogo, url: 'https://github.com/sagernet/sing-box' }
+    case Core.Honk:
+      return { logo: HonkLogo, url: 'https://github.com/Glassyiris/honk' }
+    default:
+      return {
+        logo: MetacubexLogo,
+        url: MIHOMO_CHANNEL[mihomo.value?.[0] ?? MIHOMO.Meta].url,
+      }
+  }
+})
 
 export const mihomo = computed<[MIHOMO, string] | undefined>(() => {
-  if (isSingBoxCore.value) return undefined
-  else {
-    const match = /(alpha-smart|alpha|beta|meta)-?(\w+)/.exec(version.value)
-    switch (match?.[1]) {
-      case 'alpha':
-        return [MIHOMO.Alpha, match[2] ?? version.value]
-      case 'alpha-smart':
-        return [MIHOMO.Smart, match[2] ?? version.value]
-      case 'meta':
-        return [MIHOMO.Meta, match[2] ?? version.value]
-      default:
-        return [MIHOMO.Meta, version.value]
-    }
+  if (core.value !== Core.Mihomo) return undefined
+
+  const match = /(alpha-smart|alpha|beta|meta)-?(\w+)/.exec(version.value)
+  switch (match?.[1]) {
+    case 'alpha':
+      return [MIHOMO.Alpha, match[2] ?? version.value]
+    case 'alpha-smart':
+      return [MIHOMO.Smart, match[2] ?? version.value]
+    case 'meta':
+      return [MIHOMO.Meta, match[2] ?? version.value]
+    default:
+      return [MIHOMO.Meta, version.value]
   }
 })
 
@@ -44,16 +62,13 @@ const fetchSingboxVersion = async () => {
   const client = getSingboxClient()?.client
   if (!client) return { data: { version: 'sing-box' } }
   const v = await client.getVersion({})
-  singboxApiVersion.value = v.apiVersion
+  apiVersion.value = v.apiVersion
   const version = v.version.includes('sing-box') ? v.version : `sing-box ${v.version}`
   return { data: { version } }
 }
 
-export const fetchVersionAPI = () => {
-  if (isSingboxBackend.value) return fetchSingboxVersion()
-  singboxApiVersion.value = 0
-  return fetchClashVersion()
-}
+export const fetchVersionAPI = () =>
+  channel.value === Channel.Singbox ? fetchSingboxVersion() : fetchClashVersion()
 
 const fetchSingboxStartedAt = async (): Promise<number> => {
   const { getSingboxClient } = await import('@/api/singbox/client')
@@ -67,26 +82,34 @@ const fetchSingboxStartedAt = async (): Promise<number> => {
   }
 }
 
+const probeBackend = async (backend: Backend) => {
+  const { data } = await fetchVersionAPI()
+
+  // Discard a result if the operator switched backends while probing.
+  if (activeBackend.value?.uuid !== backend.uuid) return
+
+  version.value = data?.version || ''
+  core.value = detectCore(version.value)
+  startedAt.value = can('startedAt') ? await fetchSingboxStartedAt() : 0
+}
+
+// Consumers that need a reliable core/channel conclusion await this probe.
+let probe: Promise<void> = Promise.resolve()
+
+export const coreReady = async () => {
+  // Let the backend watcher install the new probe before awaiting it.
+  await nextTick()
+  await probe
+}
+
 watch(
   activeBackend,
-  async (val) => {
-    if (val) {
-      // 每次 await 后都要重新确认后端没有被切换。否则上一个后端的慢响应会覆盖
-      // 新后端的版本号,而 mihomo 那个正则(isSingBoxCore / mihomo computed)
-      // 直接建立在 version 之上 —— 能力发现的结论一旦与版本串相关,这条竞态就
-      // 会把结论也带偏。用 uuid 而不是 activeBackend 对象:后者是 computed,
-      // 列表被编辑时对象身份就会变。
-      const uuid = activeUuid.value
-      const stale = () => uuid !== activeUuid.value
+  (val) => {
+    resetCore()
+    version.value = ''
+    startedAt.value = 0
 
-      const { data } = await fetchVersionAPI()
-      if (stale()) return
-
-      version.value = data?.version || ''
-      const started = isSingboxBackend.value ? await fetchSingboxStartedAt() : 0
-      if (stale()) return
-      startedAt.value = started
-    }
+    probe = val ? probeBackend(val).catch(() => {}) : Promise.resolve()
   },
   { immediate: true },
 )
