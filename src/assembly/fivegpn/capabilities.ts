@@ -32,7 +32,7 @@ export type FeatureState = 'unknown' | 'supported' | 'unsupported' | 'temporaril
  */
 export const UNDERSTOOD_SCHEMA_VERSIONS: Record<string, number> = {
   '5gpn-dns': 1,
-  '5gpn-interception': 1,
+  '5gpn-interception': 2,
   '5gpn-bot': 1,
 }
 

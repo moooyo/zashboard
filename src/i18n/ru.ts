@@ -611,6 +611,7 @@ const ru: LANG_MESSAGE = {
   fivegpnCatalogSourceDisable: 'Отключить',
   fivegpnCatalogSourceDuplicateId: 'Источник с ID {id} уже существует.',
   fivegpnCatalogSourceDuplicateUrl: 'Этот URL уже настроен: {url}',
+  fivegpnCatalogUnavailable: 'Состояние каталога ещё не готово. Обновите его перед изменением.',
   fivegpnInstalled: 'Установлено',
   fivegpnNetworkGrant: 'Сетевой доступ',
   fivegpnBotSettings: 'Telegram-бот',
@@ -787,7 +788,87 @@ const ru: LANG_MESSAGE = {
   fivegpnInstallLandsDisabled:
     'Установка всегда завершается в выключенном состоянии. Включение — отдельное решение о том, дать ли расширению видеть трафик.',
   fivegpnNetworkGrantWarning:
-    'Это расширение имеет неограниченное сетевое разрешение. Его сценарии могут отправить любой видимый им запрос, ответ, настройку или сохранённое значение на любой достижимый хост, а также переписать туда перехваченный запрос вместе с методом, декодированным телом и заголовками — возможно, включая cookie или authorization. Разрешение не называет адресатов, поэтому проверять список нечего.',
+    'Это расширение имеет неограниченное сетевое разрешение. Его сценарии могут отправить любой видимый им запрос, ответ, настройку или сохранённое значение на любой достижимый хост, а также переписать туда перехваченный запрос вместе с полным методом, декодированным телом и сквозными заголовками — возможно, включая Cookie или Authorization. Разрешение не называет адресатов, поэтому проверять список нечего.',
+  fivegpnCertificatePending:
+    'Расширение разрешено. Перехват заблокирован, пока шлюз готовит сертификат для нового набора хостов.',
+  fivegpnCertificateError: 'Не удалось подготовить сертификат. Перехват остаётся заблокированным.',
+  fivegpnCertificateBoundaryGap:
+    'Активный сертификат не покрывает: {hosts}. Эти имена остаются на шлюзе, но их HTTP/TLS-соединения отклоняются.',
+  fivegpnRetryCertificate: 'Повторить выпуск сертификата',
+  fivegpnNotRequired: 'не требуется',
+  fivegpnUpdateChanges: 'Изменения в обновлении',
+  fivegpnExactRoutingRules: 'Точные правила маршрутизации',
+  fivegpnUpdateNeedsEgress:
+    'Привяжите группу выхода к установленному расширению перед обновлением.',
+  fivegpnConfigureCount: 'Настроить ({count})',
+  fivegpnExtensionConfiguration: 'Настройки расширения',
+  fivegpnSaveConfiguration: 'Сохранить настройки',
+  fivegpnLocation: 'Местоположение',
+  fivegpnLocationMap: 'Выбор координат',
+  fivegpnLongitude: 'Долгота',
+  fivegpnLatitude: 'Широта',
+  fivegpnAccuracyMetres: 'Точность (метры)',
+  fivegpnLocationHint:
+    'Выберите точку на карте или введите точные координаты. Стрелки двигают маркер; Shift задаёт шаг в один градус.',
+  fivegpnClearLocation: 'Очистить местоположение',
+  fivegpnFlatLocationDescription:
+    'Эти три поля манифеста образуют одну координату и сохраняются одной транзакцией.',
+  fivegpnSettingUnset: 'Не задано',
+  fivegpnSettingChoose: 'Выберите значение',
+  fivegpnSettingRequired: 'Это значение обязательно.',
+  fivegpnSettingInvalidOption: 'Выберите один из объявленных вариантов.',
+  fivegpnSettingFiniteNumber: 'Введите конечное число.',
+  fivegpnSettingText: 'Введите текст.',
+  fivegpnSettingBoolean: 'Выберите вкл. или выкл.',
+  fivegpnSettingMinimum: 'Минимум: {value}.',
+  fivegpnSettingMaximum: 'Максимум: {value}.',
+  fivegpnLocationInvalid: 'Введите допустимые координаты и точность от 1 до 100000 метров.',
+  fivegpnEnableReview: 'Проверить и включить расширение',
+  fivegpnNoRoutingRules: 'Расширение не объявляет правил маршрутизации mihomo.',
+  fivegpnAuthorizeAndEnable: 'Разрешить и включить',
+  fivegpnEnableNeedsEgress: 'Перед включением привяжите требуемую группу выхода.',
+  fivegpnEnableNeedsSettings: 'Перед включением заполните обязательные настройки.',
+  fivegpnLifecycleDisabled: 'Выключено',
+  fivegpnLifecycleArmed: 'Разрешено',
+  fivegpnLifecycleCertificatePending: 'Ожидание сертификата',
+  fivegpnLifecycleCertificateError: 'Ошибка сертификата',
+  fivegpnLifecycleBoundaryUnavailable: 'Перехват заблокирован',
+  fivegpnLifecycleEgressUnavailable: 'Выход недоступен',
+  fivegpnLifecycleActive: 'Активно',
+  fivegpnLifecycleUnavailable: 'Недоступно',
+  fivegpnLifecycleDescription_disabled: 'Расширению не разрешено просматривать трафик.',
+  fivegpnLifecycleDescription_armed:
+    'Разрешение сохранено, но главный переключатель перехвата выключен.',
+  fivegpnLifecycleDescription_certificate_pending:
+    'Имена остаются на шлюзе, а их HTTP/TLS-соединения отклоняются до готовности сертификата.',
+  fivegpnLifecycleDescription_certificate_error:
+    'Подготовка сертификата завершилась ошибкой. Имена остаются на шлюзе, а их HTTP/TLS-соединения отклоняются.',
+  fivegpnLifecycleDescription_boundary_unavailable:
+    'Граница перехвата небезопасна, поэтому трафик не перехватывается.',
+  fivegpnLifecycleDescription_egress_unavailable:
+    'Требуемая группа выхода недоступна, расширение не активно.',
+  fivegpnLifecycleDescription_active: 'Новые подходящие запросы используют этот снимок расширения.',
+  fivegpnSettingsConflictPreserved:
+    'Шлюз изменился во время редактирования. Введённые значения сохранены; проверьте актуальное состояние и повторите.',
+  fivegpnUpdateAndKeepEnabled: 'Обновить и оставить включённым',
+  fivegpnDiffHostsAdded: 'Добавлены хосты перехвата: {hosts}',
+  fivegpnDiffHostsRemoved: 'Удалены хосты перехвата: {hosts}',
+  fivegpnDiffRoutingRules: 'Правила маршрутизации: {before} → {after}',
+  fivegpnDiffNetworkGrant: 'Изменилось неограниченное сетевое разрешение.',
+  fivegpnDiffStorage: 'Изменилось разрешение постоянного хранилища.',
+  fivegpnDiffEgressRequirement: 'Изменилось требование привязки выхода.',
+  fivegpnDiffSettingsAdded: 'Добавлены настройки: {settings}',
+  fivegpnDiffSettingsRemoved: 'Удалены настройки: {settings}',
+  fivegpnDiffSettingsChanged: 'Изменились типы настроек: {settings}',
+  fivegpnDiffCodeOnly:
+    'Изменился неизменяемый снимок кода; разрешения и структура настроек не изменились.',
+  fivegpnUpdateConflictPreserved:
+    'Шлюз изменился до применения обновления. Предложенные настройки сохранены; проверьте актуальное состояние и повторите.',
+  fivegpnReorderConfirm:
+    'Переместить {moved} за {neighbor}? Это изменит приоритет первого совпадения действий, выхода, хостов перехвата и глобальных правил.',
+  fivegpnToggleExtension: 'Включить или выключить {name}',
+  fivegpnMoveExtensionUp: 'Переместить {name} выше',
+  fivegpnMoveExtensionDown: 'Переместить {name} ниже',
 }
 
 export default ru

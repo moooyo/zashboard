@@ -50,13 +50,36 @@ export type FiveGPNModuleSummary = {
   capture_dns: string
   egress_group?: string
   egress_group_required: boolean
+  setting_count: number
+  runtime: FiveGPNModuleRuntime
+}
+
+export type FiveGPNModuleRuntimePhase =
+  | 'disabled'
+  | 'armed'
+  | 'certificate_pending'
+  | 'certificate_error'
+  | 'boundary_unavailable'
+  | 'egress_unavailable'
+  | 'active'
+
+export type FiveGPNModuleRuntime = {
+  ready: boolean
+  phase: FiveGPNModuleRuntimePhase
+  reason?: string
 }
 
 export type FiveGPNCertificateState = {
+  ready: boolean
   loaded: boolean
   not_after?: number
   covers_all_capture_hosts: boolean
   missing_hosts?: string[]
+  status?: 'idle' | 'pending' | 'ready' | 'error'
+  target_digest?: string
+  attempt?: string
+  error_code?: string
+  error_message?: string
 }
 
 export type FiveGPNInterception = {
@@ -70,17 +93,25 @@ export type FiveGPNInterception = {
   certificate: FiveGPNCertificateState
 }
 
+export type FiveGPNLocationValue = {
+  longitude?: number
+  latitude?: number
+  accuracy: number
+}
+
+export type FiveGPNSettingValue = string | number | boolean | FiveGPNLocationValue | null
+
 export type FiveGPNModuleSetting = {
   key: string
-  type: string
+  type: 'boolean' | 'select' | 'text' | 'number' | 'location'
   label?: string
   description?: string
   required: boolean
   options?: string[]
   min?: number
   max?: number
-  default?: unknown
-  value?: unknown
+  default?: FiveGPNSettingValue
+  value?: FiveGPNSettingValue
 }
 
 export type FiveGPNActionSummary = {
@@ -158,7 +189,7 @@ export const putInterceptionOrderAPI = (body: { revision: string; order: string[
 export const fetchExtensionAPI = (id: string, signal?: AbortSignal) =>
   axios.get<{ extension: FiveGPNModuleDetail; revision: string }>(
     `/5gpn/interception/extensions/${encodeURIComponent(id)}`,
-    { signal },
+    { signal, timeout: 5000 },
   )
 
 export const putExtensionEnabledAPI = (id: string, body: { revision: string; enabled: boolean }) =>
@@ -182,15 +213,20 @@ export const putExtensionCaptureDNSAPI = (
     body,
   )
 
-export const putExtensionSettingAPI = (
+export const putExtensionSettingsAPI = (
   id: string,
-  key: string,
-  body: { revision: string; value: unknown },
+  body: { revision: string; values: Record<string, FiveGPNSettingValue> },
 ) =>
   axios.put<FiveGPNInterceptionEnvelope>(
-    `/5gpn/interception/extensions/${encodeURIComponent(id)}/settings/${encodeURIComponent(key)}`,
+    `/5gpn/interception/extensions/${encodeURIComponent(id)}/settings`,
     body,
   )
+
+export const retryInterceptionCertificateAPI = (body: {
+  revision: string
+  target_digest: string
+  attempt: string
+}) => axios.post<FiveGPNInterceptionEnvelope>('/5gpn/interception/certificate/retry', body)
 
 export const deleteExtensionAPI = (id: string, body: { revision: string }) =>
   axios.delete<FiveGPNInterceptionEnvelope>(
@@ -201,8 +237,12 @@ export const deleteExtensionAPI = (id: string, body: { revision: string }) =>
   )
 
 /** Review is read-only; its returned digest is the credential supplied during installation. */
-export const reviewExtensionAPI = (body: { url?: string; content?: string }) =>
+export const reviewExtensionAPI = (
+  body: { url?: string; content?: string },
+  signal?: AbortSignal,
+) =>
   axios.post<{ candidate: FiveGPNCandidate; revision: string }>('/5gpn/interception/review', body, {
+    signal,
     timeout: 120000,
   })
 
@@ -216,13 +256,20 @@ export const installExtensionAPI = (body: {
     timeout: 120000,
   })
 
-export const checkExtensionUpdateAPI = (id: string) =>
+export const checkExtensionUpdateAPI = (id: string, signal?: AbortSignal) =>
   axios.get<{ candidate: FiveGPNCandidate; revision: string }>(
     `/5gpn/interception/extensions/${encodeURIComponent(id)}/update`,
-    { timeout: 120000 },
+    { signal, timeout: 120000 },
   )
 
-export const applyExtensionUpdateAPI = (id: string, body: { revision: string; digest: string }) =>
+export const applyExtensionUpdateAPI = (
+  id: string,
+  body: {
+    revision: string
+    digest: string
+    values?: Record<string, FiveGPNSettingValue>
+  },
+) =>
   axios.post<FiveGPNInterceptionEnvelope>(
     `/5gpn/interception/extensions/${encodeURIComponent(id)}/update`,
     body,
@@ -332,11 +379,11 @@ export const putCatalogSourcesAPI = (body: { revision: string; sources: FiveGPNC
  * match its labels. A mismatch is rejected here because the review page is
  * where the operator makes the decision.
  */
-export const reviewCatalogEntryAPI = (source: string, entry: string) =>
+export const reviewCatalogEntryAPI = (source: string, entry: string, signal?: AbortSignal) =>
   axios.post<{ candidate: FiveGPNCandidate; url: string; revision: string }>(
     `/5gpn/interception/catalog/${encodeURIComponent(source)}/entries/${encodeURIComponent(entry)}/review`,
     {},
-    { timeout: 120000 },
+    { signal, timeout: 120000 },
   )
 
 /**
@@ -349,7 +396,11 @@ export const reviewCatalogEntryAPI = (source: string, entry: string) =>
 export const applyCatalogUpdateAPI = (
   source: string,
   entry: string,
-  body: { revision: string; digest: string },
+  body: {
+    revision: string
+    digest: string
+    values?: Record<string, FiveGPNSettingValue>
+  },
 ) =>
   axios.post<FiveGPNInterceptionEnvelope>(
     `/5gpn/interception/catalog/${encodeURIComponent(source)}/entries/${encodeURIComponent(entry)}/update`,

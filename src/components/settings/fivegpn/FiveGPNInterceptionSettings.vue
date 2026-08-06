@@ -22,13 +22,23 @@
          to loading, so status-based rendering would blank the panel on every refresh. Preserve the
          existing values and let the button communicate refresh activity. -->
     <template v-else-if="data">
-      <!-- A SAN set that differs from the capture set required by enabled extensions is the only
-           failure that appears as a client trust error with no gateway log entry. Make it prominent. -->
       <div
-        v-if="certificateGap"
+        v-if="data.certificate.status === 'pending'"
+        class="alert alert-info py-2"
+      >
+        <span>{{ $t('fivegpnCertificatePending') }}</span>
+      </div>
+      <div
+        v-else-if="data.certificate.status === 'error'"
         class="alert alert-error py-2"
       >
-        <span>{{ $t('fivegpnCertificateGap', { hosts: missingHosts }) }}</span>
+        <span>{{ $t('fivegpnCertificateError') }}</span>
+      </div>
+      <div
+        v-else-if="certificateGap"
+        class="alert alert-warning py-2"
+      >
+        <span>{{ $t('fivegpnCertificateBoundaryGap', { hosts: missingHosts }) }}</span>
       </div>
 
       <div class="settings-grid">
@@ -121,12 +131,14 @@ import {
   interceptionStatus,
   refreshInterception,
   setInterceptionSettings,
+  startInterceptionLifecyclePolling,
+  stopInterceptionLifecyclePolling,
 } from '@/assembly/fivegpn/interception'
 import SettingItem from '@/components/settings/SettingItem.vue'
 import { useHasAnyVisibleSetting } from '@/composables/settings'
 import { FIVEGPN_INTERCEPTION_ITEM_KEYS, getAllKeysForCategory } from '@/config/settingsItems'
 import { SETTINGS_MENU_KEY } from '@/constant'
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const k = FIVEGPN_INTERCEPTION_ITEM_KEYS
 const hasVisibleItems = useHasAnyVisibleSetting(
@@ -177,4 +189,7 @@ const expiry = computed(() => {
   const at = data.value?.certificate.not_after
   return at ? new Date(at * 1000).toLocaleString() : ''
 })
+
+onMounted(startInterceptionLifecyclePolling)
+onUnmounted(stopInterceptionLifecyclePolling)
 </script>

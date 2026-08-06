@@ -5,6 +5,8 @@ import type {
   FiveGPNEngineLog,
   FiveGPNInterception,
   FiveGPNInterceptionEnvelope,
+  FiveGPNModuleDetail,
+  FiveGPNSettingValue,
 } from '@/api/fivegpn'
 import {
   applyCatalogUpdateAPI,
@@ -13,20 +15,22 @@ import {
   deleteExtensionAPI,
   fetchCatalogAPI,
   fetchEngineLogsAPI,
+  fetchExtensionAPI,
   fetchInterceptionAPI,
   installExtensionAPI,
   putCatalogSourcesAPI,
   putExtensionCaptureDNSAPI,
   putExtensionEgressAPI,
   putExtensionEnabledAPI,
-  putExtensionSettingAPI,
+  putExtensionSettingsAPI,
   putInterceptionOrderAPI,
   putInterceptionSettingsAPI,
+  retryInterceptionCertificateAPI,
   reviewCatalogEntryAPI,
   reviewExtensionAPI,
 } from '@/api/fivegpn'
 import { activeUuid } from '@/store/setup'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { featureSupported } from './capabilities'
 
 /**
@@ -59,9 +63,11 @@ const adopt = (data: FiveGPNInterceptionEnvelope) => {
   interceptionRevision.value = data.revision
   interceptionStatus.value = 'ready'
   interceptionError.value = ''
+  syncInterceptionLifecyclePolling()
 }
 
-export const refreshInterception = async () => {
+export const refreshInterception = async (background: boolean | Event = false) => {
+  const inBackground = background === true
   controller?.abort()
   controller = new AbortController()
   const gen = ++generation
@@ -73,8 +79,10 @@ export const refreshInterception = async () => {
     return
   }
 
-  interceptionStatus.value = 'loading'
-  interceptionError.value = ''
+  if (!inBackground || !interception.value) {
+    interceptionStatus.value = 'loading'
+    interceptionError.value = ''
+  }
 
   let status = 0
   let data: FiveGPNInterceptionEnvelope | undefined
@@ -84,8 +92,10 @@ export const refreshInterception = async () => {
     data = res.data
   } catch (e) {
     if (stale()) return
-    interceptionStatus.value = 'error'
-    interceptionError.value = e instanceof Error ? e.message : String(e)
+    if (!inBackground || !interception.value) {
+      interceptionStatus.value = 'error'
+      interceptionError.value = e instanceof Error ? e.message : String(e)
+    }
     return
   }
   if (stale()) return
@@ -118,16 +128,32 @@ const messageOf = (res: { data?: unknown }) => {
  */
 const write = async (
   call: (revision: string) => Promise<{ status: number; data?: unknown }>,
+  acceptedStatuses: readonly number[] = [200],
+  expectedRevision?: string,
 ): Promise<string> => {
   if (!interceptionRevision.value) return 'no revision'
+  if (expectedRevision && expectedRevision !== interceptionRevision.value) return 'conflict'
+  controller?.abort()
+  controller = undefined
+  detailController?.abort()
+  detailController = undefined
+  detailGeneration++
+  inspectionController?.abort()
+  inspectionController = undefined
+  inspectionGeneration++
+  const gen = ++generation
+  const uuid = activeUuid.value
+  const stale = () => gen !== generation || uuid !== activeUuid.value
+  if (!uuid) return 'no backend'
   try {
-    const res = await call(interceptionRevision.value)
-    if (res.status === 200 && res.data) {
+    const res = await call(expectedRevision ?? interceptionRevision.value)
+    if (stale()) return 'backend changed'
+    if (acceptedStatuses.includes(res.status) && res.data) {
       adopt(res.data as FiveGPNInterceptionEnvelope)
       return ''
     }
     if (res.status === 409) {
-      await refreshInterception()
+      await refreshInterception(true)
       return 'conflict'
     }
     return messageOf(res) || `interception returned ${res.status}`
@@ -142,8 +168,8 @@ export const setInterceptionSettings = (settings: { enabled: boolean; http2: boo
 export const setExecutionOrder = (order: string[]) =>
   write((revision) => putInterceptionOrderAPI({ revision, order }))
 
-export const setExtensionEnabled = (id: string, enabled: boolean) =>
-  write((revision) => putExtensionEnabledAPI(id, { revision, enabled }))
+export const setExtensionEnabled = (id: string, enabled: boolean, expectedRevision?: string) =>
+  write((revision) => putExtensionEnabledAPI(id, { revision, enabled }), [200], expectedRevision)
 
 export const setExtensionEgress = (id: string, group: string) =>
   write((revision) => putExtensionEgressAPI(id, { revision, group }))
@@ -151,8 +177,25 @@ export const setExtensionEgress = (id: string, group: string) =>
 export const setExtensionCaptureDNS = (id: string, resolver: string) =>
   write((revision) => putExtensionCaptureDNSAPI(id, { revision, resolver }))
 
-export const setExtensionSetting = (id: string, key: string, value: unknown) =>
-  write((revision) => putExtensionSettingAPI(id, key, { revision, value }))
+export const setExtensionSettings = (
+  id: string,
+  values: Record<string, FiveGPNSettingValue>,
+  expectedRevision: string,
+) => write((revision) => putExtensionSettingsAPI(id, { revision, values }), [200], expectedRevision)
+
+export const retryInterceptionCertificate = () => {
+  const certificate = interception.value?.certificate
+  if (!certificate?.target_digest || !certificate.attempt) return Promise.resolve('no retry target')
+  return write(
+    (revision) =>
+      retryInterceptionCertificateAPI({
+        revision,
+        target_digest: certificate.target_digest!,
+        attempt: certificate.attempt!,
+      }),
+    [202],
+  )
+}
 
 export const uninstallExtension = (id: string) =>
   write((revision) => deleteExtensionAPI(id, { revision }))
@@ -160,10 +203,70 @@ export const uninstallExtension = (id: string) =>
 export const installReviewed = (
   candidate: FiveGPNCandidate,
   source: { url?: string; content?: string },
-) => write((revision) => installExtensionAPI({ revision, digest: candidate.digest, ...source }))
+  expectedRevision: string,
+) =>
+  write(
+    (revision) => installExtensionAPI({ revision, digest: candidate.digest, ...source }),
+    [200],
+    expectedRevision,
+  )
 
-export const applyReviewedUpdate = (id: string, candidate: FiveGPNCandidate) =>
-  write((revision) => applyExtensionUpdateAPI(id, { revision, digest: candidate.digest }))
+export const applyReviewedUpdate = (
+  id: string,
+  candidate: FiveGPNCandidate,
+  expectedRevision: string,
+  values?: Record<string, FiveGPNSettingValue>,
+) =>
+  write(
+    (revision) => applyExtensionUpdateAPI(id, { revision, digest: candidate.digest, values }),
+    [200],
+    expectedRevision,
+  )
+
+let detailGeneration = 0
+let detailController: AbortController | undefined
+
+export const fetchExtensionDetail = async (
+  id: string,
+): Promise<{ detail?: FiveGPNModuleDetail; revision?: string; error: string }> => {
+  detailController?.abort()
+  detailController = new AbortController()
+  const gen = ++detailGeneration
+  const uuid = activeUuid.value
+  const stale = () => gen !== detailGeneration || uuid !== activeUuid.value
+  if (!uuid) return { error: 'no backend' }
+  try {
+    const res = await fetchExtensionAPI(id, detailController.signal)
+    if (stale()) return { error: 'backend changed' }
+    if (res.status !== 200 || !res.data?.extension) {
+      return { error: messageOf(res) || `extension returned ${res.status}` }
+    }
+    if (res.data.revision !== interceptionRevision.value) {
+      await refreshInterception(true)
+      return { error: 'conflict' }
+    }
+    return { detail: res.data.extension, revision: res.data.revision, error: '' }
+  } catch (e) {
+    if (stale()) return { error: '' }
+    return { error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+let inspectionGeneration = 0
+let inspectionController: AbortController | undefined
+
+const inspectionContext = () => {
+  inspectionController?.abort()
+  inspectionController = new AbortController()
+  return {
+    generation: ++inspectionGeneration,
+    uuid: activeUuid.value,
+    signal: inspectionController.signal,
+  }
+}
+
+const inspectionStale = (context: ReturnType<typeof inspectionContext>) =>
+  context.generation !== inspectionGeneration || context.uuid !== activeUuid.value
 
 /**
  * Review a candidate without changing state. The returned digest is the
@@ -172,28 +275,44 @@ export const applyReviewedUpdate = (id: string, candidate: FiveGPNCandidate) =>
 export const reviewExtension = async (source: {
   url?: string
   content?: string
-}): Promise<{ candidate?: FiveGPNCandidate; error: string }> => {
+}): Promise<{ candidate?: FiveGPNCandidate; revision?: string; error: string }> => {
+  const context = inspectionContext()
+  if (!context.uuid) return { error: 'no backend' }
   try {
-    const res = await reviewExtensionAPI(source)
+    const res = await reviewExtensionAPI(source, context.signal)
+    if (inspectionStale(context)) return { error: 'backend changed' }
     if (res.status === 200 && res.data?.candidate) {
-      return { candidate: res.data.candidate, error: '' }
+      if (res.data.revision !== interceptionRevision.value) {
+        await refreshInterception(true)
+        return { error: 'conflict' }
+      }
+      return { candidate: res.data.candidate, revision: res.data.revision, error: '' }
     }
     return { error: messageOf(res) || `review returned ${res.status}` }
   } catch (e) {
+    if (inspectionStale(context)) return { error: '' }
     return { error: e instanceof Error ? e.message : String(e) }
   }
 }
 
 export const checkExtensionUpdate = async (
   id: string,
-): Promise<{ candidate?: FiveGPNCandidate; error: string }> => {
+): Promise<{ candidate?: FiveGPNCandidate; revision?: string; error: string }> => {
+  const context = inspectionContext()
+  if (!context.uuid) return { error: 'no backend' }
   try {
-    const res = await checkExtensionUpdateAPI(id)
+    const res = await checkExtensionUpdateAPI(id, context.signal)
+    if (inspectionStale(context)) return { error: 'backend changed' }
     if (res.status === 200 && res.data?.candidate) {
-      return { candidate: res.data.candidate, error: '' }
+      if (res.data.revision !== interceptionRevision.value) {
+        await refreshInterception(true)
+        return { error: 'conflict' }
+      }
+      return { candidate: res.data.candidate, revision: res.data.revision, error: '' }
     }
     return { error: messageOf(res) || `update check returned ${res.status}` }
   } catch (e) {
+    if (inspectionStale(context)) return { error: '' }
     return { error: e instanceof Error ? e.message : String(e) }
   }
 }
@@ -256,6 +375,7 @@ export const refreshEngineLogs = async () => {
 
 export const catalogStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
 export const catalogSources = ref<FiveGPNCatalogSourceView[]>([])
+export const catalogRevision = ref('')
 export const catalogError = ref('')
 
 let catalogGeneration = 0
@@ -270,6 +390,7 @@ export const refreshCatalog = async (refresh = false) => {
 
   if (!uuid) {
     catalogStatus.value = 'idle'
+    catalogRevision.value = ''
     return
   }
   catalogStatus.value = 'loading'
@@ -283,7 +404,9 @@ export const refreshCatalog = async (refresh = false) => {
       return
     }
     catalogSources.value = res.data.catalog.sources ?? []
+    catalogRevision.value = res.data.revision
     catalogStatus.value = 'ready'
+    if (res.data.revision !== interceptionRevision.value) await refreshInterception(true)
   } catch (e) {
     if (stale()) return
     catalogStatus.value = 'error'
@@ -291,8 +414,8 @@ export const refreshCatalog = async (refresh = false) => {
   }
 }
 
-export const setCatalogSources = (sources: FiveGPNCatalogSource[]) =>
-  write((revision) => putCatalogSourcesAPI({ revision, sources }))
+export const setCatalogSources = (sources: FiveGPNCatalogSource[], expectedRevision: string) =>
+  write((revision) => putCatalogSourcesAPI({ revision, sources }), [200], expectedRevision)
 
 /**
  * Updating from a catalog entry changes the extension source to that entry's
@@ -303,8 +426,19 @@ export const setCatalogSources = (sources: FiveGPNCatalogSource[]) =>
  * explicitly selected this catalog entry, so changing the source is the intended
  * result rather than a configuration side effect.
  */
-export const applyCatalogUpdate = (source: string, entry: string, candidate: FiveGPNCandidate) =>
-  write((revision) => applyCatalogUpdateAPI(source, entry, { revision, digest: candidate.digest }))
+export const applyCatalogUpdate = (
+  source: string,
+  entry: string,
+  candidate: FiveGPNCandidate,
+  expectedRevision: string,
+  values?: Record<string, FiveGPNSettingValue>,
+) =>
+  write(
+    (revision) =>
+      applyCatalogUpdateAPI(source, entry, { revision, digest: candidate.digest, values }),
+    [200],
+    expectedRevision,
+  )
 
 /**
  * Review a catalog entry. The returned URL is the source supplied during
@@ -314,19 +448,99 @@ export const applyCatalogUpdate = (source: string, entry: string, candidate: Fiv
 export const reviewCatalogEntry = async (
   source: string,
   entry: string,
-): Promise<{ candidate?: FiveGPNCandidate; url?: string; error: string }> => {
+): Promise<{ candidate?: FiveGPNCandidate; url?: string; revision?: string; error: string }> => {
+  const context = inspectionContext()
+  if (!context.uuid) return { error: 'no backend' }
   try {
-    const res = await reviewCatalogEntryAPI(source, entry)
+    const res = await reviewCatalogEntryAPI(source, entry, context.signal)
+    if (inspectionStale(context)) return { error: 'backend changed' }
     if (res.status === 200 && res.data?.candidate) {
-      return { candidate: res.data.candidate, url: res.data.url, error: '' }
+      if (res.data.revision !== interceptionRevision.value) {
+        await refreshInterception(true)
+        return { error: 'conflict' }
+      }
+      return {
+        candidate: res.data.candidate,
+        url: res.data.url,
+        revision: res.data.revision,
+        error: '',
+      }
     }
     return { error: messageOf(res) || `review returned ${res.status}` }
   } catch (e) {
+    if (inspectionStale(context)) return { error: '' }
     return { error: e instanceof Error ? e.message : String(e) }
   }
 }
 
+let lifecycleTimer: ReturnType<typeof setTimeout> | undefined
+let lifecyclePolling = false
+let lifecycleDelay = 750
+
+const clearLifecycleTimer = () => {
+  if (lifecycleTimer) {
+    clearTimeout(lifecycleTimer)
+    lifecycleTimer = undefined
+  }
+}
+
+const certificatePending = () =>
+  interception.value?.certificate.status === 'pending' ||
+  (interception.value?.modules ?? []).some(
+    (module) => module.runtime?.phase === 'certificate_pending',
+  )
+
+const scheduleLifecyclePoll = (delay: number) => {
+  clearLifecycleTimer()
+  const uuid = activeUuid.value
+  lifecycleTimer = setTimeout(async () => {
+    lifecycleTimer = undefined
+    if (!lifecyclePolling || !uuid || uuid !== activeUuid.value) return
+    await refreshInterception(true)
+    if (!lifecyclePolling || uuid !== activeUuid.value || !certificatePending()) return
+    lifecycleDelay = Math.min(lifecycleDelay * 2, 5000)
+    scheduleLifecyclePoll(lifecycleDelay)
+  }, delay)
+}
+
+/**
+ * Lifecycle polling is page-scoped and single-flight. A pending certificate is
+ * an externally completed transaction, so the old frame remains visible while
+ * one background read waits. Errors are stable and require an explicit retry;
+ * they are never hammered in a loop.
+ */
+export const startInterceptionLifecyclePolling = () => {
+  lifecyclePolling = true
+  lifecycleDelay = 750
+  if (certificatePending()) scheduleLifecyclePoll(lifecycleDelay)
+}
+
+export const syncInterceptionLifecyclePolling = () => {
+  if (!lifecyclePolling) return
+  if (!certificatePending()) {
+    clearLifecycleTimer()
+    lifecycleDelay = 750
+    return
+  }
+  if (!lifecycleTimer) scheduleLifecyclePoll(lifecycleDelay)
+}
+
+export const stopInterceptionLifecyclePolling = () => {
+  lifecyclePolling = false
+  clearLifecycleTimer()
+  controller?.abort()
+  controller = undefined
+  generation++
+  detailController?.abort()
+  detailController = undefined
+  detailGeneration++
+  inspectionController?.abort()
+  inspectionController = undefined
+  inspectionGeneration++
+}
+
 export const stopInterception = () => {
+  stopInterceptionLifecyclePolling()
   controller?.abort()
   controller = undefined
   generation++
@@ -339,6 +553,18 @@ export const stopInterception = () => {
   catalogController = undefined
   catalogGeneration++
   catalogSources.value = []
+  catalogRevision.value = ''
   catalogStatus.value = 'idle'
   catalogError.value = ''
+
+  detailController?.abort()
+  detailController = undefined
+  detailGeneration++
+  inspectionController?.abort()
+  inspectionController = undefined
+  inspectionGeneration++
 }
+
+watch(activeUuid, (_uuid, previous) => {
+  if (previous !== undefined) stopInterception()
+})

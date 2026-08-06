@@ -26,18 +26,34 @@
           <span>{{ notice }}</span>
         </div>
 
-        <!-- A SAN set that differs from the capture set required by enabled extensions is the only
-             failure that appears as a client trust error with no gateway log entry. Make it more
-             prominent than every other row. -->
         <div
-          v-if="certificateGap"
+          v-if="data.certificate.status === 'pending'"
+          class="alert alert-info"
+        >
+          <span class="loading loading-spinner loading-sm" />
+          <span>{{ $t('fivegpnCertificatePending') }}</span>
+        </div>
+        <div
+          v-else-if="data.certificate.status === 'error'"
           class="alert alert-error"
         >
-          <span>{{
-            $t('fivegpnCertificateGap', {
-              hosts: (data.certificate.missing_hosts ?? []).join(', '),
-            })
-          }}</span>
+          <div class="flex flex-1 flex-col gap-1">
+            <span>{{ $t('fivegpnCertificateError') }}</span>
+            <span class="font-mono text-xs">
+              {{
+                [data.certificate.error_code, data.certificate.error_message]
+                  .filter(Boolean)
+                  .join(' · ')
+              }}
+            </span>
+          </div>
+          <button
+            class="btn btn-sm"
+            :disabled="busy"
+            @click="retryCertificate"
+          >
+            {{ $t('fivegpnRetryCertificate') }}
+          </button>
         </div>
 
         <!-- The MITM master and HTTP/2 controls live in Interception settings.
@@ -74,7 +90,9 @@
              distributing it across several confirmations. -->
         <div
           v-if="candidate"
+          ref="candidatePanel"
           class="base-container border-warning flex flex-col gap-2 border p-3"
+          tabindex="-1"
         >
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-base font-medium">
@@ -115,9 +133,55 @@
               <span>{{ (candidate.detail.routing_rules ?? []).length }}</span>
             </div>
             <div class="setting-item">
-              <span class="setting-item-label">{{ $t('fivegpnDigest') }}</span>
-              <span class="font-mono text-xs">{{ candidate.digest.slice(0, 16) }}</span>
+              <span class="setting-item-label">{{ $t('fivegpnEgressGroup') }}</span>
+              <span>
+                {{
+                  candidate.detail.egress_group_required
+                    ? candidate.detail.egress_group || $t('fivegpnNoBinding')
+                    : $t('fivegpnNotRequired')
+                }}
+              </span>
             </div>
+            <div class="setting-item">
+              <span class="setting-item-label">{{ $t('fivegpnDigest') }}</span>
+              <span class="font-mono text-xs break-all">{{ candidate.digest }}</span>
+            </div>
+          </div>
+
+          <div
+            v-if="candidateDiff.length"
+            class="border-base-300 flex flex-col gap-1 border-y py-2"
+          >
+            <span class="text-sm font-medium">{{ $t('fivegpnUpdateChanges') }}</span>
+            <span
+              v-for="change in candidateDiff"
+              :key="change"
+              class="text-xs"
+            >
+              {{ change }}
+            </span>
+          </div>
+
+          <div
+            v-if="candidate.detail.capture_hosts.length"
+            class="flex flex-col gap-1"
+          >
+            <span class="text-sm font-medium">{{ $t('fivegpnCaptureHosts') }}</span>
+            <code class="text-xs break-all">{{ candidate.detail.capture_hosts.join(', ') }}</code>
+          </div>
+
+          <div
+            v-if="candidate.detail.routing_rules?.length"
+            class="flex flex-col gap-1"
+          >
+            <span class="text-sm font-medium">{{ $t('fivegpnExactRoutingRules') }}</span>
+            <code
+              v-for="(rule, index) in candidate.detail.routing_rules"
+              :key="index"
+              class="bg-base-200 block px-2 py-1 text-xs break-all"
+            >
+              {{ formatRoutingRule(rule) }}
+            </code>
           </div>
 
           <!-- This grant has no destination list. Presenting "reviewed targets" would describe a
@@ -129,15 +193,36 @@
             <span>{{ $t('fivegpnNetworkGrantWarning') }}</span>
           </div>
 
-          <div class="flex gap-2">
+          <div
+            v-if="updateNeedsEgress"
+            class="alert alert-error py-2"
+          >
+            <span>{{ $t('fivegpnUpdateNeedsEgress') }}</span>
+          </div>
+
+          <FiveGPNExtensionSettingsEditor
+            v-if="isUpdateCandidate && (candidate.detail.settings ?? []).length"
+            :settings="candidate.detail.settings ?? []"
+            :id-prefix="`update-${candidate.detail.id}`"
+            :busy="busy"
+            :disabled="updateNeedsEgress"
+            :submit-label="updateActionLabel"
+            :cancel-label="$t('fivegpnCancel')"
+            :conflict-message="candidateConflict"
+            @save="install"
+            @cancel="clearReview"
+          />
+
+          <div
+            v-else
+            class="flex gap-2"
+          >
             <button
               class="btn btn-primary btn-sm"
-              :disabled="busy"
-              @click="install"
+              :disabled="busy || updateNeedsEgress"
+              @click="install()"
             >
-              {{
-                $t(candidate.installed || catalogTarget ? 'fivegpnApplyUpdate' : 'fivegpnInstall')
-              }}
+              {{ isUpdateCandidate ? updateActionLabel : $t('fivegpnInstall') }}
             </button>
             <button
               class="btn btn-sm"
@@ -146,7 +231,12 @@
               {{ $t('fivegpnCancel') }}
             </button>
           </div>
-          <p class="text-xs opacity-70">{{ $t('fivegpnInstallLandsDisabled') }}</p>
+          <p
+            v-if="!isUpdateCandidate"
+            class="text-xs opacity-70"
+          >
+            {{ $t('fivegpnInstallLandsDisabled') }}
+          </p>
         </div>
 
         <div
@@ -155,6 +245,113 @@
         >
           <span>{{ reviewError }}</span>
         </div>
+
+        <DialogWrapper
+          v-model="authorizationOpen"
+          :title="$t('fivegpnEnableReview')"
+          box-class="max-w-3xl"
+        >
+          <template v-if="authorizationDetail">
+            <div class="flex flex-col gap-3">
+              <div>
+                <p class="text-sm opacity-70">
+                  {{ authorizationDetail.name || authorizationDetail.id }} ·
+                  {{ authorizationDetail.version }}
+                </p>
+              </div>
+
+              <div class="settings-grid">
+                <div class="setting-item">
+                  <span class="setting-item-label">{{ $t('fivegpnCaptureHosts') }}</span>
+                  <code class="text-xs break-all">{{
+                    authorizationDetail.capture_hosts.join(', ')
+                  }}</code>
+                </div>
+                <div class="setting-item">
+                  <span class="setting-item-label">{{ $t('fivegpnStorage') }}</span>
+                  <span>{{
+                    $t(
+                      authorizationDetail.persistent_storage ? 'fivegpnEnabled' : 'fivegpnDisabled',
+                    )
+                  }}</span>
+                </div>
+                <div class="setting-item">
+                  <span class="setting-item-label">{{ $t('fivegpnActions') }}</span>
+                  <span>{{ authorizationDetail.actions?.length ?? 0 }}</span>
+                </div>
+                <div class="setting-item">
+                  <span class="setting-item-label">{{ $t('fivegpnEgressGroup') }}</span>
+                  <span>{{
+                    authorizationDetail.egress_group_required
+                      ? authorizationDetail.egress_group || $t('fivegpnNoBinding')
+                      : $t('fivegpnNotRequired')
+                  }}</span>
+                </div>
+                <div
+                  v-if="authorizationDetail.source_digest"
+                  class="setting-item"
+                >
+                  <span class="setting-item-label">{{ $t('fivegpnDigest') }}</span>
+                  <code class="text-xs break-all">{{ authorizationDetail.source_digest }}</code>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <span class="text-sm font-medium">{{ $t('fivegpnExactRoutingRules') }}</span>
+                <span
+                  v-if="!authorizationDetail.routing_rules?.length"
+                  class="text-xs opacity-60"
+                >
+                  {{ $t('fivegpnNoRoutingRules') }}
+                </span>
+                <code
+                  v-for="(rule, index) in authorizationDetail.routing_rules ?? []"
+                  :key="index"
+                  class="bg-base-200 block px-2 py-1 text-xs break-all"
+                >
+                  {{ formatRoutingRule(rule) }}
+                </code>
+              </div>
+
+              <div
+                v-if="authorizationDetail.network"
+                class="alert alert-warning"
+              >
+                <span>{{ $t('fivegpnNetworkGrantWarning') }}</span>
+              </div>
+
+              <div
+                v-if="authorizationBlockingReason"
+                class="alert alert-error"
+              >
+                <span>{{ authorizationBlockingReason }}</span>
+              </div>
+              <div
+                v-if="authorizationError"
+                class="alert alert-error"
+              >
+                <span>{{ authorizationError }}</span>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+                <button
+                  class="btn btn-primary btn-sm"
+                  :disabled="busy || Boolean(authorizationBlockingReason)"
+                  @click="confirmEnable"
+                >
+                  {{ $t('fivegpnAuthorizeAndEnable') }}
+                </button>
+                <button
+                  class="btn btn-sm"
+                  :disabled="busy"
+                  @click="closeAuthorization"
+                >
+                  {{ $t('fivegpnCancel') }}
+                </button>
+              </div>
+            </div>
+          </template>
+        </DialogWrapper>
 
         <template v-if="tab === 'installed'">
           <!-- Installed extensions. Order is priority: the earlier extension owns overlapping capture
@@ -172,10 +369,17 @@
                   class="toggle toggle-sm"
                   :checked="module.enabled"
                   :disabled="busy"
-                  @change="toggleModule(module)"
+                  :aria-label="$t('fivegpnToggleExtension', { name: module.name || module.id })"
+                  @change="requestToggle(module, $event)"
                 />
                 <span class="font-medium">{{ module.name || module.id }}</span>
                 <span class="badge badge-ghost badge-sm">{{ module.version }}</span>
+                <span
+                  class="badge badge-sm"
+                  :class="runtimeBadgeClass(module)"
+                >
+                  {{ runtimeLabel(module) }}
+                </span>
                 <span
                   v-if="module.egress_group_required && !module.egress_group"
                   class="badge badge-error badge-sm"
@@ -186,6 +390,7 @@
                   <button
                     class="btn btn-ghost btn-xs"
                     :disabled="index === 0 || busy"
+                    :aria-label="$t('fivegpnMoveExtensionUp', { name: module.name || module.id })"
                     @click="moveModule(index, -1)"
                   >
                     ↑
@@ -193,9 +398,18 @@
                   <button
                     class="btn btn-ghost btn-xs"
                     :disabled="index === orderedModules.length - 1 || busy"
+                    :aria-label="$t('fivegpnMoveExtensionDown', { name: module.name || module.id })"
                     @click="moveModule(index, 1)"
                   >
                     ↓
+                  </button>
+                  <button
+                    v-if="module.setting_count > 0"
+                    class="btn btn-ghost btn-xs"
+                    :disabled="busy"
+                    @click="openSettings(module)"
+                  >
+                    {{ $t('fivegpnConfigureCount', { count: module.setting_count }) }}
                   </button>
                   <button
                     class="btn btn-ghost btn-xs"
@@ -245,7 +459,47 @@
                     <option value="china">china</option>
                   </select>
                 </label>
-                <span class="font-mono opacity-60">{{ module.capture_hosts.join(', ') }}</span>
+                <span class="min-w-0 flex-1 font-mono break-all opacity-60">{{
+                  module.capture_hosts.join(', ')
+                }}</span>
+              </div>
+
+              <div
+                v-if="module.enabled && !module.runtime.ready"
+                class="ml-8 flex flex-col gap-1 text-xs"
+                :class="module.runtime.phase === 'certificate_error' ? 'text-error' : 'opacity-70'"
+              >
+                <span>{{ lifecycleDescription(module) }}</span>
+              </div>
+
+              <div
+                v-if="editingModuleId === module.id"
+                class="border-base-300 ml-0 flex flex-col gap-3 border-t pt-3 md:ml-8"
+              >
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium">{{ $t('fivegpnExtensionConfiguration') }}</span>
+                  <span
+                    v-if="detailLoading"
+                    class="loading loading-spinner loading-xs"
+                  />
+                </div>
+                <div
+                  v-if="detailError"
+                  class="alert alert-error py-2"
+                >
+                  <span>{{ detailError }}</span>
+                </div>
+                <FiveGPNExtensionSettingsEditor
+                  v-else-if="editingDetail"
+                  :settings="editingDetail.settings ?? []"
+                  :id-prefix="`installed-${module.id}`"
+                  :busy="busy"
+                  :submit-label="$t('fivegpnSaveConfiguration')"
+                  :cancel-label="$t('fivegpnCancel')"
+                  :conflict-message="settingsConflict"
+                  @save="saveSettings(module.id, $event)"
+                  @cancel="closeSettings"
+                />
               </div>
             </div>
           </div>
@@ -534,11 +788,18 @@
 </template>
 
 <script setup lang="ts">
-import type { FiveGPNCandidate, FiveGPNModuleSummary } from '@/api/fivegpn'
+import type {
+  FiveGPNCandidate,
+  FiveGPNModuleDetail,
+  FiveGPNModuleSummary,
+  FiveGPNRoutingRule,
+  FiveGPNSettingValue,
+} from '@/api/fivegpn'
 import {
   applyCatalogUpdate,
   applyReviewedUpdate,
   catalogError,
+  catalogRevision,
   catalogSources,
   catalogStatus,
   checkExtensionUpdate,
@@ -551,9 +812,11 @@ import {
   engineLogFilter,
   engineLogLevel,
   engineLogs,
+  fetchExtensionDetail,
   refreshCatalog,
   refreshEngineLogs,
   refreshInterception,
+  retryInterceptionCertificate,
   reviewCatalogEntry,
   reviewExtension,
   setCatalogSources,
@@ -561,11 +824,21 @@ import {
   setExtensionCaptureDNS,
   setExtensionEgress,
   setExtensionEnabled,
+  setExtensionSettings,
+  startInterceptionLifecyclePolling,
+  stopInterceptionLifecyclePolling,
   uninstallExtension,
 } from '@/assembly/fivegpn/interception'
 import SegmentedControl, { type SegmentOption } from '@/components/common/SegmentedControl.vue'
+import DialogWrapper from '@/components/common/DialogWrapper.vue'
+import FiveGPNExtensionSettingsEditor from '@/components/fivegpn/FiveGPNExtensionSettingsEditor.vue'
 import { usePaddingForViews } from '@/composables/paddingViews'
-import { computed, ref, watch } from 'vue'
+import {
+  findFlatLocationSettings,
+  invalidFlatLocationKeys,
+} from '@/helper/fivegpnExtensionSettings'
+import { activeUuid } from '@/store/setup'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -658,18 +931,26 @@ const writeSources = async (sources: ReturnType<typeof currentSources>) => {
   // write() RETURNS an error string and never throws -- '' is success. A
   // try/catch here would catch nothing and treat every rejected write as a
   // success, which is the failure mode this page exists to avoid.
-  const err = await setCatalogSources(sources)
-  sourceBusy.value = false
+  const baselineRevision = catalogRevision.value
+  if (!baselineRevision) {
+    sourceBusy.value = false
+    sourceError.value = t('fivegpnCatalogUnavailable')
+    return false
+  }
+  const err = await setCatalogSources(sources, baselineRevision)
   // Errors also go through the page's own notice, so a catalog write reports
   // where every other write on this page reports.
   report(err)
   if (err) {
     sourceError.value = err === 'conflict' ? t('fivegpnConflict') : err
+    if (err === 'conflict') await refreshCatalog()
+    sourceBusy.value = false
     return false
   }
   // The source list changed, so the listing did too. The core does not refetch
   // on our behalf.
   await refreshCatalog(true)
+  sourceBusy.value = false
   return true
 }
 
@@ -707,22 +988,43 @@ const data = computed(() => interception.value)
 const busy = ref(false)
 const notice = ref('')
 const noticeIsError = ref(false)
+let actionEpoch = 0
 
 const importUrl = ref('')
 const importContent = ref('')
 const candidate = ref<FiveGPNCandidate | null>(null)
+const candidatePanel = ref<HTMLElement>()
+const candidateRevision = ref('')
 const updateTarget = ref('')
 // Catalog coordinates. A non-null value means confirmation uses applyCatalogUpdate, which changes
 // the extension's source.
 const catalogTarget = ref<{ source: string; entry: string } | null>(null)
 const reviewing = ref(false)
 const reviewError = ref('')
+let pageInspectionEpoch = 0
+const candidateConflict = ref('')
+const updatePreviousDetail = ref<FiveGPNModuleDetail | null>(null)
+
+const editingModuleId = ref('')
+const editingDetail = ref<FiveGPNModuleDetail | null>(null)
+const editingRevision = ref('')
+const detailLoading = ref(false)
+let detailViewEpoch = 0
+const detailError = ref('')
+const settingsConflict = ref('')
+
+const authorizationModuleId = ref('')
+const authorizationDetail = ref<FiveGPNModuleDetail | null>(null)
+const authorizationRevision = ref('')
+const authorizationError = ref('')
+const authorizationOpen = computed({
+  get: () => Boolean(authorizationDetail.value),
+  set: (open) => {
+    if (!open) closeAuthorization()
+  },
+})
 
 const enabledCount = computed(() => (data.value?.modules ?? []).filter((m) => m.enabled).length)
-
-const certificateGap = computed(
-  () => data.value?.certificate.loaded === true && !data.value.certificate.covers_all_capture_hosts,
-)
 
 // Execution order is authoritative; the modules array is only a set. Render in execution order, or
 // the extension shown as first would differ from the one that actually matches first.
@@ -747,13 +1049,174 @@ const report = (error: string) => {
 }
 
 const run = async (action: () => Promise<string>) => {
+  const epoch = ++actionEpoch
+  const uuid = activeUuid.value
   busy.value = true
-  report(await action())
+  const error = await action()
+  if (epoch !== actionEpoch || uuid !== activeUuid.value) return { error: '', stale: true }
+  report(error)
   busy.value = false
+  return { error, stale: false }
 }
 
-const toggleModule = (module: FiveGPNModuleSummary) =>
-  run(() => setExtensionEnabled(module.id, !module.enabled))
+const formatRoutingRule = (rule: FiveGPNRoutingRule) => JSON.stringify(rule)
+
+const runtimeBadgeClass = (module: FiveGPNModuleSummary) => {
+  if (module.runtime.ready) return 'badge-success'
+  if (
+    module.runtime.phase === 'certificate_error' ||
+    module.runtime.phase === 'boundary_unavailable'
+  ) {
+    return 'badge-error'
+  }
+  if (module.enabled) return 'badge-warning'
+  return 'badge-ghost'
+}
+
+const runtimeLabel = (module: FiveGPNModuleSummary) => {
+  const key: Record<string, string> = {
+    disabled: 'fivegpnLifecycleDisabled',
+    armed: 'fivegpnLifecycleArmed',
+    certificate_pending: 'fivegpnLifecycleCertificatePending',
+    certificate_error: 'fivegpnLifecycleCertificateError',
+    boundary_unavailable: 'fivegpnLifecycleBoundaryUnavailable',
+    egress_unavailable: 'fivegpnLifecycleEgressUnavailable',
+    active: 'fivegpnLifecycleActive',
+  }
+  return t(key[module.runtime.phase] ?? 'fivegpnLifecycleUnavailable')
+}
+
+const lifecycleDescription = (module: FiveGPNModuleSummary) =>
+  t(`fivegpnLifecycleDescription_${module.runtime.phase}`)
+
+const closeAuthorization = () => {
+  authorizationModuleId.value = ''
+  authorizationDetail.value = null
+  authorizationRevision.value = ''
+  authorizationError.value = ''
+}
+
+const requiredSettingMissing = (detail: FiveGPNModuleDetail) =>
+  (detail.settings ?? []).some((setting) => {
+    if (!setting.required) return false
+    const value = setting.value
+    if (value === undefined || value === null) return true
+    if (typeof value === 'string') return !value.trim()
+    if (setting.type === 'location' && typeof value === 'object') {
+      return value.longitude === undefined || value.latitude === undefined || !value.accuracy
+    }
+    return false
+  })
+
+const authorizationBlockingReason = computed(() => {
+  const detail = authorizationDetail.value
+  if (!detail) return ''
+  if (detail.egress_group_required && !detail.egress_group) return t('fivegpnEnableNeedsEgress')
+  if (requiredSettingMissing(detail)) return t('fivegpnEnableNeedsSettings')
+  const flatLocation = findFlatLocationSettings(detail.settings ?? [])
+  if (flatLocation) {
+    const values = Object.fromEntries(
+      (detail.settings ?? []).map((setting) => [setting.key, setting.value ?? null]),
+    )
+    if (invalidFlatLocationKeys(flatLocation, values).size) return t('fivegpnLocationInvalid')
+  }
+  return ''
+})
+
+const requestToggle = async (module: FiveGPNModuleSummary, event: Event) => {
+  ;(event.target as HTMLInputElement).checked = module.enabled
+  if (module.enabled) {
+    await run(() => setExtensionEnabled(module.id, false))
+    return
+  }
+  const uuid = activeUuid.value
+  busy.value = true
+  authorizationError.value = ''
+  const result = await fetchExtensionDetail(module.id)
+  if (uuid !== activeUuid.value) return
+  busy.value = false
+  if (!result.detail) {
+    report(result.error)
+    return
+  }
+  authorizationModuleId.value = module.id
+  authorizationDetail.value = result.detail
+  authorizationRevision.value = result.revision ?? ''
+}
+
+const confirmEnable = async () => {
+  if (
+    !authorizationModuleId.value ||
+    !authorizationRevision.value ||
+    authorizationBlockingReason.value
+  ) {
+    return
+  }
+  const result = await run(() =>
+    setExtensionEnabled(authorizationModuleId.value, true, authorizationRevision.value),
+  )
+  if (result.stale) return
+  if (result.error) {
+    authorizationError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
+    return
+  }
+  closeAuthorization()
+  startInterceptionLifecyclePolling()
+}
+
+const retryCertificate = async () => {
+  const result = await run(retryInterceptionCertificate)
+  if (!result.stale && !result.error) startInterceptionLifecyclePolling()
+}
+
+const openSettings = async (module: FiveGPNModuleSummary) => {
+  if (editingModuleId.value === module.id) {
+    closeSettings()
+    return
+  }
+  const epoch = ++detailViewEpoch
+  editingModuleId.value = module.id
+  editingDetail.value = null
+  editingRevision.value = ''
+  detailError.value = ''
+  settingsConflict.value = ''
+  detailLoading.value = true
+  const result = await fetchExtensionDetail(module.id)
+  if (epoch !== detailViewEpoch || editingModuleId.value !== module.id) return
+  detailLoading.value = false
+  if (!result.detail) {
+    detailError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
+    return
+  }
+  editingDetail.value = result.detail
+  editingRevision.value = result.revision ?? ''
+}
+
+const closeSettings = () => {
+  detailViewEpoch++
+  editingModuleId.value = ''
+  editingDetail.value = null
+  editingRevision.value = ''
+  detailLoading.value = false
+  detailError.value = ''
+  settingsConflict.value = ''
+}
+
+const saveSettings = async (id: string, values: Record<string, FiveGPNSettingValue>) => {
+  settingsConflict.value = ''
+  if (!editingRevision.value) return
+  const result = await run(() => setExtensionSettings(id, values, editingRevision.value))
+  if (result.stale) return
+  if (result.error === 'conflict') {
+    settingsConflict.value = t('fivegpnSettingsConflictPreserved')
+    return
+  }
+  if (result.error) {
+    detailError.value = result.error
+    return
+  }
+  closeSettings()
+}
 
 const setEgress = (module: FiveGPNModuleSummary, event: Event) =>
   run(() => setExtensionEgress(module.id, (event.target as HTMLSelectElement).value))
@@ -765,6 +1228,18 @@ const moveModule = (index: number, delta: number) => {
   const order = orderedModules.value.map((m) => m.id)
   const target = index + delta
   if (target < 0 || target >= order.length) return
+  const moved = orderedModules.value[index]
+  const neighbor = orderedModules.value[target]
+  if (
+    !window.confirm(
+      t('fivegpnReorderConfirm', {
+        moved: moved.name || moved.id,
+        neighbor: neighbor.name || neighbor.id,
+      }),
+    )
+  ) {
+    return
+  }
   const [id] = order.splice(index, 1)
   order.splice(target, 0, id)
   return run(() => setExecutionOrder(order))
@@ -779,23 +1254,53 @@ const source = () =>
   importUrl.value.trim() ? { url: importUrl.value.trim() } : { content: importContent.value }
 
 const review = async () => {
+  const epoch = ++pageInspectionEpoch
+  const uuid = activeUuid.value
   reviewing.value = true
   reviewError.value = ''
+  candidate.value = null
+  candidateRevision.value = ''
   updateTarget.value = ''
+  catalogTarget.value = null
+  updatePreviousDetail.value = null
+  candidateConflict.value = ''
   const result = await reviewExtension(source())
+  if (epoch !== pageInspectionEpoch || uuid !== activeUuid.value) return
   candidate.value = result.candidate ?? null
-  reviewError.value = result.error
+  candidateRevision.value = result.revision ?? ''
+  reviewError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
   reviewing.value = false
+  if (candidate.value) await focusCandidate()
 }
 
 const checkUpdate = async (id: string) => {
+  const epoch = ++pageInspectionEpoch
+  const uuid = activeUuid.value
   reviewing.value = true
   reviewError.value = ''
-  const result = await checkExtensionUpdate(id)
+  candidate.value = null
+  candidateRevision.value = ''
+  updateTarget.value = ''
+  catalogTarget.value = null
+  updatePreviousDetail.value = null
+  candidateConflict.value = ''
+  const [current, result] = await Promise.all([fetchExtensionDetail(id), checkExtensionUpdate(id)])
+  if (epoch !== pageInspectionEpoch || uuid !== activeUuid.value) return
+  if (!result.revision || result.revision !== current.revision) {
+    candidate.value = null
+    candidateRevision.value = ''
+    reviewError.value = t('fivegpnConflict')
+    reviewing.value = false
+    return
+  }
   candidate.value = result.candidate ?? null
+  candidateRevision.value = result.revision
   updateTarget.value = result.candidate ? id : ''
-  reviewError.value = result.error
+  updatePreviousDetail.value = current.detail ?? null
+  const error = result.error || current.error
+  reviewError.value = error === 'conflict' ? t('fivegpnConflict') : error
   reviewing.value = false
+  if (candidate.value) await focusCandidate()
 }
 
 /**
@@ -810,42 +1315,159 @@ const checkUpdate = async (id: string) => {
  * row means, but because it changes a source, the confirmation button says Update rather than Install.
  */
 const reviewEntry = async (sourceId: string, entryId: string) => {
+  const epoch = ++pageInspectionEpoch
+  const uuid = activeUuid.value
   reviewing.value = true
   reviewError.value = ''
+  candidate.value = null
+  candidateRevision.value = ''
   updateTarget.value = ''
   catalogTarget.value = null
+  updatePreviousDetail.value = null
+  candidateConflict.value = ''
   const result = await reviewCatalogEntry(sourceId, entryId)
+  if (epoch !== pageInspectionEpoch || uuid !== activeUuid.value) return
   candidate.value = result.candidate ?? null
-  reviewError.value = result.error
+  candidateRevision.value = result.revision ?? ''
+  reviewError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
   if (result.url) {
     importUrl.value = result.url
     importContent.value = ''
   }
   if (result.candidate?.installed) {
     catalogTarget.value = { source: sourceId, entry: entryId }
+    const current = await fetchExtensionDetail(result.candidate.detail.id)
+    if (epoch !== pageInspectionEpoch || uuid !== activeUuid.value) return
+    if (!current.revision || current.revision !== result.revision) {
+      candidate.value = null
+      candidateRevision.value = ''
+      reviewError.value = t('fivegpnConflict')
+    } else {
+      updatePreviousDetail.value = current.detail ?? null
+      reviewError.value ||= current.error
+    }
   }
   reviewing.value = false
+  if (candidate.value) await focusCandidate()
+}
+
+const focusCandidate = async () => {
+  await nextTick()
+  candidatePanel.value?.focus({ preventScroll: true })
+  candidatePanel.value?.scrollIntoView({ block: 'start' })
 }
 
 // Cancel must also clear catalog coordinates, or the next Install would reuse the previous entry and
 // follow the update path.
 const clearReview = () => {
   candidate.value = null
+  candidateRevision.value = ''
   updateTarget.value = ''
   catalogTarget.value = null
+  updatePreviousDetail.value = null
+  candidateConflict.value = ''
 }
 
-const install = async () => {
+const isUpdateCandidate = computed(() =>
+  Boolean(
+    candidate.value && (updateTarget.value || catalogTarget.value || candidate.value.installed),
+  ),
+)
+const updateModule = computed(() =>
+  (data.value?.modules ?? []).find((module) => module.id === candidate.value?.detail.id),
+)
+const updateActionLabel = computed(() =>
+  updateModule.value?.enabled ? t('fivegpnUpdateAndKeepEnabled') : t('fivegpnApplyUpdate'),
+)
+const updateNeedsEgress = computed(
+  () =>
+    Boolean(isUpdateCandidate.value && candidate.value?.detail.egress_group_required) &&
+    !updateModule.value?.egress_group,
+)
+
+const sameJSON = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
+const candidateDiff = computed(() => {
+  const before = updatePreviousDetail.value
+  const after = candidate.value?.detail
+  if (!before || !after) return []
+  const changes: string[] = []
+  const beforeHosts = new Set(before.capture_hosts)
+  const afterHosts = new Set(after.capture_hosts)
+  const addedHosts = after.capture_hosts.filter((host) => !beforeHosts.has(host))
+  const removedHosts = before.capture_hosts.filter((host) => !afterHosts.has(host))
+  if (addedHosts.length) changes.push(t('fivegpnDiffHostsAdded', { hosts: addedHosts.join(', ') }))
+  if (removedHosts.length)
+    changes.push(t('fivegpnDiffHostsRemoved', { hosts: removedHosts.join(', ') }))
+  if (!sameJSON(before.routing_rules ?? [], after.routing_rules ?? [])) {
+    changes.push(
+      t('fivegpnDiffRoutingRules', {
+        before: before.routing_rules?.length ?? 0,
+        after: after.routing_rules?.length ?? 0,
+      }),
+    )
+  }
+  if (before.network !== after.network) changes.push(t('fivegpnDiffNetworkGrant'))
+  if (before.persistent_storage !== after.persistent_storage) changes.push(t('fivegpnDiffStorage'))
+  if (before.egress_group_required !== after.egress_group_required) {
+    changes.push(t('fivegpnDiffEgressRequirement'))
+  }
+  const oldSettings = new Map((before.settings ?? []).map((setting) => [setting.key, setting]))
+  const newSettings = new Map((after.settings ?? []).map((setting) => [setting.key, setting]))
+  const addedSettings = [...newSettings.keys()].filter((key) => !oldSettings.has(key))
+  const removedSettings = [...oldSettings.keys()].filter((key) => !newSettings.has(key))
+  const changedSettings = [...newSettings].filter(
+    ([key, setting]) => oldSettings.has(key) && oldSettings.get(key)?.type !== setting.type,
+  )
+  if (addedSettings.length) {
+    changes.push(t('fivegpnDiffSettingsAdded', { settings: addedSettings.join(', ') }))
+  }
+  if (removedSettings.length) {
+    changes.push(t('fivegpnDiffSettingsRemoved', { settings: removedSettings.join(', ') }))
+  }
+  if (changedSettings.length) {
+    changes.push(
+      t('fivegpnDiffSettingsChanged', { settings: changedSettings.map(([key]) => key).join(', ') }),
+    )
+  }
+  if (!changes.length) changes.push(t('fivegpnDiffCodeOnly'))
+  return changes
+})
+
+const install = async (values?: Record<string, FiveGPNSettingValue>) => {
   const reviewed = candidate.value
-  if (!reviewed) return
+  if (!reviewed || !candidateRevision.value) return
+  if (updateNeedsEgress.value) return
   const target = updateTarget.value
   const fromCatalog = catalogTarget.value
-  await run(() => {
-    if (fromCatalog) return applyCatalogUpdate(fromCatalog.source, fromCatalog.entry, reviewed)
-    if (target) return applyReviewedUpdate(target, reviewed)
-    return installReviewed(reviewed, source())
+  candidateConflict.value = ''
+  const result = await run(() => {
+    if (fromCatalog) {
+      return applyCatalogUpdate(
+        fromCatalog.source,
+        fromCatalog.entry,
+        reviewed,
+        candidateRevision.value,
+        values,
+      )
+    }
+    if (target || reviewed.installed) {
+      return applyReviewedUpdate(
+        target || reviewed.detail.id,
+        reviewed,
+        candidateRevision.value,
+        values,
+      )
+    }
+    return installReviewed(reviewed, source(), candidateRevision.value)
   })
+  if (result.stale) return
+  if (result.error === 'conflict') {
+    candidateConflict.value = t('fivegpnUpdateConflictPreserved')
+    return
+  }
+  if (result.error) return
   candidate.value = null
+  candidateRevision.value = ''
   updateTarget.value = ''
   catalogTarget.value = null
   importUrl.value = ''
@@ -853,6 +1475,29 @@ const install = async () => {
   refreshCatalog()
 }
 
-refreshInterception()
-refreshCatalog()
+onMounted(async () => {
+  await Promise.all([refreshInterception(), refreshCatalog()])
+  startInterceptionLifecyclePolling()
+})
+
+watch(activeUuid, async (uuid, previous) => {
+  if (uuid === previous) return
+  actionEpoch++
+  pageInspectionEpoch++
+  busy.value = false
+  reviewing.value = false
+  closeAuthorization()
+  closeSettings()
+  clearReview()
+  reviewError.value = ''
+  stopInterceptionLifecyclePolling()
+  if (!uuid) return
+  await Promise.resolve()
+  await Promise.all([refreshInterception(), refreshCatalog()])
+  startInterceptionLifecyclePolling()
+})
+
+onUnmounted(() => {
+  stopInterceptionLifecyclePolling()
+})
 </script>

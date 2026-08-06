@@ -609,6 +609,7 @@ const en = {
   fivegpnCatalogSourceDisable: 'Disable',
   fivegpnCatalogSourceDuplicateId: 'A marketplace with the ID {id} already exists.',
   fivegpnCatalogSourceDuplicateUrl: 'That URL is already configured: {url}',
+  fivegpnCatalogUnavailable: 'The catalog state is not ready. Refresh it before making changes.',
   fivegpnInstalled: 'Installed',
   fivegpnNetworkGrant: 'Network grant',
   fivegpnBotSettings: 'Telegram bot',
@@ -784,7 +785,87 @@ const en = {
   fivegpnInstallLandsDisabled:
     'An install always lands disabled. Enabling it is a separate decision about letting it see traffic.',
   fivegpnNetworkGrantWarning:
-    'This extension holds the unrestricted network grant. Its scripts may send any request, response, setting or stored value they can see to any host they can reach, and may rewrite a captured request there with its method, decoded body and headers — possibly including cookies or authorization. The grant names no destinations, so there is no list to review.',
+    'This extension holds the unrestricted network grant. Its scripts may send any request, response, setting or stored value they can see to any host they can reach, and may rewrite a captured request there with its complete method, decoded body and end-to-end headers — possibly including Cookie or Authorization. The grant names no destinations, so there is no list to review.',
+  fivegpnCertificatePending:
+    'The extension is authorized. Capture remains blocked while the gateway prepares a certificate for the new host set.',
+  fivegpnCertificateError: 'Certificate preparation failed. Capture remains blocked.',
+  fivegpnCertificateBoundaryGap:
+    'The active certificate does not cover: {hosts}. Those names remain on the gateway, but their HTTP/TLS connections are rejected.',
+  fivegpnRetryCertificate: 'Retry certificate',
+  fivegpnNotRequired: 'not required',
+  fivegpnUpdateChanges: 'Changes in this update',
+  fivegpnExactRoutingRules: 'Exact routing rules',
+  fivegpnUpdateNeedsEgress:
+    'Bind an egress group on the installed extension before applying this update.',
+  fivegpnConfigureCount: 'Configure ({count})',
+  fivegpnExtensionConfiguration: 'Extension configuration',
+  fivegpnSaveConfiguration: 'Save configuration',
+  fivegpnLocation: 'Location',
+  fivegpnLocationMap: 'Coordinate picker',
+  fivegpnLongitude: 'Longitude',
+  fivegpnLatitude: 'Latitude',
+  fivegpnAccuracyMetres: 'Accuracy (metres)',
+  fivegpnLocationHint:
+    'Click the map to choose a point, or enter exact coordinates below. Arrow keys move the marker; hold Shift for one-degree steps.',
+  fivegpnClearLocation: 'Clear location',
+  fivegpnFlatLocationDescription:
+    'These three manifest fields form one coordinate and are saved in the same transaction.',
+  fivegpnSettingUnset: 'Not set',
+  fivegpnSettingChoose: 'Choose a value',
+  fivegpnSettingRequired: 'This value is required.',
+  fivegpnSettingInvalidOption: 'Choose one of the declared options.',
+  fivegpnSettingFiniteNumber: 'Enter a finite number.',
+  fivegpnSettingText: 'Enter text.',
+  fivegpnSettingBoolean: 'Choose on or off.',
+  fivegpnSettingMinimum: 'The minimum is {value}.',
+  fivegpnSettingMaximum: 'The maximum is {value}.',
+  fivegpnLocationInvalid: 'Enter valid coordinates and an accuracy from 1 to 100000 metres.',
+  fivegpnEnableReview: 'Review and enable extension',
+  fivegpnNoRoutingRules: 'This extension declares no mihomo routing rules.',
+  fivegpnAuthorizeAndEnable: 'Authorize and enable',
+  fivegpnEnableNeedsEgress: 'Bind the required egress group before enabling this extension.',
+  fivegpnEnableNeedsSettings: 'Complete the required configuration before enabling this extension.',
+  fivegpnLifecycleDisabled: 'Disabled',
+  fivegpnLifecycleArmed: 'Authorized',
+  fivegpnLifecycleCertificatePending: 'Certificate pending',
+  fivegpnLifecycleCertificateError: 'Certificate error',
+  fivegpnLifecycleBoundaryUnavailable: 'Capture blocked',
+  fivegpnLifecycleEgressUnavailable: 'Egress unavailable',
+  fivegpnLifecycleActive: 'Active',
+  fivegpnLifecycleUnavailable: 'Unavailable',
+  fivegpnLifecycleDescription_disabled: 'The extension is not authorized to inspect traffic.',
+  fivegpnLifecycleDescription_armed:
+    'Authorization is saved, but the interception master switch is off.',
+  fivegpnLifecycleDescription_certificate_pending:
+    'The names remain on the gateway while their HTTP/TLS connections are rejected until the certificate is ready.',
+  fivegpnLifecycleDescription_certificate_error:
+    'Certificate preparation failed. The names remain on the gateway and their HTTP/TLS connections stay rejected.',
+  fivegpnLifecycleDescription_boundary_unavailable:
+    'The interception boundary is not safe, so traffic is not being captured.',
+  fivegpnLifecycleDescription_egress_unavailable:
+    'The required egress group is unavailable, so this extension is not active.',
+  fivegpnLifecycleDescription_active: 'New matching requests use this extension snapshot.',
+  fivegpnSettingsConflictPreserved:
+    'The gateway changed while you were editing. Your entries are preserved; review the latest state before saving again.',
+  fivegpnUpdateAndKeepEnabled: 'Update and keep enabled',
+  fivegpnDiffHostsAdded: 'Capture hosts added: {hosts}',
+  fivegpnDiffHostsRemoved: 'Capture hosts removed: {hosts}',
+  fivegpnDiffRoutingRules: 'Routing rules: {before} → {after}',
+  fivegpnDiffNetworkGrant: 'The unrestricted network grant changed.',
+  fivegpnDiffStorage: 'The persistent-storage grant changed.',
+  fivegpnDiffEgressRequirement: 'The egress-binding requirement changed.',
+  fivegpnDiffSettingsAdded: 'Settings added: {settings}',
+  fivegpnDiffSettingsRemoved: 'Settings removed: {settings}',
+  fivegpnDiffSettingsChanged: 'Setting types changed: {settings}',
+  fivegpnDiffCodeOnly:
+    'The immutable code snapshot changed; declared permissions and configuration shape did not.',
+  fivegpnUpdateConflictPreserved:
+    'The gateway changed before this update was applied. Your proposed settings are preserved; review the latest state and try again.',
+  fivegpnReorderConfirm:
+    'Move {moved} past {neighbor}? This changes action, egress, capture-host, and global routing first-match precedence.',
+  fivegpnToggleExtension: 'Enable or disable {name}',
+  fivegpnMoveExtensionUp: 'Move {name} up',
+  fivegpnMoveExtensionDown: 'Move {name} down',
 }
 
 export type LANG_MESSAGE = typeof en
