@@ -165,18 +165,8 @@ export const updateConfigsAPI = (
   })
 }
 
-export const upgradeUIAPI = () => {
-  return axios.post('/upgrade/ui')
-}
-
 export const updateGeoDataAPI = () => {
   return axios.post('/configs/geo')
-}
-
-export const upgradeCoreAPI = (type: 'release' | 'alpha' | 'auto') => {
-  const url = type === 'auto' ? '/upgrade' : `/upgrade?channel=${type}`
-
-  return axios.post(url)
 }
 
 export const restartCoreAPI = () => {

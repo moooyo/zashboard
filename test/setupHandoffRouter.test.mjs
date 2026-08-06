@@ -16,7 +16,6 @@ const params = new URLSearchParams({
   https: '1',
   secret,
   label: '5gpn',
-  disableUpgradeCore: '1',
   disableTunMode: '1',
 })
 

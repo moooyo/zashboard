@@ -4,7 +4,6 @@ import { dnsSupported } from '@/assembly/fivegpn/dns'
 import { interceptionSupported } from '@/assembly/fivegpn/interception'
 import { hiddenGroupMap, proxyMap } from '@/assembly/proxies'
 import { NOT_CONNECTED, PROXY_CHAIN_DIRECTION, PROXY_TYPE, ROUTE_NAME } from '@/constant'
-import { showNotification } from '@/helper/notification'
 import {
   customThemes,
   lowLatency,
@@ -203,11 +202,4 @@ export const isHiddenGroup = (group: string) => {
   }
 
   return proxyMap.value[group]?.hidden
-}
-
-export const handlerUpgradeSuccess = () => {
-  showNotification({
-    content: 'upgradeSuccess',
-    type: 'alert-success',
-  })
 }

@@ -19,7 +19,7 @@ export const hasClashChannel = computed(() => !!activeBackend.value && !isSingbo
 // sing-box native 通道:供 Tools / ChartsCard(goroutines)等使用。
 export const hasSingboxChannel = computed(() => isSingboxBackend.value)
 
-// 各页面能力门控。sing-box native 暂不支持 rules/providers/dns/smart/内核升级。
+// 各页面能力门控。sing-box native 暂不支持 rules/providers/dns/smart。
 export const capabilities = computed(() => ({
   proxies: !!activeBackend.value,
   connections: !!activeBackend.value,
@@ -29,7 +29,6 @@ export const capabilities = computed(() => ({
   providers: hasClashChannel.value,
   dns: hasClashChannel.value,
   smart: hasClashChannel.value,
-  upgrade: hasClashChannel.value,
   tools: isSingboxBackend.value,
 }))
 

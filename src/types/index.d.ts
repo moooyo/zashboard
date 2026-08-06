@@ -13,7 +13,6 @@ export type Backend = {
   password: string // 通用:Clash secret / sing-box gRPC Bearer token
   uuid: string
   label?: string
-  disableUpgradeCore?: boolean // 仅 clash
   disableTunMode?: boolean // 仅 clash
   // 认证方式:'secret' 表示 password 是真实凭据;'proxy' 表示由反向代理注入
   // Authorization,password 只是占位符。区别很关键:mihomo 的鉴权中间件一旦看到

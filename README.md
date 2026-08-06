@@ -59,8 +59,8 @@ docker run -d -p 80:80 ghcr.io/zephyruso/zashboard:latest
 1. The connection table can be dragged with the left mouse button, and right-clicking can copy cell content.
 2. Right-clicking on a node / node group card will perform a speedtest for the node / node group.
 3. The proxy group sorting is based on the node order in the GLOBAL group. In Mihomo, it follows the configuration file order, while in sing-box, route.final is placed first, with the rest following the configuration file order. If you need custom ordering, you can specify the order by overriding the GLOBAL group.
-4. The dashboard supports PWA (Progressive Web App), which can provide a native app-like experience on mobile devices through "Add to Home Screen".
-5. The dashboard's upgrade button and auto-upgrade functionality require proper configuration of the core's UI download path ([mihomo](https://wiki.metacubex.one/config/general/#_9) | [sing-box](https://sing-box.sagernet.org/configuration/experimental/clash-api/#external_ui_download_url)), otherwise clicking update may result in updating to the core's default panel.
+4. The dashboard remains installable as a PWA, but the 5gpn build is network-only and does not cache the control plane or fonts for offline use.
+5. Core and dashboard self-upgrades are disabled. Install a digest-pinned 5gpn release to update either component without replacing the maintained forks.
 
 ## 提示
 
@@ -68,19 +68,18 @@ docker run -d -p 80:80 ghcr.io/zephyruso/zashboard:latest
 2. 右键点击节点/节点组卡片可对节点/节点组进行测速。
 3. 面板的节点组排序是根据GLOBAL组中的节点顺序排序的，在Mihomo中会是按配置文件的顺序，在sing-box中会把route.final放到第一位，其余按照配置文件顺序，如果你需要自定义顺序，可通过覆盖GLOBAL组指定顺序
 4. 面板支持PWA（Progressive Web App），可以在移动设备上通过"添加到主屏幕"获得类原生app的体验
-5. 面板的更新按钮和自动更新功能需要正确的配置核心的ui下载路径 ([mihomo](https://wiki.metacubex.one/config/general/#_9) | [sing-box](https://sing-box.sagernet.org/configuration/experimental/clash-api/#external_ui_download_url)), 否则可能会在点击更新后更新为核心默认面板
 
 ## One-time setup link
 
 Zashboard accepts controller credentials only from the `/setup` hash-route fragment:
 
 ```text
-https://console.example.com/ui/#/setup?type=clash&hostname=console.example.com&port=443&https=1&secret=URL_ENCODED_CONTROLLER_SECRET&label=5gpn&disableUpgradeCore=1&disableTunMode=1
+https://console.example.com/ui/#/setup?type=clash&hostname=console.example.com&port=443&https=1&secret=URL_ENCODED_CONTROLLER_SECRET&label=5gpn&disableTunMode=1
 ```
 
 The values must be encoded with `URLSearchParams` or an equivalent URL encoder. The required
-fields are `type=clash`, `hostname`, `port`, `https=1`, and a non-empty `secret`. `label`,
-`disableUpgradeCore`, and `disableTunMode` are optional; the two flags accept `0` or `1`.
+fields are `type=clash`, `hostname`, `port`, `https=1`, and a non-empty `secret`. `label` and
+`disableTunMode` are optional; the flag accepts `0` or `1`.
 The page itself must be served over HTTPS, and `hostname` plus the effective `port` must match that
 page's serving origin exactly. A setup link cannot send its Bearer secret to another origin.
 

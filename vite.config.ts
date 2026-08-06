@@ -48,44 +48,33 @@ export default defineConfig({
       // the expected case reads as one line rather than as an error that
       // buries the next real one.
       injectRegister: false,
-      includeAssets: ['favicon.svg', 'favicon-dark.svg'],
+      includeManifestIcons: false,
       workbox: {
-        // The bundle is above Workbox's 2 MiB default because sing-box native
-        // API support and the Tools page are always bundled.
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-      },
-      manifest: {
-        name: 'zashboard',
-        short_name: 'zashboard',
-        description: 'a dashboard using clash api',
-        theme_color: '#000000',
-        icons: [
+        // 5gpn keeps the installable PWA shell but deliberately has no offline
+        // application cache. A stale control plane is more dangerous than an
+        // unavailable one, and the gateway API is unusable while offline
+        // anyway. The imported activation hook removes caches created by older
+        // releases and reloads their controlled windows once.
+        globPatterns: [],
+        cleanupOutdatedCaches: true,
+        importScripts: ['pwa-no-cache.js'],
+        navigateFallback: undefined,
+        skipWaiting: true,
+        clientsClaim: true,
+        runtimeCaching: [
           {
-            src: './pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: './pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: './pwa-maskable-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
-          {
-            src: './pwa-maskable-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
+            urlPattern: /^https?:\/\/[^/]+\/ui(?:\/|$)/,
+            handler: 'NetworkOnly',
+            method: 'GET',
+            options: {
+              fetchOptions: { cache: 'no-store' },
+            },
           },
         ],
       },
+      // The manifest is a plain public asset so the plugin cannot add it or
+      // its icons back to Workbox's precache manifest.
+      manifest: false,
     }),
   ],
   resolve: {

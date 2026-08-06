@@ -174,7 +174,6 @@ watch(
       secondaryPath: backend.secondaryPath,
       password: backend.password,
       label: backend.label || '',
-      disableUpgradeCore: backend.disableUpgradeCore || false,
       disableTunMode: backend.disableTunMode || false,
     }
   },

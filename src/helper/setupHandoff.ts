@@ -37,7 +37,6 @@ const HANDOFF_KEYS = [
   'https',
   'secret',
   'label',
-  'disableUpgradeCore',
   'disableTunMode',
 ] as const
 const HANDOFF_KEY_SET = new Set<string>(HANDOFF_KEYS)
@@ -123,7 +122,6 @@ const parseBackend = (params: URLSearchParams, location: LocationLike): SetupBac
     if (!hasExactlyOne(params, key)) return null
   }
 
-  if (!isBooleanFlag(params, 'disableUpgradeCore')) return null
   if (!isBooleanFlag(params, 'disableTunMode')) return null
   if (params.getAll('label').length > 1) return null
   if (params.get('type') !== 'clash' || params.get('https') !== '1') return null
@@ -175,7 +173,6 @@ const parseBackend = (params: URLSearchParams, location: LocationLike): SetupBac
     password,
     authMode: 'secret',
     label,
-    disableUpgradeCore: params.get('disableUpgradeCore') === '1',
     disableTunMode: params.get('disableTunMode') === '1',
   }
 }
@@ -351,7 +348,6 @@ const normalizedBackendIdentity = (backend: SetupBackend) => [
   backend.password,
   backend.authMode ?? 'secret',
   backend.label || '',
-  Boolean(backend.disableUpgradeCore),
   Boolean(backend.disableTunMode),
 ]
 

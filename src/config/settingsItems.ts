@@ -80,7 +80,6 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
     label: 'backendSettings',
     items: [
       { key: `${SETTINGS_MENU_KEY.backend}.backendSwitch`, label: 'backend' },
-      { key: `${SETTINGS_MENU_KEY.backend}.upgradeCore`, label: 'upgradeCore' },
       { key: `${SETTINGS_MENU_KEY.backend}.restartCore`, label: 'restartCore' },
       { key: `${SETTINGS_MENU_KEY.backend}.reloadConfigs`, label: 'reloadConfigs' },
       { key: `${SETTINGS_MENU_KEY.backend}.updateConfigs`, label: 'updateConfigs' },
@@ -92,8 +91,6 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
       { key: `${SETTINGS_MENU_KEY.backend}.ports`, label: 'ports' },
       { key: `${SETTINGS_MENU_KEY.backend}.tunMode`, label: 'tunMode' },
       { key: `${SETTINGS_MENU_KEY.backend}.allowLan`, label: 'allowLan' },
-      { key: `${SETTINGS_MENU_KEY.backend}.checkCoreUpgrade`, label: 'checkCoreUpgrade' },
-      { key: `${SETTINGS_MENU_KEY.backend}.autoUpgradeCore`, label: 'autoUpgradeCore' },
     ],
   },
   {
@@ -128,10 +125,6 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
       { key: `${SETTINGS_MENU_KEY.general}.zashboardSettings.fonts`, label: 'fonts' },
       { key: `${SETTINGS_MENU_KEY.general}.zashboardSettings.emoji`, label: 'emoji' },
       { key: `${SETTINGS_MENU_KEY.general}.zashboardSettings.language`, label: 'language' },
-      {
-        key: `${SETTINGS_MENU_KEY.general}.zashboardSettings.autoUpgradeDashboard`,
-        label: 'autoUpgradeDashboard',
-      },
       {
         key: `${SETTINGS_MENU_KEY.general}.autoDisconnectIdleUDP`,
         label: 'autoDisconnectIdleUDP',

@@ -1,18 +1,10 @@
 #!/usr/bin/env node
-// Properties of the built output, checked after vite has produced it.
+// Properties of the final static bundle that source-level checks cannot prove.
 //
-// vite-plugin-pwa's default injectRegister writes a registerSW.js that calls
-// navigator.serviceWorker.register() with no catch. On a gateway running
-// CERT_MODE=debug that call ALWAYS fails -- a browser lets an operator click
-// through a self-signed certificate to view the panel, but will not register a
-// service worker behind one -- so every page load ended with an uncaught
-// SecurityError and a stack trace in the console. Noise that guaranteed is not
-// harmless: it is what the next real error gets scrolled past.
-//
-// Checked against dist rather than against vite.config.ts, because the property
-// that matters is what ships. A future upgrade that changes the plugin's
-// defaults would pass a config check and fail this one.
-import { readFileSync, readdirSync, existsSync } from 'node:fs'
+// 5gpn retains Zashboard's installable PWA shape, but the worker is deliberately
+// network-only. An offline gateway Console cannot control anything, while a
+// cached control plane can expose actions and contracts from an older release.
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -26,37 +18,109 @@ if (!existsSync(DIST)) {
 }
 
 const html = readFileSync(join(DIST, 'index.html'), 'utf8')
-if (/registerSW\.js/.test(html) || existsSync(join(DIST, 'registerSW.js'))) {
-  failures.push(
-    'the plugin is injecting registerSW.js again; its register() has no catch and the ' +
-      'failure is unhandleable from application code (set injectRegister: false)',
-  )
+const assets = join(DIST, 'assets')
+const bundles = readdirSync(assets).filter((file) => file.endsWith('.js'))
+const bundleText = bundles.map((file) => readFileSync(join(assets, file), 'utf8')).join('\n')
+
+if (/registerSW\.js/u.test(html) || existsSync(join(DIST, 'registerSW.js'))) {
+  failures.push('vite-plugin-pwa injected its unhandled registration helper')
+}
+if (!bundleText.includes('serviceWorker.register')) {
+  failures.push('the shipped application no longer registers its PWA worker')
+}
+if (!bundleText.includes('The PWA is unavailable:')) {
+  failures.push('the shipped worker registration no longer handles registration failure')
+}
+if (!bundleText.includes('The PWA update check did not complete')) {
+  failures.push('the shipped application no longer handles an update-check failure')
 }
 
-const bundles = readdirSync(join(DIST, 'assets')).filter((f) => f.endsWith('.js'))
-let registrations = 0
-let handled = 0
-for (const file of bundles) {
-  const code = readFileSync(join(DIST, 'assets', file), 'utf8')
-  for (const m of code.matchAll(/serviceWorker\.register\([^)]*\)/g)) {
-    registrations++
-    // A handled registration is followed by .catch or .then with two arguments;
-    // the shipped form is .catch, so require that rather than guess.
-    if (code.slice(m.index, m.index + m[0].length + 8).includes('.catch')) handled++
+const workerPath = join(DIST, 'sw.js')
+const cleanupPath = join(DIST, 'pwa-no-cache.js')
+const manifestPath = join(DIST, 'manifest.webmanifest')
+if (!existsSync(workerPath)) {
+  failures.push('sw.js is missing; the installable PWA contract was removed')
+}
+if (!existsSync(manifestPath)) {
+  failures.push('manifest.webmanifest is missing; the installable PWA contract was removed')
+}
+if (!existsSync(cleanupPath)) {
+  failures.push('the activation-time cache cleanup hook is missing')
+}
+
+if (!/<link[^>]+rel=["']manifest["'][^>]+href=["']\.\/manifest\.webmanifest["']/u.test(html)) {
+  failures.push('index.html does not reference the shipped PWA manifest')
+}
+if (existsSync(manifestPath)) {
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    if (
+      manifest.scope !== './' ||
+      manifest.start_url !== './' ||
+      manifest.display !== 'standalone'
+    ) {
+      failures.push('the PWA manifest does not retain the relative standalone install contract')
+    }
+    if (!Array.isArray(manifest.icons) || manifest.icons.length === 0) {
+      failures.push('the PWA manifest has no install icons')
+    } else {
+      for (const icon of manifest.icons) {
+        const relative = typeof icon.src === 'string' ? icon.src.replace(/^\.\//u, '') : ''
+        if (!relative || !existsSync(join(DIST, relative))) {
+          failures.push(`the PWA manifest references a missing icon: ${icon.src ?? '<missing>'}`)
+        }
+      }
+    }
+  } catch (error) {
+    failures.push(`manifest.webmanifest is not valid JSON: ${error}`)
   }
 }
-if (registrations === 0) {
-  failures.push('nothing registers a service worker; offline caching is gone entirely')
-} else if (handled < registrations) {
-  failures.push(
-    `${registrations - handled} of ${registrations} serviceWorker.register() call(s) ship without ` +
-      'a catch; an untrusted certificate would surface as an uncaught SecurityError',
+
+if (existsSync(workerPath)) {
+  const worker = readFileSync(workerPath, 'utf8')
+  if (!worker.includes('pwa-no-cache.js')) {
+    failures.push('sw.js does not import the activation-time cache cleanup hook')
+  }
+  if (worker.includes('precacheAndRoute')) {
+    failures.push('sw.js still installs a precache route')
+  }
+  const routes = [...worker.matchAll(/registerRoute\((.{1,500}?),"GET"\)/gu)].map(
+    (match) => match[0],
   )
+  const uiRoutes = routes.filter((route) => route.includes('\\/ui(?:\\/|$)/'))
+  if (
+    uiRoutes.length !== 1 ||
+    !uiRoutes[0].includes('NetworkOnly') ||
+    !uiRoutes[0].includes('fetchOptions:{cache:"no-store"}')
+  ) {
+    failures.push('sw.js does not bind /ui GET requests to NetworkOnly with cache:no-store')
+  }
+  if (!worker.includes('skipWaiting') || !worker.includes('clientsClaim')) {
+    failures.push('sw.js cannot activate and claim old controlled windows immediately')
+  }
+}
+
+if (existsSync(cleanupPath)) {
+  const cleanup = readFileSync(cleanupPath, 'utf8')
+  for (const token of ['caches.keys', 'caches.delete', 'clients.matchAll', 'client.navigate']) {
+    if (!cleanup.includes(token)) failures.push(`the PWA cleanup hook is missing ${token}`)
+  }
+}
+
+if (/["'`]\/upgrade(?:\/ui|\?|["'`])/u.test(bundleText)) {
+  failures.push('the final bundle still contains a core or dashboard self-upgrade endpoint')
+}
+for (const upstream of [
+  'api.github.com/repos/Zephyruso/zashboard/releases',
+  'api.github.com/repos/MetaCubeX/mihomo/releases',
+]) {
+  if (bundleText.includes(upstream)) failures.push(`the final bundle still checks ${upstream}`)
 }
 
 if (failures.length) {
   console.error('built output:')
-  for (const f of failures) console.error(`  ${f}`)
+  for (const failure of failures) console.error(`  ${failure}`)
   process.exit(1)
 }
-console.log(`ok: the shipped service-worker registration handles its own failure`)
+
+console.log('ok: shipped PWA is network-only and exposes no self-upgrade path')

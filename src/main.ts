@@ -33,22 +33,29 @@ app.use(i18n)
 app.mount('#app')
 
 // Service worker registration, owned here so its failure is a message rather
-// than an uncaught rejection. registerType: 'autoUpdate' is a property of the
-// generated sw.js, not of this call, so a plain register still updates itself.
+// than an uncaught rejection. The generated worker is network-only and exists
+// solely to retain the installable PWA shape and retire older Workbox caches.
 //
 // The one failure worth naming is the certificate: on CERT_MODE=debug the panel
 // is served with a self-signed pair, and clicking through the browser warning
-// does not make a service worker registrable. Everything except offline caching
-// works, and nothing here should imply otherwise.
+// does not make a service worker registrable. The ordinary browser page still
+// works, and no runtime behavior depends on the worker.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js', { scope: './' }).catch((error) => {
-      const untrusted = error instanceof DOMException && error.name === 'SecurityError'
-      console.info(
-        untrusted
-          ? 'Offline caching is off: a service worker needs a trusted certificate, and this panel is served with an untrusted one (CERT_MODE=debug). Everything else is unaffected.'
-          : `Offline caching is off: the service worker did not register (${error}).`,
-      )
-    })
+    navigator.serviceWorker.register('./sw.js', { scope: './' }).then(
+      (worker) => {
+        void worker.update().catch((error) => {
+          console.info(`The PWA update check did not complete (${error}).`)
+        })
+      },
+      (error) => {
+        const untrusted = error instanceof DOMException && error.name === 'SecurityError'
+        console.info(
+          untrusted
+            ? 'The PWA is unavailable: a service worker needs a trusted certificate, and this panel is served with an untrusted one (CERT_MODE=debug). Everything else is unaffected.'
+            : `The PWA is unavailable: the service worker did not register (${error}).`,
+        )
+      },
+    )
   })
 }

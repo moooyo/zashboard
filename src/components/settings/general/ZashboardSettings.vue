@@ -1,16 +1,9 @@
 <template>
   <div class="relative flex flex-col text-sm">
     <div class="flex items-center gap-2 px-1">
-      <div class="indicator">
-        <span
-          v-if="isUIUpdateAvailable"
-          class="indicator-item top-1 -right-1 flex"
-        >
-          <span class="bg-secondary absolute h-2 w-2 animate-ping rounded-full"></span>
-          <span class="bg-secondary h-2 w-2 rounded-full"></span>
-        </span>
+      <div>
         <a
-          href="https://github.com/Zephyruso/zashboard"
+          href="https://github.com/moooyo/zashboard"
           target="_blank"
           class="text-lg font-semibold"
         >
@@ -34,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { isUIUpdateAvailable, zashboardVersion } from '@/assembly/version'
+import { zashboardVersion } from '@/assembly/version'
 import GeneralSettings from './GeneralSettings.vue'
 import StyleSettings from './StyleSettings.vue'
 

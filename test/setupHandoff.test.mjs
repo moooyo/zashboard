@@ -50,7 +50,6 @@ const makeHandoffUrl = (overrides = {}) => {
     https: '1',
     secret: 'controller-secret',
     label: '5gpn Console',
-    disableUpgradeCore: '1',
     disableTunMode: '1',
     ...overrides,
   })
@@ -90,7 +89,6 @@ test('fragment handoff scrubs before probing and consumes a special secret only 
   assert.equal(started.kind, 'ready')
   assert.deepEqual(await started.completion, { kind: 'connected' })
   assert.equal(savedBackend.password, specialSecret)
-  assert.equal(savedBackend.disableUpgradeCore, true)
   assert.equal(savedBackend.disableTunMode, true)
   assert.deepEqual(events, ['scrub', 'prepare', 'probe', 'persist', 'navigate'])
   assert.equal(browser.history.calls[0].url, '/ui/#/setup')
@@ -164,6 +162,15 @@ test('invalid handoffs are scrubbed without probing or persisting', () => {
   assert.equal(called, false)
   assert.equal(browser.location.hash, '#/setup')
   assert.doesNotMatch(browser.history.calls[0].url, /secret|must-not-remain/u)
+})
+
+test('the retired per-backend upgrade flag is rejected and scrubbed', () => {
+  const browser = makeBrowser(makeHandoffUrl({ disableUpgradeCore: '1' }))
+  const slot = createSetupHandoffSlot()
+
+  assert.equal(slot.initialize(browser.location, browser.history), 'invalid')
+  assert.equal(browser.location.hash, '#/setup')
+  assert.doesNotMatch(browser.history.calls[0].url, /disableUpgradeCore|secret/u)
 })
 
 test('the handoff secret limit is measured in UTF-8 bytes', () => {
@@ -268,7 +275,6 @@ test('backend identity prevents duplicate defaults and setup defaults use the se
     password: 'secret',
     authMode: 'secret',
     label: '',
-    disableUpgradeCore: false,
     disableTunMode: false,
   }
   const implicit = {
