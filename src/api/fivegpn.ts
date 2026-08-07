@@ -99,6 +99,22 @@ export type FiveGPNLocationValue = {
   accuracy: number
 }
 
+export type FiveGPNLocationSearchResult = {
+  label: string
+  latitude: number
+  longitude: number
+  bounding_box: {
+    south: number
+    north: number
+    west: number
+    east: number
+  }
+}
+
+export type FiveGPNLocationSearchResponse = {
+  results: FiveGPNLocationSearchResult[]
+}
+
 export type FiveGPNSettingValue = string | number | boolean | FiveGPNLocationValue | null
 
 export type FiveGPNModuleSetting = {
@@ -177,6 +193,15 @@ export type FiveGPNInterceptionEnvelope = {
  */
 export const fetchInterceptionAPI = (signal?: AbortSignal) =>
   axios.get<FiveGPNInterceptionEnvelope>('/5gpn/interception', { signal, timeout: 5000 })
+
+export const searchInterceptionLocationAPI = (
+  body: { query: string; language: string },
+  signal?: AbortSignal,
+) =>
+  axios.post<FiveGPNLocationSearchResponse>('/5gpn/interception/location/search', body, {
+    signal,
+    timeout: 15000,
+  })
 
 export const putInterceptionSettingsAPI = (body: FiveGPNInterceptionSettingsWrite) =>
   axios.put<FiveGPNInterceptionEnvelope>(

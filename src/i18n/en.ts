@@ -809,12 +809,35 @@ const en = {
   fivegpnExtensionConfiguration: 'Extension configuration',
   fivegpnSaveConfiguration: 'Save configuration',
   fivegpnLocation: 'Location',
-  fivegpnLocationMap: 'Coordinate picker',
+  fivegpnLocationMap: 'OpenStreetMap location picker',
+  fivegpnLocationSearchLabel: 'Find a city or address',
+  fivegpnLocationSearchPlaceholder: 'City or address',
+  fivegpnLocationSearchAction: 'Search',
+  fivegpnLocationSearchDisclosure:
+    'The browser requests visible map tiles directly from OpenStreetMap, which sees the client IP, Console origin, and viewed area. Search runs only when you press Search or Enter; the gateway sends that query to Nominatim.',
+  fivegpnLocationSearching: 'Searching…',
+  fivegpnLocationSearchResults: 'Location search results',
+  fivegpnLocationSearchResultCount: 'Found {count} matching places.',
+  fivegpnLocationSearchEmpty: 'No matching places found.',
+  fivegpnLocationSearchError: 'Location search failed. Check the gateway connection and try again.',
+  fivegpnLocationSearchRateLimited: 'Too many location searches. Wait a moment and try again.',
+  fivegpnLocationSearchTooLong: 'The search text is too long. Shorten it and try again.',
+  fivegpnLocationMapLoading: 'Loading OpenStreetMap…',
+  fivegpnLocationMapLoadError:
+    'The map could not start. Exact coordinate inputs are still available.',
+  fivegpnLocationTilesError:
+    'OpenStreetMap tiles could not be loaded. Exact coordinate inputs are still available.',
+  fivegpnLocationRetryMap: 'Retry map',
+  fivegpnLocationZoomIn: 'Zoom in',
+  fivegpnLocationZoomOut: 'Zoom out',
+  fivegpnLocationMapRangeWarning:
+    'This latitude is outside the map display range (±85.051129°). The exact value is preserved below.',
+  fivegpnLocationMarker: 'Selected location',
   fivegpnLongitude: 'Longitude',
   fivegpnLatitude: 'Latitude',
   fivegpnAccuracyMetres: 'Accuracy (metres)',
   fivegpnLocationHint:
-    'Click the map to choose a point, or enter exact coordinates below. Arrow keys move the marker; hold Shift for one-degree steps.',
+    'Click the map to choose a point, drag the marker, or enter exact coordinates below. Scroll-wheel zoom is disabled; use the map controls.',
   fivegpnClearLocation: 'Clear location',
   fivegpnFlatLocationDescription:
     'These three manifest fields form one coordinate and are saved in the same transaction.',

@@ -813,12 +813,38 @@ const ru: LANG_MESSAGE = {
   fivegpnExtensionConfiguration: 'Настройки расширения',
   fivegpnSaveConfiguration: 'Сохранить настройки',
   fivegpnLocation: 'Местоположение',
-  fivegpnLocationMap: 'Выбор координат',
+  fivegpnLocationMap: 'Выбор места на OpenStreetMap',
+  fivegpnLocationSearchLabel: 'Найти город или адрес',
+  fivegpnLocationSearchPlaceholder: 'Город или адрес',
+  fivegpnLocationSearchAction: 'Найти',
+  fivegpnLocationSearchDisclosure:
+    'Браузер запрашивает тайлы видимой области напрямую у OpenStreetMap, поэтому сервис видит IP-адрес клиента, источник Console и просматриваемую область. Поиск запускается только после нажатия «Найти» или Enter; шлюз отправляет этот запрос в Nominatim.',
+  fivegpnLocationSearching: 'Идёт поиск…',
+  fivegpnLocationSearchResults: 'Результаты поиска мест',
+  fivegpnLocationSearchResultCount: 'Найдено мест: {count}.',
+  fivegpnLocationSearchEmpty: 'Подходящие места не найдены.',
+  fivegpnLocationSearchError:
+    'Не удалось выполнить поиск места. Проверьте подключение к шлюзу и повторите попытку.',
+  fivegpnLocationSearchRateLimited:
+    'Слишком много запросов поиска мест. Подождите немного и повторите попытку.',
+  fivegpnLocationSearchTooLong:
+    'Слишком длинный поисковый запрос. Сократите его и повторите попытку.',
+  fivegpnLocationMapLoading: 'Загрузка OpenStreetMap…',
+  fivegpnLocationMapLoadError:
+    'Не удалось запустить карту. Точные координаты по-прежнему можно ввести ниже.',
+  fivegpnLocationTilesError:
+    'Не удалось загрузить тайлы OpenStreetMap. Точные координаты по-прежнему можно ввести ниже.',
+  fivegpnLocationRetryMap: 'Повторить загрузку карты',
+  fivegpnLocationZoomIn: 'Увеличить масштаб',
+  fivegpnLocationZoomOut: 'Уменьшить масштаб',
+  fivegpnLocationMapRangeWarning:
+    'Эта широта находится вне диапазона отображения карты (±85,051129°). Точное значение сохранено ниже.',
+  fivegpnLocationMarker: 'Выбранное место',
   fivegpnLongitude: 'Долгота',
   fivegpnLatitude: 'Широта',
   fivegpnAccuracyMetres: 'Точность (метры)',
   fivegpnLocationHint:
-    'Выберите точку на карте или введите точные координаты. Стрелки двигают маркер; Shift задаёт шаг в один градус.',
+    'Выберите точку на карте, перетащите маркер или введите точные координаты. Масштабирование колёсиком отключено; используйте элементы карты.',
   fivegpnClearLocation: 'Очистить местоположение',
   fivegpnFlatLocationDescription:
     'Эти три поля манифеста образуют одну координату и сохраняются одной транзакцией.',

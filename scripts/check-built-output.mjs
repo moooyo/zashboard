@@ -38,6 +38,7 @@ if (!bundleText.includes('The PWA update check did not complete')) {
 const workerPath = join(DIST, 'sw.js')
 const cleanupPath = join(DIST, 'pwa-no-cache.js')
 const manifestPath = join(DIST, 'manifest.webmanifest')
+const leafletLicensePath = join(DIST, 'third-party', 'leaflet-LICENSE.txt')
 if (!existsSync(workerPath)) {
   failures.push('sw.js is missing; the installable PWA contract was removed')
 }
@@ -46,6 +47,20 @@ if (!existsSync(manifestPath)) {
 }
 if (!existsSync(cleanupPath)) {
   failures.push('the activation-time cache cleanup hook is missing')
+}
+if (!existsSync(leafletLicensePath)) {
+  failures.push('the shipped Leaflet runtime is missing its BSD-2-Clause license text')
+} else {
+  const leafletLicense = readFileSync(leafletLicensePath, 'utf8')
+  for (const token of [
+    'Copyright (c) 2010-2023, Volodymyr Agafonkin',
+    'Redistribution and use in source and binary forms',
+    'THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"',
+  ]) {
+    if (!leafletLicense.includes(token)) {
+      failures.push(`the shipped Leaflet license is missing: ${token}`)
+    }
+  }
 }
 
 if (!/<link[^>]+rel=["']manifest["'][^>]+href=["']\.\/manifest\.webmanifest["']/u.test(html)) {

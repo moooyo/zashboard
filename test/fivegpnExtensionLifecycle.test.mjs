@@ -23,6 +23,7 @@ test('mixed text and number coordinates round-trip without losing zero', () => {
   ]
   const group = findFlatLocationSettings(settings)
   assert.ok(group)
+  assert.deepEqual(Object.keys(group).sort(), ['accuracy', 'latitude', 'longitude'])
 
   assert.deepEqual(readFlatLocationValue(group, { longitude: '0', latitude: 0, accuracy: '25' }), {
     longitude: 0,
@@ -58,7 +59,7 @@ test('flat coordinates support an omitted accuracy field with a local default', 
   )
 })
 
-test('interception v4 exposes reviewed source identity and transactional runtime state', () => {
+test('interception v5 exposes location search and transactional runtime state', () => {
   const api = readFileSync(new URL('../src/api/fivegpn.ts', import.meta.url), 'utf8')
   const assembly = readFileSync(
     new URL('../src/assembly/fivegpn/interception.ts', import.meta.url),
@@ -105,7 +106,8 @@ test('interception v4 exposes reviewed source identity and transactional runtime
   assert.doesNotMatch(pendingProjection?.groups?.body ?? '', /armed/)
   assert.match(assembly, /catalogRevision\.value = data\.revision/)
   assert.match(page, /setCatalogSources\(sources, baselineRevision\)/)
-  assert.match(capabilities, /'5gpn-interception': 4/)
+  assert.match(capabilities, /'5gpn-interception': 5/)
+  assert.match(api, /\/5gpn\/interception\/location\/search/)
   assert.match(page, /@change="requestToggle\(module, \$event\)"/)
   assert.match(reviewDialog, /fivegpnNetworkGrantWarning/)
   assert.match(page, /fivegpnUpdateAndKeepEnabled/)

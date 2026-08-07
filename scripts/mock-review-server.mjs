@@ -117,7 +117,7 @@ const server = http.createServer((request, response) => {
   if (url.pathname === '/capabilities') {
     return send(response, 200, {
       controllerApi: 'v1',
-      features: { '5gpn-interception': { version: 4, owner: 'mihomo' } },
+      features: { '5gpn-interception': { version: 5, owner: 'mihomo' } },
     })
   }
   if (url.pathname === '/5gpn/interception') {
@@ -128,6 +128,19 @@ const server = http.createServer((request, response) => {
   }
   if (url.pathname === '/5gpn/interception/extensions/youtube.cleaner') {
     return setTimeout(() => send(response, 200, { extension: currentDetail, revision }), 450)
+  }
+  if (request.method === 'POST' && url.pathname === '/5gpn/interception/location/search') {
+    request.resume()
+    return send(response, 200, {
+      results: [
+        {
+          label: 'Medan, North Sumatra, Indonesia',
+          latitude: 3.589665,
+          longitude: 98.673826,
+          bounding_box: { south: 3.45, north: 3.8, west: 98.55, east: 98.8 },
+        },
+      ],
+    })
   }
   if (
     url.pathname === '/5gpn/interception/catalog/io.5gpn.official/entries/youtube.cleaner/review'
