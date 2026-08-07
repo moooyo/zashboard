@@ -758,6 +758,26 @@ const ru: LANG_MESSAGE = {
   fivegpnPasteManifest: 'Или вставьте манифест',
   fivegpnReview: 'Проверить',
   fivegpnReviewUpdate: 'Проверить обновление',
+  fivegpnReviewInstallTitle: 'Проверка установки расширения',
+  fivegpnReviewUpdateTitle: 'Проверка обновления расширения',
+  fivegpnReviewRequired: 'Требуется повторная проверка',
+  fivegpnReviewLoading: 'Загрузка проверки расширения',
+  fivegpnReviewLoadCancelled:
+    'Загрузка проверки отменена. Повторите попытку, чтобы загрузить её снова.',
+  fivegpnReviewExpiredTitle: 'Эта проверка устарела',
+  fivegpnReviewAlreadyCurrent:
+    'Этот снимок из каталога уже установлен. Обновление больше не требуется.',
+  fivegpnReviewAlreadyEnabled:
+    'Это расширение уже включено. Дополнительное подтверждение не требуется.',
+  fivegpnReloadAndReview: 'Загрузить последнее состояние и проверить снова',
+  fivegpnRetryReview: 'Повторить проверку',
+  fivegpnReviewNewDifference: 'новое',
+  fivegpnInstalledVersion: 'Установлено {version}',
+  fivegpnNewExtension: 'Новое расширение',
+  fivegpnExtensionSource: 'Источник манифеста',
+  fivegpnExecutionOrder: 'Порядок выполнения',
+  fivegpnExactActions: 'Полные действия сценариев',
+  fivegpnUpstreamMappings: 'Сопоставления upstream',
   fivegpnUpToDate: 'Актуально',
   fivegpnUpdateAvailable: 'Доступно обновление',
   fivegpnInstall: 'Установить',
@@ -771,6 +791,7 @@ const ru: LANG_MESSAGE = {
   fivegpnStorage: 'Постоянное хранилище',
   fivegpnRoutingRules: 'Правила маршрутизации',
   fivegpnDigest: 'Дайджест снимка',
+  fivegpnManifestDigest: 'Дайджест манифеста',
   fivegpnUpdateFrom: 'установлено: {from}',
   fivegpnEgressGroup: 'Выход',
   fivegpnCaptureDns: 'Резолвер источника',
@@ -779,6 +800,7 @@ const ru: LANG_MESSAGE = {
     'Установка всегда завершается в выключенном состоянии. Включение — отдельное решение о том, дать ли расширению видеть трафик.',
   fivegpnNetworkGrantWarning:
     'Это расширение имеет неограниченное сетевое разрешение. Его сценарии могут отправить любой видимый им запрос, ответ, настройку или сохранённое значение на любой достижимый хост, а также переписать туда перехваченный запрос вместе с полным методом, декодированным телом и сквозными заголовками — возможно, включая Cookie или Authorization. Разрешение не называет адресатов, поэтому проверять список нечего.',
+  fivegpnUnrestrictedNetworkGrant: 'Неограниченный доступ к сети',
   fivegpnCertificatePending:
     'Расширение разрешено. Перехват заблокирован, пока шлюз готовит сертификат для нового набора хостов.',
   fivegpnCertificateError: 'Не удалось подготовить сертификат. Перехват остаётся заблокированным.',
@@ -811,6 +833,11 @@ const ru: LANG_MESSAGE = {
   fivegpnSettingMaximum: 'Максимум: {value}.',
   fivegpnLocationInvalid: 'Введите допустимые координаты и точность от 1 до 100000 метров.',
   fivegpnEnableReview: 'Проверить и включить расширение',
+  fivegpnEnableEffectTitle: 'Что изменится после включения',
+  fivegpnEnableEffectDescription:
+    'Расширение получает постоянное разрешение на просмотр подходящего трафика. Отключение отзывает его скрипты и правила маршрутизации.',
+  fivegpnEnableCertificateDescription:
+    'При первом включении может подготавливаться сертификат. Подходящие HTTP/TLS-соединения остаются заблокированными до его готовности.',
   fivegpnNoRoutingRules: 'Расширение не объявляет правил маршрутизации mihomo.',
   fivegpnAuthorizeAndEnable: 'Разрешить и включить',
   fivegpnEnableNeedsSettings: 'Перед включением заполните обязательные настройки.',
@@ -838,18 +865,23 @@ const ru: LANG_MESSAGE = {
     'Шлюз изменился во время редактирования. Введённые значения сохранены; проверьте актуальное состояние и повторите.',
   fivegpnUpdateAndKeepEnabled: 'Обновить и оставить включённым',
   fivegpnDiffHostsAdded: 'Добавлены хосты перехвата: {hosts}',
+  fivegpnDiffSource: 'Источник манифеста: {before} → {after}',
   fivegpnDiffHostsRemoved: 'Удалены хосты перехвата: {hosts}',
   fivegpnDiffRoutingRules: 'Правила маршрутизации: {before} → {after}',
+  fivegpnDiffActions: 'Действия сценариев: {before} → {after}',
+  fivegpnDiffUpstreamMappings: 'Сопоставления upstream: {before} → {after}',
   fivegpnDiffNetworkGrant: 'Изменилось неограниченное сетевое разрешение.',
   fivegpnDiffStorage: 'Изменилось разрешение постоянного хранилища.',
   fivegpnDiffEgressRequirement: 'Изменилось требование привязки выхода.',
   fivegpnDiffSettingsAdded: 'Добавлены настройки: {settings}',
   fivegpnDiffSettingsRemoved: 'Удалены настройки: {settings}',
-  fivegpnDiffSettingsChanged: 'Изменились типы настроек: {settings}',
+  fivegpnDiffSettingsChanged: 'Изменились определения настроек: {settings}',
   fivegpnDiffCodeOnly:
     'Изменился неизменяемый снимок кода; разрешения и структура настроек не изменились.',
   fivegpnUpdateConflictPreserved:
     'Шлюз изменился до применения обновления. Предложенные настройки сохранены; проверьте актуальное состояние и повторите.',
+  fivegpnReviewConflictPreserved:
+    'Снимок кандидата или ревизия расширения изменились, поэтому прежнее подтверждение недействительно. Введённые настройки сохранены; загрузите последнее состояние и проверьте снова.',
   fivegpnReorderConfirm:
     'Переместить {moved} за {neighbor}? Это изменит приоритет первого совпадения действий, выхода, хостов перехвата и глобальных правил.',
   fivegpnToggleExtension: 'Включить или выключить {name}',

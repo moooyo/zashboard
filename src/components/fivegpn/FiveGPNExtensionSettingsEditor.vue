@@ -1,153 +1,162 @@
 <template>
   <form
+    :id="formId"
     class="flex flex-col gap-3"
     data-testid="fivegpn-extension-settings-form"
     @submit.prevent="save"
   >
-    <div
-      v-if="flatLocation"
-      class="border-base-300 flex flex-col gap-2 border-b pb-3"
+    <fieldset
+      class="contents"
+      :disabled="busy || disabled"
     >
-      <div>
-        <div class="text-sm font-medium">{{ $t('fivegpnLocation') }}</div>
-        <p class="text-xs opacity-70">{{ $t('fivegpnFlatLocationDescription') }}</p>
-      </div>
-      <FiveGPNLocationEditor
-        :model-value="flatLocationValue"
-        @update:model-value="setFlatLocation"
-      />
-      <p
-        v-if="flatLocationError"
-        class="text-error text-xs"
+      <div
+        v-if="flatLocation"
+        class="border-base-300 flex flex-col gap-2 border-b pb-3"
       >
-        {{ flatLocationError }}
-      </p>
-    </div>
-
-    <div
-      v-for="setting in visibleSettings"
-      :key="setting.key"
-      class="border-base-300 grid grid-cols-1 gap-2 border-b pb-3 md:grid-cols-[minmax(0,1fr)_minmax(12rem,1fr)]"
-    >
-      <div>
-        <label
-          class="text-sm font-medium"
-          :for="fieldId(setting.key)"
-        >
-          {{ setting.label || setting.key }}
-          <span
-            v-if="setting.required"
-            class="text-error"
-            aria-hidden="true"
-            >*</span
-          >
-        </label>
-        <p
-          v-if="setting.description"
-          class="mt-1 text-xs opacity-70"
-        >
-          {{ setting.description }}
-        </p>
-        <code class="mt-1 block text-xs opacity-50">{{ setting.key }}</code>
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <select
-          v-if="setting.type === 'boolean'"
-          :id="fieldId(setting.key)"
-          class="select select-sm w-full"
-          :value="booleanSelectValue(setting.key)"
-          @change="setBooleanValue(setting.key, $event)"
-        >
-          <option
-            value="unset"
-            :disabled="setting.required"
-          >
-            {{ $t(setting.required ? 'fivegpnSettingChoose' : 'fivegpnSettingUnset') }}
-          </option>
-          <option value="true">{{ $t('fivegpnEnabled') }}</option>
-          <option value="false">{{ $t('fivegpnDisabled') }}</option>
-        </select>
-        <select
-          v-else-if="setting.type === 'select'"
-          :id="fieldId(setting.key)"
-          class="select select-sm w-full"
-          :value="draft[setting.key] ?? ''"
-          @change="setString(setting.key, $event)"
-        >
-          <option
-            v-if="!setting.required || draft[setting.key] === null"
-            value=""
-            :disabled="setting.required"
-          >
-            {{ $t(setting.required ? 'fivegpnSettingChoose' : 'fivegpnSettingUnset') }}
-          </option>
-          <option
-            v-for="option in setting.options ?? []"
-            :key="option"
-            :value="option"
-          >
-            {{ option }}
-          </option>
-        </select>
-        <input
-          v-else-if="setting.type === 'text'"
-          :id="fieldId(setting.key)"
-          class="input input-sm w-full"
-          type="text"
-          :value="draft[setting.key] ?? ''"
-          @input="setString(setting.key, $event)"
-        />
-        <input
-          v-else-if="setting.type === 'number'"
-          :id="fieldId(setting.key)"
-          class="input input-sm w-full font-mono"
-          type="number"
-          step="any"
-          :min="setting.min"
-          :max="setting.max"
-          :value="draft[setting.key] ?? ''"
-          @input="setNumber(setting.key, $event)"
-        />
+        <div>
+          <div class="text-sm font-medium">{{ $t('fivegpnLocation') }}</div>
+          <p class="text-xs opacity-70">{{ $t('fivegpnFlatLocationDescription') }}</p>
+        </div>
         <FiveGPNLocationEditor
-          v-else-if="setting.type === 'location'"
-          :model-value="locationValue(setting.key)"
-          @update:model-value="draft[setting.key] = $event"
+          :model-value="flatLocationValue"
+          :disabled="busy || disabled"
+          @update:model-value="setFlatLocation"
         />
         <p
-          v-if="errors[setting.key]"
+          v-if="flatLocationError"
           class="text-error text-xs"
         >
-          {{ errors[setting.key] }}
+          {{ flatLocationError }}
         </p>
       </div>
-    </div>
 
-    <div
-      v-if="conflictMessage"
-      class="alert alert-error py-2"
-    >
-      <span>{{ conflictMessage }}</span>
-    </div>
+      <div
+        v-for="setting in visibleSettings"
+        :key="setting.key"
+        class="border-base-300 grid grid-cols-1 gap-2 border-b pb-3 md:grid-cols-[minmax(0,1fr)_minmax(12rem,1fr)]"
+      >
+        <div>
+          <label
+            class="text-sm font-medium"
+            :for="fieldId(setting.key)"
+          >
+            {{ setting.label || setting.key }}
+            <span
+              v-if="setting.required"
+              class="text-error"
+              aria-hidden="true"
+              >*</span
+            >
+          </label>
+          <p
+            v-if="setting.description"
+            class="mt-1 text-xs opacity-70"
+          >
+            {{ setting.description }}
+          </p>
+          <code class="mt-1 block text-xs opacity-50">{{ setting.key }}</code>
+        </div>
 
-    <div class="flex flex-wrap gap-2">
-      <button
-        class="btn btn-primary btn-sm"
-        type="submit"
-        :disabled="busy || disabled"
+        <div class="flex flex-col gap-1">
+          <select
+            v-if="setting.type === 'boolean'"
+            :id="fieldId(setting.key)"
+            class="select select-sm w-full"
+            :value="booleanSelectValue(setting.key)"
+            @change="setBooleanValue(setting.key, $event)"
+          >
+            <option
+              value="unset"
+              :disabled="setting.required"
+            >
+              {{ $t(setting.required ? 'fivegpnSettingChoose' : 'fivegpnSettingUnset') }}
+            </option>
+            <option value="true">{{ $t('fivegpnEnabled') }}</option>
+            <option value="false">{{ $t('fivegpnDisabled') }}</option>
+          </select>
+          <select
+            v-else-if="setting.type === 'select'"
+            :id="fieldId(setting.key)"
+            class="select select-sm w-full"
+            :value="draft[setting.key] ?? ''"
+            @change="setString(setting.key, $event)"
+          >
+            <option
+              v-if="!setting.required || draft[setting.key] === null"
+              value=""
+              :disabled="setting.required"
+            >
+              {{ $t(setting.required ? 'fivegpnSettingChoose' : 'fivegpnSettingUnset') }}
+            </option>
+            <option
+              v-for="option in setting.options ?? []"
+              :key="option"
+              :value="option"
+            >
+              {{ option }}
+            </option>
+          </select>
+          <input
+            v-else-if="setting.type === 'text'"
+            :id="fieldId(setting.key)"
+            class="input input-sm w-full"
+            type="text"
+            :value="draft[setting.key] ?? ''"
+            @input="setString(setting.key, $event)"
+          />
+          <input
+            v-else-if="setting.type === 'number'"
+            :id="fieldId(setting.key)"
+            class="input input-sm w-full font-mono"
+            type="number"
+            step="any"
+            :min="setting.min"
+            :max="setting.max"
+            :value="draft[setting.key] ?? ''"
+            @input="setNumber(setting.key, $event)"
+          />
+          <FiveGPNLocationEditor
+            v-else-if="setting.type === 'location'"
+            :model-value="locationValue(setting.key)"
+            :disabled="busy || disabled"
+            @update:model-value="draft[setting.key] = $event"
+          />
+          <p
+            v-if="errors[setting.key]"
+            class="text-error text-xs"
+          >
+            {{ errors[setting.key] }}
+          </p>
+        </div>
+      </div>
+
+      <div
+        v-if="conflictMessage"
+        class="alert alert-error py-2"
       >
-        {{ submitLabel }}
-      </button>
-      <button
-        v-if="cancelLabel"
-        class="btn btn-sm"
-        type="button"
-        :disabled="busy"
-        @click="$emit('cancel')"
+        <span>{{ conflictMessage }}</span>
+      </div>
+
+      <div
+        v-if="!hideActions"
+        class="flex flex-wrap gap-2"
       >
-        {{ cancelLabel }}
-      </button>
-    </div>
+        <button
+          class="btn btn-primary btn-sm"
+          type="submit"
+        >
+          {{ submitLabel }}
+        </button>
+        <button
+          v-if="cancelLabel"
+          class="btn btn-sm"
+          type="button"
+          @click="$emit('cancel')"
+        >
+          {{ cancelLabel }}
+        </button>
+      </div>
+    </fieldset>
   </form>
 </template>
 
@@ -159,6 +168,7 @@ import {
   readFlatLocationValue,
   writeFlatLocationValue,
 } from '@/helper/fivegpnExtensionSettings'
+import { mergeReviewDraft } from '@/helper/fivegpnExtensionReview'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FiveGPNLocationEditor from './FiveGPNLocationEditor.vue'
@@ -171,30 +181,23 @@ const props = defineProps<{
   submitLabel: string
   cancelLabel?: string
   conflictMessage?: string
+  initialValues?: Record<string, FiveGPNSettingValue>
+  hideActions?: boolean
+  formId?: string
 }>()
 
 const emit = defineEmits<{
   save: [values: Record<string, FiveGPNSettingValue>]
   cancel: []
+  draft: [values: Record<string, FiveGPNSettingValue>]
 }>()
 
 const { t } = useI18n()
 const draft = ref<Record<string, FiveGPNSettingValue>>({})
 const errors = ref<Record<string, string>>({})
 
-const cloneValue = (value: FiveGPNSettingValue | undefined): FiveGPNSettingValue => {
-  if (value === undefined) return null
-  if (value && typeof value === 'object') return { ...value }
-  return value
-}
-
 const reset = () => {
-  draft.value = Object.fromEntries(
-    props.settings.map((setting) => [
-      setting.key,
-      cloneValue(setting.value !== undefined ? setting.value : setting.default),
-    ]),
-  )
+  draft.value = mergeReviewDraft(props.settings, props.initialValues)
   const location = findFlatLocationSettings(props.settings)
   if (location?.accuracy) {
     const current = draft.value[location.accuracy.key]
@@ -206,6 +209,7 @@ const reset = () => {
 }
 
 watch(() => props.settings, reset, { immediate: true, deep: true })
+watch(draft, (value) => emit('draft', { ...value }), { deep: true })
 
 const flatLocation = computed(() => findFlatLocationSettings(props.settings))
 const flatKeys = computed(

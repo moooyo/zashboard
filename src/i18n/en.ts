@@ -755,6 +755,25 @@ const en = {
   fivegpnPasteManifest: 'Or paste a manifest',
   fivegpnReview: 'Review',
   fivegpnReviewUpdate: 'Review update',
+  fivegpnReviewInstallTitle: 'Review extension install',
+  fivegpnReviewUpdateTitle: 'Review extension update',
+  fivegpnReviewRequired: 'Review required',
+  fivegpnReviewLoading: 'Loading extension review',
+  fivegpnReviewLoadCancelled: 'Review loading was cancelled. Retry to load it again.',
+  fivegpnReviewExpiredTitle: 'This review is no longer current',
+  fivegpnReviewAlreadyCurrent:
+    'This marketplace snapshot is already installed. No update remains to apply.',
+  fivegpnReviewAlreadyEnabled:
+    'This extension is already enabled. No authorization remains to apply.',
+  fivegpnReloadAndReview: 'Load latest state and review again',
+  fivegpnRetryReview: 'Retry review',
+  fivegpnReviewNewDifference: 'new',
+  fivegpnInstalledVersion: 'Installed {version}',
+  fivegpnNewExtension: 'New extension',
+  fivegpnExtensionSource: 'Manifest source',
+  fivegpnExecutionOrder: 'Execution order',
+  fivegpnExactActions: 'Exact script actions',
+  fivegpnUpstreamMappings: 'Upstream mappings',
   fivegpnUpToDate: 'Up to date',
   fivegpnUpdateAvailable: 'Update available',
   fivegpnInstall: 'Install',
@@ -768,6 +787,7 @@ const en = {
   fivegpnStorage: 'Persistent storage',
   fivegpnRoutingRules: 'Routing rules',
   fivegpnDigest: 'Snapshot digest',
+  fivegpnManifestDigest: 'Manifest digest',
   fivegpnUpdateFrom: 'installed: {from}',
   fivegpnEgressGroup: 'Egress',
   fivegpnCaptureDns: 'Origin resolver',
@@ -776,6 +796,7 @@ const en = {
     'An install always lands disabled. Enabling it is a separate decision about letting it see traffic.',
   fivegpnNetworkGrantWarning:
     'This extension holds the unrestricted network grant. Its scripts may send any request, response, setting or stored value they can see to any host they can reach, and may rewrite a captured request there with its complete method, decoded body and end-to-end headers — possibly including Cookie or Authorization. The grant names no destinations, so there is no list to review.',
+  fivegpnUnrestrictedNetworkGrant: 'Unrestricted network grant',
   fivegpnCertificatePending:
     'The extension is authorized. Capture remains blocked while the gateway prepares a certificate for the new host set.',
   fivegpnCertificateError: 'Certificate preparation failed. Capture remains blocked.',
@@ -808,6 +829,11 @@ const en = {
   fivegpnSettingMaximum: 'The maximum is {value}.',
   fivegpnLocationInvalid: 'Enter valid coordinates and an accuracy from 1 to 100000 metres.',
   fivegpnEnableReview: 'Review and enable extension',
+  fivegpnEnableEffectTitle: 'What enabling changes',
+  fivegpnEnableEffectDescription:
+    'The extension receives continuing authorization to inspect matching traffic. Disabling it withdraws its scripts and routing projection.',
+  fivegpnEnableCertificateDescription:
+    'First enable may prepare a certificate. Matching HTTP/TLS connections stay blocked until it is ready.',
   fivegpnNoRoutingRules: 'This extension declares no mihomo routing rules.',
   fivegpnAuthorizeAndEnable: 'Authorize and enable',
   fivegpnEnableNeedsSettings: 'Complete the required configuration before enabling this extension.',
@@ -835,18 +861,23 @@ const en = {
     'The gateway changed while you were editing. Your entries are preserved; review the latest state before saving again.',
   fivegpnUpdateAndKeepEnabled: 'Update and keep enabled',
   fivegpnDiffHostsAdded: 'Capture hosts added: {hosts}',
+  fivegpnDiffSource: 'Manifest source: {before} → {after}',
   fivegpnDiffHostsRemoved: 'Capture hosts removed: {hosts}',
   fivegpnDiffRoutingRules: 'Routing rules: {before} → {after}',
+  fivegpnDiffActions: 'Script actions: {before} → {after}',
+  fivegpnDiffUpstreamMappings: 'Upstream mappings: {before} → {after}',
   fivegpnDiffNetworkGrant: 'The unrestricted network grant changed.',
   fivegpnDiffStorage: 'The persistent-storage grant changed.',
   fivegpnDiffEgressRequirement: 'The egress-binding requirement changed.',
   fivegpnDiffSettingsAdded: 'Settings added: {settings}',
   fivegpnDiffSettingsRemoved: 'Settings removed: {settings}',
-  fivegpnDiffSettingsChanged: 'Setting types changed: {settings}',
+  fivegpnDiffSettingsChanged: 'Setting definitions changed: {settings}',
   fivegpnDiffCodeOnly:
     'The immutable code snapshot changed; declared permissions and configuration shape did not.',
   fivegpnUpdateConflictPreserved:
     'The gateway changed before this update was applied. Your proposed settings are preserved; review the latest state and try again.',
+  fivegpnReviewConflictPreserved:
+    'The candidate snapshot or extension revision changed, so the previous confirmation cannot continue. Your entered settings are preserved; load the latest state and review it again.',
   fivegpnReorderConfirm:
     'Move {moved} past {neighbor}? This changes action, egress, capture-host, and global routing first-match precedence.',
   fivegpnToggleExtension: 'Enable or disable {name}',

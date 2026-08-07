@@ -3,9 +3,12 @@
   --color-base-150: color-mix(in oklch, var(--color-base-100) 50%, var(--color-base-200));
   --color-base-border: color-mix(in srgb, var(--color-base-content) 8%, transparent);
 
-  /* 统一各主题的圆角令牌，让所有输入控件风格更现代 */
+  /* Keep field radii consistent across themes. */
   --radius-field: 0.625rem;
   --radius-selector: 0.5rem;
+  --fivegpn-review-dialog-width: 48rem;
+  --fivegpn-review-dialog-height: 40.5rem;
+  --fivegpn-review-sheet-offset: 2.5rem;
 }
 
 @theme inline {
@@ -103,7 +106,7 @@
     scale 0.18s ease-out;
 }
 .toggle:active::before {
-  /* 按下时滑块横向拉伸，模拟物理开关的挤压反馈 */
+  /* Stretch the thumb slightly while pressed for tactile feedback. */
   scale: 1.15 1;
 }
 

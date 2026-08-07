@@ -147,6 +147,7 @@ export type FiveGPNModuleDetail = FiveGPNModuleSummary & {
   imported_at?: string
   source_url?: string
   source_digest?: string
+  snapshot_digest: string
   network: boolean
   persistent_storage: boolean
   settings?: FiveGPNModuleSetting[]
@@ -181,10 +182,11 @@ export const putInterceptionSettingsAPI = (body: FiveGPNInterceptionSettingsWrit
   axios.put<FiveGPNInterceptionEnvelope>(
     '/5gpn/interception/settings',
     interceptionSettingsWrite(body),
+    { timeout: 120000 },
   )
 
 export const putInterceptionOrderAPI = (body: { revision: string; order: string[] }) =>
-  axios.put<FiveGPNInterceptionEnvelope>('/5gpn/interception/order', body)
+  axios.put<FiveGPNInterceptionEnvelope>('/5gpn/interception/order', body, { timeout: 120000 })
 
 export const fetchExtensionAPI = (id: string, signal?: AbortSignal) =>
   axios.get<{ extension: FiveGPNModuleDetail; revision: string }>(
@@ -192,16 +194,22 @@ export const fetchExtensionAPI = (id: string, signal?: AbortSignal) =>
     { signal, timeout: 5000 },
   )
 
-export const putExtensionEnabledAPI = (id: string, body: { revision: string; enabled: boolean }) =>
+export const putExtensionEnabledAPI = (
+  id: string,
+  body: { revision: string; enabled: boolean },
+  signal?: AbortSignal,
+) =>
   axios.put<FiveGPNInterceptionEnvelope>(
     `/5gpn/interception/extensions/${encodeURIComponent(id)}/enabled`,
     body,
+    { signal, timeout: 120000 },
   )
 
 export const putExtensionEgressAPI = (id: string, body: { revision: string; group: string }) =>
   axios.put<FiveGPNInterceptionEnvelope>(
     `/5gpn/interception/extensions/${encodeURIComponent(id)}/egress`,
     body,
+    { timeout: 120000 },
   )
 
 export const putExtensionCaptureDNSAPI = (
@@ -211,6 +219,7 @@ export const putExtensionCaptureDNSAPI = (
   axios.put<FiveGPNInterceptionEnvelope>(
     `/5gpn/interception/extensions/${encodeURIComponent(id)}/capture-dns`,
     body,
+    { timeout: 120000 },
   )
 
 export const putExtensionSettingsAPI = (
@@ -220,19 +229,24 @@ export const putExtensionSettingsAPI = (
   axios.put<FiveGPNInterceptionEnvelope>(
     `/5gpn/interception/extensions/${encodeURIComponent(id)}/settings`,
     body,
+    { timeout: 120000 },
   )
 
 export const retryInterceptionCertificateAPI = (body: {
   revision: string
   target_digest: string
   attempt: string
-}) => axios.post<FiveGPNInterceptionEnvelope>('/5gpn/interception/certificate/retry', body)
+}) =>
+  axios.post<FiveGPNInterceptionEnvelope>('/5gpn/interception/certificate/retry', body, {
+    timeout: 120000,
+  })
 
 export const deleteExtensionAPI = (id: string, body: { revision: string }) =>
   axios.delete<FiveGPNInterceptionEnvelope>(
     `/5gpn/interception/extensions/${encodeURIComponent(id)}`,
     {
       data: body,
+      timeout: 120000,
     },
   )
 
@@ -246,13 +260,17 @@ export const reviewExtensionAPI = (
     timeout: 120000,
   })
 
-export const installExtensionAPI = (body: {
-  revision: string
-  digest: string
-  url?: string
-  content?: string
-}) =>
+export const installExtensionAPI = (
+  body: {
+    revision: string
+    digest: string
+    url?: string
+    content?: string
+  },
+  signal?: AbortSignal,
+) =>
   axios.post<FiveGPNInterceptionEnvelope>('/5gpn/interception/extensions', body, {
+    signal,
     timeout: 120000,
   })
 
@@ -352,7 +370,9 @@ export const fetchEngineLogsAPI = (
   })
 
 export const putCatalogSourcesAPI = (body: { revision: string; sources: FiveGPNCatalogSource[] }) =>
-  axios.put<FiveGPNInterceptionEnvelope>('/5gpn/interception/catalog/sources', body)
+  axios.put<FiveGPNInterceptionEnvelope>('/5gpn/interception/catalog/sources', body, {
+    timeout: 120000,
+  })
 
 /**
  * Review a catalog entry. The result is identical to reviewing a pasted URL,
@@ -380,13 +400,15 @@ export const applyCatalogUpdateAPI = (
   body: {
     revision: string
     digest: string
+    url: string
     values?: Record<string, FiveGPNSettingValue>
   },
+  signal?: AbortSignal,
 ) =>
   axios.post<FiveGPNInterceptionEnvelope>(
     `/5gpn/interception/catalog/${encodeURIComponent(source)}/entries/${encodeURIComponent(entry)}/update`,
     body,
-    { timeout: 120000 },
+    { signal, timeout: 120000 },
   )
 
 // ---------------------------------------------------------------------------

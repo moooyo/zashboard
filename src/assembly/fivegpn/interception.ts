@@ -50,11 +50,38 @@ export const interceptionError = ref('')
 
 export const interceptionSupported = featureSupported('5gpn-interception')
 
+type ResponseLike<T = unknown> = {
+  status?: number
+  data?: T
+  message?: string
+  response?: {
+    status?: number
+    data?: T
+  }
+}
+
+const responseStatus = (res: unknown) => {
+  const response = res as ResponseLike
+  return response.status ?? response.response?.status ?? 0
+}
+
+const responseData = <T>(res: unknown) => {
+  const response = res as ResponseLike<T>
+  return response.data ?? response.response?.data
+}
+
 // This uses the same double guard as capabilities: generation rejects
 // out-of-order responses from one backend, while UUID rejects late responses
 // from the previous backend after a switch.
 let generation = 0
+const writeQueues = new Map<string, Promise<void>>()
 let controller: AbortController | undefined
+
+const cancelInterceptionRead = () => {
+  controller?.abort()
+  controller = undefined
+  generation++
+}
 
 const adopt = (data: FiveGPNInterceptionEnvelope) => {
   interception.value = data.snapshot
@@ -86,8 +113,8 @@ export const refreshInterception = async (background: boolean | Event = false) =
   let data: FiveGPNInterceptionEnvelope | undefined
   try {
     const res = await fetchInterceptionAPI(controller.signal)
-    status = res.status
-    data = res.data
+    status = responseStatus(res)
+    data = responseData<FiveGPNInterceptionEnvelope>(res)
   } catch (e) {
     if (stale()) return
     if (!inBackground || !interception.value) {
@@ -111,9 +138,9 @@ export const refreshInterception = async (background: boolean | Event = false) =
   adopt(data)
 }
 
-const messageOf = (res: { data?: unknown }) => {
-  const data = res.data as { message?: string } | undefined
-  return data?.message ?? ''
+const messageOf = (res: unknown) => {
+  const response = res as ResponseLike<{ message?: string }>
+  return responseData<{ message?: string }>(response)?.message ?? response.message ?? ''
 }
 
 /**
@@ -124,40 +151,55 @@ const messageOf = (res: { data?: unknown }) => {
  * and last-write-wins here could make an extension start or stop decrypting
  * traffic without an operator deciding to do so.
  */
-const write = async (
+const write = (
   call: (revision: string) => Promise<{ status: number; data?: unknown }>,
   acceptedStatuses: readonly number[] = [200],
   expectedRevision?: string,
 ): Promise<string> => {
-  if (!interceptionRevision.value) return 'no revision'
-  if (expectedRevision && expectedRevision !== interceptionRevision.value) return 'conflict'
-  controller?.abort()
-  controller = undefined
-  detailController?.abort()
-  detailController = undefined
-  detailGeneration++
-  inspectionController?.abort()
-  inspectionController = undefined
-  inspectionGeneration++
-  const gen = ++generation
-  const uuid = activeUuid.value
-  const stale = () => gen !== generation || uuid !== activeUuid.value
-  if (!uuid) return 'no backend'
-  try {
-    const res = await call(expectedRevision ?? interceptionRevision.value)
-    if (stale()) return 'backend changed'
-    if (acceptedStatuses.includes(res.status) && res.data) {
-      adopt(res.data as FiveGPNInterceptionEnvelope)
-      return ''
+  const requestedUuid = activeUuid.value
+  if (!requestedUuid) return Promise.resolve('no backend')
+  const execute = async () => {
+    if (requestedUuid !== activeUuid.value) return 'backend changed'
+    if (!interceptionRevision.value) return 'no revision'
+    if (expectedRevision && expectedRevision !== interceptionRevision.value) return 'conflict'
+    cancelInterceptionRead()
+    detailController?.abort()
+    detailController = undefined
+    detailGeneration++
+    inspectionController?.abort()
+    inspectionController = undefined
+    inspectionGeneration++
+    try {
+      const res = await call(expectedRevision ?? interceptionRevision.value)
+      if (requestedUuid !== activeUuid.value) return 'backend changed'
+      const status = responseStatus(res)
+      const data = responseData<FiveGPNInterceptionEnvelope>(res)
+      if (acceptedStatuses.includes(status) && data) {
+        cancelInterceptionRead()
+        adopt(data)
+        return ''
+      }
+      if (status === 409) {
+        await refreshInterception(true)
+        return 'conflict'
+      }
+      return messageOf(res) || `interception returned ${status}`
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e)
     }
-    if (res.status === 409) {
-      await refreshInterception(true)
-      return 'conflict'
-    }
-    return messageOf(res) || `interception returned ${res.status}`
-  } catch (e) {
-    return e instanceof Error ? e.message : String(e)
   }
+
+  const previous = writeQueues.get(requestedUuid) ?? Promise.resolve()
+  const result = previous.then(execute, execute)
+  const tail = result.then(
+    () => undefined,
+    () => undefined,
+  )
+  writeQueues.set(requestedUuid, tail)
+  void tail.then(() => {
+    if (writeQueues.get(requestedUuid) === tail) writeQueues.delete(requestedUuid)
+  })
+  return result
 }
 
 export const setInterceptionSettings = (settings: { enabled: boolean; http2: boolean }) =>
@@ -166,8 +208,17 @@ export const setInterceptionSettings = (settings: { enabled: boolean; http2: boo
 export const setExecutionOrder = (order: string[]) =>
   write((revision) => putInterceptionOrderAPI({ revision, order }))
 
-export const setExtensionEnabled = (id: string, enabled: boolean, expectedRevision?: string) =>
-  write((revision) => putExtensionEnabledAPI(id, { revision, enabled }), [200], expectedRevision)
+export const setExtensionEnabled = (
+  id: string,
+  enabled: boolean,
+  expectedRevision?: string,
+  signal?: AbortSignal,
+) =>
+  write(
+    (revision) => putExtensionEnabledAPI(id, { revision, enabled }, signal),
+    [200],
+    expectedRevision,
+  )
 
 export const setExtensionEgress = (id: string, group: string) =>
   write((revision) => putExtensionEgressAPI(id, { revision, group }))
@@ -202,9 +253,10 @@ export const installReviewed = (
   candidate: FiveGPNCandidate,
   source: { url?: string; content?: string },
   expectedRevision: string,
+  signal?: AbortSignal,
 ) =>
   write(
-    (revision) => installExtensionAPI({ revision, digest: candidate.digest, ...source }),
+    (revision) => installExtensionAPI({ revision, digest: candidate.digest, ...source }, signal),
     [200],
     expectedRevision,
   )
@@ -224,14 +276,16 @@ export const fetchExtensionDetail = async (
   try {
     const res = await fetchExtensionAPI(id, detailController.signal)
     if (stale()) return { error: 'backend changed' }
-    if (res.status !== 200 || !res.data?.extension) {
-      return { error: messageOf(res) || `extension returned ${res.status}` }
+    const status = responseStatus(res)
+    const data = responseData<{ extension: FiveGPNModuleDetail; revision: string }>(res)
+    if (status !== 200 || !data?.extension) {
+      return { error: messageOf(res) || `extension returned ${status}` }
     }
-    if (res.data.revision !== interceptionRevision.value) {
+    if (data.revision !== interceptionRevision.value) {
       await refreshInterception(true)
       return { error: 'conflict' }
     }
-    return { detail: res.data.extension, revision: res.data.revision, error: '' }
+    return { detail: data.extension, revision: data.revision, error: '' }
   } catch (e) {
     if (stale()) return { error: '' }
     return { error: e instanceof Error ? e.message : String(e) }
@@ -254,6 +308,47 @@ const inspectionContext = () => {
 const inspectionStale = (context: ReturnType<typeof inspectionContext>) =>
   context.generation !== inspectionGeneration || context.uuid !== activeUuid.value
 
+export const cancelInterceptionInspection = () => {
+  inspectionController?.abort()
+  inspectionController = undefined
+  inspectionGeneration++
+}
+
+type InspectedExtensionDetail = {
+  detail?: FiveGPNModuleDetail
+  revision?: string
+  error: string
+}
+
+const fetchInspectedExtensionDetail = async (
+  id: string,
+  context: ReturnType<typeof inspectionContext>,
+): Promise<InspectedExtensionDetail> => {
+  try {
+    const res = await fetchExtensionAPI(id, context.signal)
+    if (inspectionStale(context)) return { error: 'backend changed' }
+    const status = responseStatus(res)
+    const data = responseData<{ extension: FiveGPNModuleDetail; revision: string }>(res)
+    if (status !== 200 || !data?.extension) {
+      return { error: messageOf(res) || `extension returned ${status}` }
+    }
+    if (data.revision !== interceptionRevision.value) {
+      await refreshInterception(true)
+      return { error: 'conflict' }
+    }
+    return { detail: data.extension, revision: data.revision, error: '' }
+  } catch (e) {
+    if (inspectionStale(context)) return { error: 'backend changed' }
+    return { error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+export const inspectExtensionDetail = async (id: string): Promise<InspectedExtensionDetail> => {
+  const context = inspectionContext()
+  if (!context.uuid) return { error: 'no backend' }
+  return fetchInspectedExtensionDetail(id, context)
+}
+
 /**
  * Review a candidate without changing state. The returned digest is the
  * credential supplied during installation, and repeating a review is harmless.
@@ -267,14 +362,16 @@ export const reviewExtension = async (source: {
   try {
     const res = await reviewExtensionAPI(source, context.signal)
     if (inspectionStale(context)) return { error: 'backend changed' }
-    if (res.status === 200 && res.data?.candidate) {
-      if (res.data.revision !== interceptionRevision.value) {
+    const status = responseStatus(res)
+    const data = responseData<{ candidate: FiveGPNCandidate; revision: string }>(res)
+    if (status === 200 && data?.candidate) {
+      if (data.revision !== interceptionRevision.value) {
         await refreshInterception(true)
         return { error: 'conflict' }
       }
-      return { candidate: res.data.candidate, revision: res.data.revision, error: '' }
+      return { candidate: data.candidate, revision: data.revision, error: '' }
     }
-    return { error: messageOf(res) || `review returned ${res.status}` }
+    return { error: messageOf(res) || `review returned ${status}` }
   } catch (e) {
     if (inspectionStale(context)) return { error: '' }
     return { error: e instanceof Error ? e.message : String(e) }
@@ -325,12 +422,14 @@ export const refreshEngineLogs = async () => {
       logController.signal,
     )
     if (uuid !== activeUuid.value) return
-    if (res.status === 200 && res.data) {
-      engineLogs.value = res.data.logs ?? []
+    const status = responseStatus(res)
+    const data = responseData<{ logs: FiveGPNEngineLog[] }>(res)
+    if (status === 200 && data) {
+      engineLogs.value = data.logs ?? []
       engineLogError.value = ''
       return
     }
-    engineLogError.value = `logs returned ${res.status}`
+    engineLogError.value = messageOf(res) || `logs returned ${status}`
   } catch (e) {
     if (uuid !== activeUuid.value) return
     engineLogError.value = e instanceof Error ? e.message : String(e)
@@ -362,15 +461,20 @@ export const refreshCatalog = async (refresh = false) => {
   try {
     const res = await fetchCatalogAPI(refresh, catalogController.signal)
     if (stale()) return
-    if (res.status !== 200 || !res.data?.catalog) {
+    const status = responseStatus(res)
+    const data = responseData<{
+      catalog: { sources: FiveGPNCatalogSourceView[] }
+      revision: string
+    }>(res)
+    if (status !== 200 || !data?.catalog) {
       catalogStatus.value = 'error'
-      catalogError.value = messageOf(res) || `catalog returned ${res.status}`
+      catalogError.value = messageOf(res) || `catalog returned ${status}`
       return
     }
-    catalogSources.value = res.data.catalog.sources ?? []
-    catalogRevision.value = res.data.revision
+    catalogSources.value = data.catalog.sources ?? []
+    catalogRevision.value = data.revision
     catalogStatus.value = 'ready'
-    if (res.data.revision !== interceptionRevision.value) await refreshInterception(true)
+    if (data.revision !== interceptionRevision.value) await refreshInterception(true)
   } catch (e) {
     if (stale()) return
     catalogStatus.value = 'error'
@@ -395,10 +499,16 @@ export const applyCatalogUpdate = (
   candidate: FiveGPNCandidate,
   expectedRevision: string,
   values?: Record<string, FiveGPNSettingValue>,
+  signal?: AbortSignal,
 ) =>
   write(
     (revision) =>
-      applyCatalogUpdateAPI(source, entry, { revision, digest: candidate.digest, values }),
+      applyCatalogUpdateAPI(
+        source,
+        entry,
+        { revision, digest: candidate.digest, url: candidate.detail.source_url ?? '', values },
+        signal,
+      ),
     [200],
     expectedRevision,
   )
@@ -411,25 +521,42 @@ export const applyCatalogUpdate = (
 export const reviewCatalogEntry = async (
   source: string,
   entry: string,
-): Promise<{ candidate?: FiveGPNCandidate; url?: string; revision?: string; error: string }> => {
+): Promise<{
+  candidate?: FiveGPNCandidate
+  installedDetail?: FiveGPNModuleDetail
+  url?: string
+  revision?: string
+  error: string
+}> => {
   const context = inspectionContext()
   if (!context.uuid) return { error: 'no backend' }
   try {
     const res = await reviewCatalogEntryAPI(source, entry, context.signal)
     if (inspectionStale(context)) return { error: 'backend changed' }
-    if (res.status === 200 && res.data?.candidate) {
-      if (res.data.revision !== interceptionRevision.value) {
+    const status = responseStatus(res)
+    const data = responseData<{ candidate: FiveGPNCandidate; url: string; revision: string }>(res)
+    if (status === 200 && data?.candidate) {
+      if (data.revision !== interceptionRevision.value) {
         await refreshInterception(true)
         return { error: 'conflict' }
       }
+      let installedDetail: FiveGPNModuleDetail | undefined
+      if (data.candidate.installed) {
+        const installed = await fetchInspectedExtensionDetail(data.candidate.detail.id, context)
+        if (installed.error || !installed.detail || installed.revision !== data.revision) {
+          return { error: installed.error || 'conflict' }
+        }
+        installedDetail = installed.detail
+      }
       return {
-        candidate: res.data.candidate,
-        url: res.data.url,
-        revision: res.data.revision,
+        candidate: data.candidate,
+        installedDetail,
+        url: data.url,
+        revision: data.revision,
         error: '',
       }
     }
-    return { error: messageOf(res) || `review returned ${res.status}` }
+    return { error: messageOf(res) || `review returned ${status}` }
   } catch (e) {
     if (inspectionStale(context)) return { error: '' }
     return { error: e instanceof Error ? e.message : String(e) }
@@ -491,9 +618,7 @@ export const syncInterceptionLifecyclePolling = () => {
 export const stopInterceptionLifecyclePolling = () => {
   lifecyclePolling = false
   clearLifecycleTimer()
-  controller?.abort()
-  controller = undefined
-  generation++
+  cancelInterceptionRead()
   detailController?.abort()
   detailController = undefined
   detailGeneration++
@@ -504,9 +629,6 @@ export const stopInterceptionLifecyclePolling = () => {
 
 export const stopInterception = () => {
   stopInterceptionLifecyclePolling()
-  controller?.abort()
-  controller = undefined
-  generation++
   interception.value = null
   interceptionRevision.value = ''
   interceptionStatus.value = 'idle'

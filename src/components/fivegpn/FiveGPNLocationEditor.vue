@@ -3,8 +3,10 @@
     <div
       ref="mapElement"
       class="coordinate-map border-base-300 bg-base-200 text-base-content focus-visible:ring-primary relative cursor-crosshair overflow-hidden border outline-none focus-visible:ring-2"
+      :class="disabled && 'cursor-default opacity-60'"
       role="group"
-      tabindex="0"
+      :tabindex="disabled ? -1 : 0"
+      :aria-disabled="disabled"
       :aria-label="$t('fivegpnLocationMap')"
       @pointerdown="pickPoint"
       @keydown="movePoint"
@@ -92,6 +94,7 @@
           min="-180"
           max="180"
           step="any"
+          :disabled="disabled"
           :value="longitude ?? ''"
           @input="setLongitude"
         />
@@ -104,6 +107,7 @@
           min="-90"
           max="90"
           step="any"
+          :disabled="disabled"
           :value="latitude ?? ''"
           @input="setLatitude"
         />
@@ -116,6 +120,7 @@
           min="1"
           max="100000"
           step="1"
+          :disabled="disabled"
           :value="accuracy || ''"
           @input="setAccuracy"
         />
@@ -126,6 +131,7 @@
       <button
         class="btn btn-ghost btn-xs"
         type="button"
+        :disabled="disabled"
         @click="$emit('update:modelValue', null)"
       >
         {{ $t('fivegpnClearLocation') }}
@@ -140,6 +146,7 @@ import { computed, ref } from 'vue'
 
 const props = defineProps<{
   modelValue?: FiveGPNLocationValue | null
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -185,6 +192,7 @@ const setAccuracy = (event: Event) =>
   emitCoordinates(longitude.value, latitude.value, parsedInput(event) ?? 0)
 
 const pickPoint = (event: PointerEvent) => {
+  if (props.disabled) return
   const bounds = mapElement.value?.getBoundingClientRect()
   if (!bounds || bounds.width === 0 || bounds.height === 0) return
   const x = Math.min(Math.max(event.clientX - bounds.left, 0), bounds.width)
@@ -195,6 +203,7 @@ const pickPoint = (event: PointerEvent) => {
 }
 
 const movePoint = (event: KeyboardEvent) => {
+  if (props.disabled) return
   if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return
   event.preventDefault()
   const step = event.shiftKey ? 1 : 0.1

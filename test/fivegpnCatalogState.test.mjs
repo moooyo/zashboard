@@ -19,14 +19,14 @@ test('marketplace renders current entries as a disabled up-to-date action', () =
   assert.match(source, /catalogInstallState\(entry\) === 'current'/u)
   assert.match(
     source,
-    /:disabled="reviewing \|\| busy \|\| catalogInstallState\(entry\) === 'current'"/u,
+    /reviewing \|\| busy \|\| sourceBusy \|\| catalogInstallState\(entry\) === 'current'/u,
   )
   assert.match(source, /\$t\('fivegpnUpToDate'\)/u)
   assert.match(source, /\$t\('fivegpnUpdateAvailable'\)/u)
 
-  const install = source.match(/const install = async[\s\S]*?\n\}\n\nonMounted/u)?.[0]
-  assert.ok(install, 'the reviewed install handler is missing')
-  assert.match(install, /importContent\.value = ''\s+await refreshCatalog\(\)\s+\}/u)
+  const confirm = source.match(/const confirmReview = async[\s\S]*?\n\}\n\nonMounted/u)?.[0]
+  assert.ok(confirm, 'the reviewed confirmation handler is missing')
+  assert.match(confirm, /importContent\.value = ''\s+await refreshCatalog\(\)\s+\}/u)
 })
 
 test('catalog entries distinguish install, current, and update states', () => {
@@ -57,12 +57,15 @@ test('installed extensions can update only through a reviewed marketplace entry'
   assert.match(page, /catalogTarget/u)
   assert.match(page, /applyCatalogUpdate/u)
 
-  const install = page.match(/const install = async[\s\S]*?\n\}\n\nonMounted/u)?.[0]
-  assert.ok(install, 'the reviewed install handler is missing')
-  assert.doesNotMatch(install, /reviewed\.installed|applyReviewedUpdate/u)
-  assert.match(install, /if \(fromCatalog\)[\s\S]*applyCatalogUpdate/u)
+  const confirm = page.match(/const confirmReview = async[\s\S]*?\n\}\n\nonMounted/u)?.[0]
+  assert.ok(confirm, 'the reviewed confirmation handler is missing')
+  assert.doesNotMatch(confirm, /reviewed\.installed|applyReviewedUpdate/u)
+  assert.match(confirm, /fromCatalog[\s\S]*applyCatalogUpdate/u)
 
-  assert.doesNotMatch(api, /checkExtensionUpdateAPI|applyExtensionUpdateAPI|extensions\/\$\{[^}]+\}\/update/u)
+  assert.doesNotMatch(
+    api,
+    /checkExtensionUpdateAPI|applyExtensionUpdateAPI|extensions\/\$\{[^}]+\}\/update/u,
+  )
   assert.doesNotMatch(assembly, /checkExtensionUpdate|applyReviewedUpdate|applyExtensionUpdateAPI/u)
   assert.match(api, /applyCatalogUpdateAPI/u)
   assert.match(assembly, /applyCatalogUpdate/u)

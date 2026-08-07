@@ -86,254 +86,33 @@
           :options="tabOptions"
         />
 
-        <!-- Review every effect the operator must see before enabling in one place rather than
-             distributing it across several confirmations. -->
-        <div
-          v-if="candidate"
-          ref="candidatePanel"
-          class="base-container border-warning flex flex-col gap-2 border p-3"
-          tabindex="-1"
-        >
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-base font-medium">
-              {{ candidate.detail.name || candidate.detail.id }}
-            </span>
-            <span class="badge badge-sm">{{ candidate.detail.version }}</span>
-            <span
-              v-if="candidate.installedVersion"
-              class="badge badge-info badge-sm"
-            >
-              {{ $t('fivegpnUpdateFrom', { from: candidate.installedVersion }) }}
-            </span>
-          </div>
-          <p
-            v-if="candidate.detail.description"
-            class="text-sm opacity-80"
-          >
-            {{ candidate.detail.description }}
-          </p>
-
-          <div class="settings-grid">
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('fivegpnCaptureHosts') }}</span>
-              <span class="font-mono text-xs">{{ candidate.detail.capture_hosts.join(', ') }}</span>
-            </div>
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('fivegpnActions') }}</span>
-              <span>{{ (candidate.detail.actions ?? []).length }}</span>
-            </div>
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('fivegpnStorage') }}</span>
-              <span>{{
-                $t(candidate.detail.persistent_storage ? 'fivegpnEnabled' : 'fivegpnDisabled')
-              }}</span>
-            </div>
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('fivegpnRoutingRules') }}</span>
-              <span>{{ (candidate.detail.routing_rules ?? []).length }}</span>
-            </div>
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('fivegpnEgressGroup') }}</span>
-              <span>{{ candidate.detail.egress_group }}</span>
-            </div>
-            <div class="setting-item">
-              <span class="setting-item-label">{{ $t('fivegpnDigest') }}</span>
-              <span class="font-mono text-xs break-all">{{ candidate.digest }}</span>
-            </div>
-          </div>
-
-          <div
-            v-if="candidateDiff.length"
-            class="border-base-300 flex flex-col gap-1 border-y py-2"
-          >
-            <span class="text-sm font-medium">{{ $t('fivegpnUpdateChanges') }}</span>
-            <span
-              v-for="change in candidateDiff"
-              :key="change"
-              class="text-xs"
-            >
-              {{ change }}
-            </span>
-          </div>
-
-          <div
-            v-if="candidate.detail.capture_hosts.length"
-            class="flex flex-col gap-1"
-          >
-            <span class="text-sm font-medium">{{ $t('fivegpnCaptureHosts') }}</span>
-            <code class="text-xs break-all">{{ candidate.detail.capture_hosts.join(', ') }}</code>
-          </div>
-
-          <div
-            v-if="candidate.detail.routing_rules?.length"
-            class="flex flex-col gap-1"
-          >
-            <span class="text-sm font-medium">{{ $t('fivegpnExactRoutingRules') }}</span>
-            <code
-              v-for="(rule, index) in candidate.detail.routing_rules"
-              :key="index"
-              class="bg-base-200 block px-2 py-1 text-xs break-all"
-            >
-              {{ formatRoutingRule(rule) }}
-            </code>
-          </div>
-
-          <!-- This grant has no destination list. Presenting "reviewed targets" would describe a
-               boundary that does not exist, so every UI must say "any host it can reach." -->
-          <div
-            v-if="candidate.detail.network"
-            class="alert alert-warning py-2"
-          >
-            <span>{{ $t('fivegpnNetworkGrantWarning') }}</span>
-          </div>
-
-          <FiveGPNExtensionSettingsEditor
-            v-if="isUpdateCandidate && (candidate.detail.settings ?? []).length"
-            :settings="candidate.detail.settings ?? []"
-            :id-prefix="`update-${candidate.detail.id}`"
-            :busy="busy"
-            :submit-label="updateActionLabel"
-            :cancel-label="$t('fivegpnCancel')"
-            :conflict-message="candidateConflict"
-            @save="install"
-            @cancel="clearReview"
-          />
-
-          <div
-            v-else
-            class="flex gap-2"
-          >
-            <button
-              class="btn btn-primary btn-sm"
-              :disabled="busy"
-              @click="install()"
-            >
-              {{ isUpdateCandidate ? updateActionLabel : $t('fivegpnInstall') }}
-            </button>
-            <button
-              class="btn btn-sm"
-              @click="clearReview"
-            >
-              {{ $t('fivegpnCancel') }}
-            </button>
-          </div>
-          <p
-            v-if="!isUpdateCandidate"
-            class="text-xs opacity-70"
-          >
-            {{ $t('fivegpnInstallLandsDisabled') }}
-          </p>
-        </div>
-
-        <div
-          v-if="reviewError"
-          class="alert alert-error"
-        >
-          <span>{{ reviewError }}</span>
-        </div>
-
-        <DialogWrapper
-          v-model="authorizationOpen"
-          :title="$t('fivegpnEnableReview')"
-          box-class="max-w-3xl"
-        >
-          <template v-if="authorizationDetail">
-            <div class="flex flex-col gap-3">
-              <div>
-                <p class="text-sm opacity-70">
-                  {{ authorizationDetail.name || authorizationDetail.id }} ·
-                  {{ authorizationDetail.version }}
-                </p>
-              </div>
-
-              <div class="settings-grid">
-                <div class="setting-item">
-                  <span class="setting-item-label">{{ $t('fivegpnCaptureHosts') }}</span>
-                  <code class="text-xs break-all">{{
-                    authorizationDetail.capture_hosts.join(', ')
-                  }}</code>
-                </div>
-                <div class="setting-item">
-                  <span class="setting-item-label">{{ $t('fivegpnStorage') }}</span>
-                  <span>{{
-                    $t(
-                      authorizationDetail.persistent_storage ? 'fivegpnEnabled' : 'fivegpnDisabled',
-                    )
-                  }}</span>
-                </div>
-                <div class="setting-item">
-                  <span class="setting-item-label">{{ $t('fivegpnActions') }}</span>
-                  <span>{{ authorizationDetail.actions?.length ?? 0 }}</span>
-                </div>
-                <div class="setting-item">
-                  <span class="setting-item-label">{{ $t('fivegpnEgressGroup') }}</span>
-                  <span>{{ authorizationDetail.egress_group }}</span>
-                </div>
-                <div
-                  v-if="authorizationDetail.source_digest"
-                  class="setting-item"
-                >
-                  <span class="setting-item-label">{{ $t('fivegpnDigest') }}</span>
-                  <code class="text-xs break-all">{{ authorizationDetail.source_digest }}</code>
-                </div>
-              </div>
-
-              <div class="flex flex-col gap-1">
-                <span class="text-sm font-medium">{{ $t('fivegpnExactRoutingRules') }}</span>
-                <span
-                  v-if="!authorizationDetail.routing_rules?.length"
-                  class="text-xs opacity-60"
-                >
-                  {{ $t('fivegpnNoRoutingRules') }}
-                </span>
-                <code
-                  v-for="(rule, index) in authorizationDetail.routing_rules ?? []"
-                  :key="index"
-                  class="bg-base-200 block px-2 py-1 text-xs break-all"
-                >
-                  {{ formatRoutingRule(rule) }}
-                </code>
-              </div>
-
-              <div
-                v-if="authorizationDetail.network"
-                class="alert alert-warning"
-              >
-                <span>{{ $t('fivegpnNetworkGrantWarning') }}</span>
-              </div>
-
-              <div
-                v-if="authorizationBlockingReason"
-                class="alert alert-error"
-              >
-                <span>{{ authorizationBlockingReason }}</span>
-              </div>
-              <div
-                v-if="authorizationError"
-                class="alert alert-error"
-              >
-                <span>{{ authorizationError }}</span>
-              </div>
-
-              <div class="flex flex-wrap gap-2">
-                <button
-                  class="btn btn-primary btn-sm"
-                  :disabled="busy || Boolean(authorizationBlockingReason)"
-                  @click="confirmEnable"
-                >
-                  {{ $t('fivegpnAuthorizeAndEnable') }}
-                </button>
-                <button
-                  class="btn btn-sm"
-                  :disabled="busy"
-                  @click="closeAuthorization"
-                >
-                  {{ $t('fivegpnCancel') }}
-                </button>
-              </div>
-            </div>
-          </template>
-        </DialogWrapper>
+        <FiveGPNExtensionReviewDialog
+          v-model="reviewOpen"
+          v-model:draft="reviewDraft"
+          :mode="reviewMode"
+          :detail="reviewDetail"
+          :digest="reviewDigest"
+          :digest-kind="reviewDigestKind"
+          :digest-is-new="reviewDigestIsNew"
+          :egress-is-new="reviewEgressIsNew"
+          :binding-is-new="reviewBindingIsNew"
+          :installed-version="candidate?.installedVersion"
+          :execution-position="reviewExecutionPosition"
+          :history-restorable="reviewHistoryRestorable"
+          :changes="candidateChanges"
+          :new-difference-keys="reviewNewDifferenceKeys"
+          :loading="reviewLoading"
+          :submitting="reviewSubmitting"
+          :conflict-message="reviewConflict"
+          :error-message="reviewError"
+          :resolved-message="reviewResolvedMessage"
+          :blocking-reason="authorizationBlockingReason"
+          :action-label="reviewActionLabel"
+          @cancel="closeReview"
+          @reload="reloadReview"
+          @retry="retryReview"
+          @confirm="confirmReview"
+        />
 
         <template v-if="tab === 'installed'">
           <!-- Installed extensions. Order is priority: the earlier extension owns overlapping capture
@@ -350,7 +129,7 @@
                   type="checkbox"
                   class="toggle toggle-sm"
                   :checked="module.enabled"
-                  :disabled="busy"
+                  :disabled="busy || sourceBusy"
                   :aria-label="$t('fivegpnToggleExtension', { name: module.name || module.id })"
                   @change="requestToggle(module, $event)"
                 />
@@ -628,8 +407,10 @@
                 <span class="flex-1 truncate text-xs opacity-70">{{ entry.description }}</span>
                 <button
                   class="btn btn-xs"
-                  :disabled="reviewing || busy || catalogInstallState(entry) === 'current'"
-                  @click="reviewEntry(source.id, entry.id)"
+                  :disabled="
+                    reviewing || busy || sourceBusy || catalogInstallState(entry) === 'current'
+                  "
+                  @click="reviewEntry(source.id, entry.id, Boolean(entry.installed_version))"
                 >
                   {{
                     catalogInstallState(entry) === 'current'
@@ -657,7 +438,7 @@
               </label>
               <button
                 class="btn btn-sm"
-                :disabled="reviewing || (!importUrl && !importContent)"
+                :disabled="reviewing || busy || sourceBusy || (!importUrl && !importContent)"
                 @click="review"
               >
                 {{ $t('fivegpnReview') }}
@@ -784,11 +565,11 @@ import type {
   FiveGPNCandidate,
   FiveGPNModuleDetail,
   FiveGPNModuleSummary,
-  FiveGPNRoutingRule,
   FiveGPNSettingValue,
 } from '@/api/fivegpn'
 import {
   applyCatalogUpdate,
+  cancelInterceptionInspection,
   catalogError,
   catalogRevision,
   catalogSources,
@@ -803,6 +584,7 @@ import {
   engineLogLevel,
   engineLogs,
   fetchExtensionDetail,
+  inspectExtensionDetail,
   refreshCatalog,
   refreshEngineLogs,
   refreshInterception,
@@ -821,15 +603,20 @@ import {
 } from '@/assembly/fivegpn/interception'
 import { catalogInstallState } from '@/assembly/fivegpn/catalog'
 import SegmentedControl, { type SegmentOption } from '@/components/common/SegmentedControl.vue'
-import DialogWrapper from '@/components/common/DialogWrapper.vue'
+import FiveGPNExtensionReviewDialog from '@/components/fivegpn/FiveGPNExtensionReviewDialog.vue'
 import FiveGPNExtensionSettingsEditor from '@/components/fivegpn/FiveGPNExtensionSettingsEditor.vue'
 import { usePaddingForViews } from '@/composables/paddingViews'
 import {
   findFlatLocationSettings,
   invalidFlatLocationKeys,
 } from '@/helper/fivegpnExtensionSettings'
+import {
+  extensionReviewChanges,
+  mergeReviewDraft,
+  type FiveGPNReviewChange,
+} from '@/helper/fivegpnExtensionReview'
 import { activeUuid } from '@/store/setup'
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -986,15 +773,27 @@ let actionEpoch = 0
 const importUrl = ref('')
 const importContent = ref('')
 const candidate = ref<FiveGPNCandidate | null>(null)
-const candidatePanel = ref<HTMLElement>()
 const candidateRevision = ref('')
 // Catalog coordinates. A non-null value means confirmation uses applyCatalogUpdate, which changes
 // the extension's source.
 const catalogTarget = ref<{ source: string; entry: string } | null>(null)
-const reviewing = ref(false)
+const reviewCatalogSelection = ref<{ source: string; entry: string } | null>(null)
+const reviewOpen = ref(false)
+const reviewHistoryRestorable = ref(true)
+const reviewMode = ref<'install' | 'update' | 'enable'>('install')
+const reviewLoading = ref(false)
+const reviewSubmitting = ref(false)
+const reviewing = computed(() => reviewLoading.value || reviewSubmitting.value)
 const reviewError = ref('')
 let pageInspectionEpoch = 0
-const candidateConflict = ref('')
+const reviewConflict = ref('')
+const reviewResolvedMessage = ref('')
+const reviewDraft = ref<Record<string, FiveGPNSettingValue>>({})
+const reviewNewDifferenceKeys = ref<string[]>([])
+const reviewBaselineDifferenceKeys = ref<string[]>([])
+const reviewImportSource = ref<{ url?: string; content?: string } | null>(null)
+let reviewActionController: AbortController | undefined
+let reviewActionEpoch = 0
 const updatePreviousDetail = ref<FiveGPNModuleDetail | null>(null)
 
 const editingModuleId = ref('')
@@ -1008,13 +807,6 @@ const settingsConflict = ref('')
 const authorizationModuleId = ref('')
 const authorizationDetail = ref<FiveGPNModuleDetail | null>(null)
 const authorizationRevision = ref('')
-const authorizationError = ref('')
-const authorizationOpen = computed({
-  get: () => Boolean(authorizationDetail.value),
-  set: (open) => {
-    if (!open) closeAuthorization()
-  },
-})
 
 const enabledCount = computed(() => (data.value?.modules ?? []).filter((m) => m.enabled).length)
 
@@ -1051,7 +843,15 @@ const run = async (action: () => Promise<string>) => {
   return { error, stale: false }
 }
 
-const formatRoutingRule = (rule: FiveGPNRoutingRule) => JSON.stringify(rule)
+const runReviewAction = async (action: () => Promise<string>) => {
+  const epoch = ++reviewActionEpoch
+  const uuid = activeUuid.value
+  busy.value = true
+  const error = await action()
+  if (epoch !== reviewActionEpoch || uuid !== activeUuid.value) return { error: '', stale: true }
+  busy.value = false
+  return { error, stale: false }
+}
 
 const runtimeBadgeClass = (module: FiveGPNModuleSummary) => {
   if (module.runtime.ready) return 'badge-success'
@@ -1085,7 +885,6 @@ const closeAuthorization = () => {
   authorizationModuleId.value = ''
   authorizationDetail.value = null
   authorizationRevision.value = ''
-  authorizationError.value = ''
 }
 
 const requiredSettingMissing = (detail: FiveGPNModuleDetail) =>
@@ -1123,39 +922,7 @@ const requestToggle = async (module: FiveGPNModuleSummary, event: Event) => {
     await run(() => setExtensionEnabled(module.id, false))
     return
   }
-  const uuid = activeUuid.value
-  busy.value = true
-  authorizationError.value = ''
-  const result = await fetchExtensionDetail(module.id)
-  if (uuid !== activeUuid.value) return
-  busy.value = false
-  if (!result.detail) {
-    report(result.error)
-    return
-  }
-  authorizationModuleId.value = module.id
-  authorizationDetail.value = result.detail
-  authorizationRevision.value = result.revision ?? ''
-}
-
-const confirmEnable = async () => {
-  if (
-    !authorizationModuleId.value ||
-    !authorizationRevision.value ||
-    authorizationBlockingReason.value
-  ) {
-    return
-  }
-  const result = await run(() =>
-    setExtensionEnabled(authorizationModuleId.value, true, authorizationRevision.value),
-  )
-  if (result.stale) return
-  if (result.error) {
-    authorizationError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
-    return
-  }
-  closeAuthorization()
-  startInterceptionLifecyclePolling()
+  await openEnableReview(module.id)
 }
 
 const retryCertificate = async () => {
@@ -1250,182 +1017,355 @@ const remove = (module: FiveGPNModuleSummary) => {
 const source = () =>
   importUrl.value.trim() ? { url: importUrl.value.trim() } : { content: importContent.value }
 
-const review = async () => {
-  const epoch = ++pageInspectionEpoch
-  const uuid = activeUuid.value
-  reviewing.value = true
-  reviewError.value = ''
-  candidate.value = null
-  candidateRevision.value = ''
-  catalogTarget.value = null
-  updatePreviousDetail.value = null
-  candidateConflict.value = ''
-  const result = await reviewExtension(source())
-  if (epoch !== pageInspectionEpoch || uuid !== activeUuid.value) return
-  candidate.value = result.candidate ?? null
-  candidateRevision.value = result.revision ?? ''
-  reviewError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
-  if (result.candidate?.installed) {
-    candidate.value = null
-    candidateRevision.value = ''
-    reviewError.value = t('fivegpnMarketplaceUpdateOnly')
-  }
-  reviewing.value = false
-  if (candidate.value) await focusCandidate()
-}
-
-/**
- * Review catalog entries in the same candidate dialog.
- *
- * The server returns the manifest URL, which is placed into the import field so installation uses
- * the same source that review read and the operator can see it before confirmation. Reconstructing
- * a URL from the list could make the reviewed and installed resources differ in principle.
- *
- * If this ID is already installed, retain the entry coordinates. Confirmation then uses
- * applyCatalogUpdate to change the extension source to this entry's URL. That is what selecting the
- * row means, but because it changes a source, the confirmation button says Update rather than Install.
- */
-const reviewEntry = async (sourceId: string, entryId: string) => {
-  const epoch = ++pageInspectionEpoch
-  const uuid = activeUuid.value
-  reviewing.value = true
-  reviewError.value = ''
-  candidate.value = null
-  candidateRevision.value = ''
-  catalogTarget.value = null
-  updatePreviousDetail.value = null
-  candidateConflict.value = ''
-  const result = await reviewCatalogEntry(sourceId, entryId)
-  if (epoch !== pageInspectionEpoch || uuid !== activeUuid.value) return
-  candidate.value = result.candidate ?? null
-  candidateRevision.value = result.revision ?? ''
-  reviewError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
-  if (result.url) {
-    importUrl.value = result.url
-    importContent.value = ''
-  }
-  if (result.candidate?.installed) {
-    catalogTarget.value = { source: sourceId, entry: entryId }
-    const current = await fetchExtensionDetail(result.candidate.detail.id)
-    if (epoch !== pageInspectionEpoch || uuid !== activeUuid.value) return
-    if (!current.revision || current.revision !== result.revision) {
-      candidate.value = null
-      candidateRevision.value = ''
-      reviewError.value = t('fivegpnConflict')
-    } else {
-      updatePreviousDetail.value = current.detail ?? null
-      reviewError.value ||= current.error
-    }
-  }
-  reviewing.value = false
-  if (candidate.value) await focusCandidate()
-}
-
-const focusCandidate = async () => {
-  await nextTick()
-  candidatePanel.value?.focus({ preventScroll: true })
-  candidatePanel.value?.scrollIntoView({ block: 'start' })
-}
-
-// Cancel must also clear catalog coordinates, or the next Install would reuse the previous entry and
-// follow the update path.
-const clearReview = () => {
-  candidate.value = null
-  candidateRevision.value = ''
-  catalogTarget.value = null
-  updatePreviousDetail.value = null
-  candidateConflict.value = ''
-}
-
-const isUpdateCandidate = computed(() => Boolean(candidate.value && catalogTarget.value))
+const reviewDifferenceKey = (change: FiveGPNReviewChange) => JSON.stringify(change)
+const candidateChanges = computed(() =>
+  extensionReviewChanges(
+    updatePreviousDetail.value,
+    candidate.value?.detail ?? null,
+    candidate.value?.digest,
+  ),
+)
+const reviewDetail = computed(() =>
+  reviewMode.value === 'enable' ? authorizationDetail.value : (candidate.value?.detail ?? null),
+)
+const reviewExecutionPosition = computed(() => {
+  const id = reviewDetail.value?.id
+  const order = data.value?.execution_order ?? []
+  if (!id) return '—'
+  const index = order.indexOf(id)
+  const position = index >= 0 ? index + 1 : order.length + 1
+  const total = index >= 0 ? order.length : order.length + 1
+  return `${position} / ${total}`
+})
+const reviewDigest = computed(() =>
+  reviewMode.value === 'enable'
+    ? (authorizationDetail.value?.snapshot_digest ?? '')
+    : (candidate.value?.digest ?? ''),
+)
+const reviewDigestKind = computed<'snapshot' | 'manifest'>(() => 'snapshot')
+const reviewDigestDifferenceKey = (digest: string) => `digest:${digest}`
+const reviewDigestIsNew = computed(() =>
+  reviewNewDifferenceKeys.value.includes(reviewDigestDifferenceKey(reviewDigest.value)),
+)
+const reviewEgressDifferenceKey = () => `egress:${reviewDetail.value?.egress_group ?? ''}`
+const reviewCaptureDNSDifferenceKey = () => `capture-dns:${reviewDetail.value?.capture_dns ?? ''}`
+const reviewPositionDifferenceKey = () => `execution-position:${reviewExecutionPosition.value}`
+const reviewEgressIsNew = computed(() =>
+  reviewNewDifferenceKeys.value.includes(reviewEgressDifferenceKey()),
+)
+const reviewBindingIsNew = computed(
+  () =>
+    reviewNewDifferenceKeys.value.includes(reviewCaptureDNSDifferenceKey()) ||
+    reviewNewDifferenceKeys.value.includes(reviewPositionDifferenceKey()),
+)
 const updateModule = computed(() =>
   (data.value?.modules ?? []).find((module) => module.id === candidate.value?.detail.id),
 )
-const updateActionLabel = computed(() =>
-  updateModule.value?.enabled ? t('fivegpnUpdateAndKeepEnabled') : t('fivegpnApplyUpdate'),
-)
-const sameJSON = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
-const candidateDiff = computed(() => {
-  const before = updatePreviousDetail.value
-  const after = candidate.value?.detail
-  if (!before || !after) return []
-  const changes: string[] = []
-  const beforeHosts = new Set(before.capture_hosts)
-  const afterHosts = new Set(after.capture_hosts)
-  const addedHosts = after.capture_hosts.filter((host) => !beforeHosts.has(host))
-  const removedHosts = before.capture_hosts.filter((host) => !afterHosts.has(host))
-  if (addedHosts.length) changes.push(t('fivegpnDiffHostsAdded', { hosts: addedHosts.join(', ') }))
-  if (removedHosts.length)
-    changes.push(t('fivegpnDiffHostsRemoved', { hosts: removedHosts.join(', ') }))
-  if (!sameJSON(before.routing_rules ?? [], after.routing_rules ?? [])) {
-    changes.push(
-      t('fivegpnDiffRoutingRules', {
-        before: before.routing_rules?.length ?? 0,
-        after: after.routing_rules?.length ?? 0,
-      }),
-    )
+const reviewActionLabel = computed(() => {
+  if (reviewMode.value === 'enable') return t('fivegpnAuthorizeAndEnable')
+  if (reviewMode.value === 'update') {
+    return updateModule.value?.enabled ? t('fivegpnUpdateAndKeepEnabled') : t('fivegpnApplyUpdate')
   }
-  if (before.network !== after.network) changes.push(t('fivegpnDiffNetworkGrant'))
-  if (before.persistent_storage !== after.persistent_storage) changes.push(t('fivegpnDiffStorage'))
-  if (before.egress_group_required !== after.egress_group_required) {
-    changes.push(t('fivegpnDiffEgressRequirement'))
-  }
-  const oldSettings = new Map((before.settings ?? []).map((setting) => [setting.key, setting]))
-  const newSettings = new Map((after.settings ?? []).map((setting) => [setting.key, setting]))
-  const addedSettings = [...newSettings.keys()].filter((key) => !oldSettings.has(key))
-  const removedSettings = [...oldSettings.keys()].filter((key) => !newSettings.has(key))
-  const changedSettings = [...newSettings].filter(
-    ([key, setting]) => oldSettings.has(key) && oldSettings.get(key)?.type !== setting.type,
-  )
-  if (addedSettings.length) {
-    changes.push(t('fivegpnDiffSettingsAdded', { settings: addedSettings.join(', ') }))
-  }
-  if (removedSettings.length) {
-    changes.push(t('fivegpnDiffSettingsRemoved', { settings: removedSettings.join(', ') }))
-  }
-  if (changedSettings.length) {
-    changes.push(
-      t('fivegpnDiffSettingsChanged', { settings: changedSettings.map(([key]) => key).join(', ') }),
-    )
-  }
-  if (!changes.length) changes.push(t('fivegpnDiffCodeOnly'))
-  return changes
+  return t('fivegpnInstall')
 })
 
-const install = async (values?: Record<string, FiveGPNSettingValue>) => {
-  const reviewed = candidate.value
-  if (!reviewed || !candidateRevision.value) return
-  const fromCatalog = catalogTarget.value
-  candidateConflict.value = ''
-  const result = await run(() => {
-    if (fromCatalog) {
-      return applyCatalogUpdate(
-        fromCatalog.source,
-        fromCatalog.entry,
-        reviewed,
-        candidateRevision.value,
-        values,
-      )
-    }
-    return installReviewed(reviewed, source(), candidateRevision.value)
-  })
-  if (result.stale) return
-  if (result.error === 'conflict') {
-    candidateConflict.value = t('fivegpnUpdateConflictPreserved')
-    return
-  }
-  if (result.error) return
+const resetReviewData = () => {
   candidate.value = null
   candidateRevision.value = ''
   catalogTarget.value = null
-  importUrl.value = ''
-  importContent.value = ''
-  await refreshCatalog()
+  reviewCatalogSelection.value = null
+  reviewImportSource.value = null
+  updatePreviousDetail.value = null
+  reviewDraft.value = {}
+  reviewConflict.value = ''
+  reviewResolvedMessage.value = ''
+  reviewError.value = ''
+  reviewNewDifferenceKeys.value = []
+  reviewBaselineDifferenceKeys.value = []
+  reviewLoading.value = false
+  reviewSubmitting.value = false
+  closeAuthorization()
 }
 
-onMounted(async () => {
-  await Promise.all([refreshInterception(), refreshCatalog()])
-  startInterceptionLifecyclePolling()
+const clearReview = () => {
+  reviewHistoryRestorable.value = false
+  pageInspectionEpoch++
+  reviewActionEpoch++
+  cancelInterceptionInspection()
+  reviewActionController?.abort()
+  reviewActionController = undefined
+  if (reviewSubmitting.value) busy.value = false
+  reviewOpen.value = false
+  resetReviewData()
+}
+
+const closeReview = () => {
+  const cancelledBeforeDetail = reviewLoading.value && !reviewDetail.value
+  pageInspectionEpoch++
+  reviewActionEpoch++
+  cancelInterceptionInspection()
+  reviewActionController?.abort()
+  reviewActionController = undefined
+  if (reviewSubmitting.value) busy.value = false
+  reviewLoading.value = false
+  reviewSubmitting.value = false
+  if (cancelledBeforeDetail) reviewError.value = t('fivegpnReviewLoadCancelled')
+  reviewOpen.value = false
+}
+
+const beginReview = (mode: 'install' | 'update' | 'enable') => {
+  pageInspectionEpoch++
+  cancelInterceptionInspection()
+  reviewActionController?.abort()
+  resetReviewData()
+  reviewHistoryRestorable.value = true
+  reviewMode.value = mode
+  reviewOpen.value = true
+  reviewLoading.value = true
+  return { epoch: pageInspectionEpoch, uuid: activeUuid.value }
+}
+
+const inspectionIsStale = (context: { epoch: number; uuid: string }) =>
+  context.epoch !== pageInspectionEpoch || context.uuid !== activeUuid.value || !reviewOpen.value
+
+const setDifferenceState = (changes: FiveGPNReviewChange[], reloading: boolean, digest = '') => {
+  const keys = [
+    ...changes.map(reviewDifferenceKey),
+    ...(digest ? [reviewDigestDifferenceKey(digest)] : []),
+    reviewEgressDifferenceKey(),
+    reviewCaptureDNSDifferenceKey(),
+    reviewPositionDifferenceKey(),
+  ]
+  reviewNewDifferenceKeys.value = reloading
+    ? keys.filter((key) => !reviewBaselineDifferenceKeys.value.includes(key))
+    : []
+  reviewBaselineDifferenceKeys.value = keys
+}
+
+const loadInstallReview = async (reloading = false) => {
+  const request = reviewImportSource.value
+  if (!request) return
+  const context = { epoch: ++pageInspectionEpoch, uuid: activeUuid.value }
+  reviewLoading.value = true
+  reviewError.value = ''
+  const result = await reviewExtension(request)
+  if (inspectionIsStale(context)) return
+  reviewLoading.value = false
+  if (result.error || !result.candidate || !result.revision) {
+    reviewError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
+    return
+  }
+  if (result.candidate.installed) {
+    reviewError.value = t('fivegpnMarketplaceUpdateOnly')
+    return
+  }
+  candidate.value = result.candidate
+  candidateRevision.value = result.revision
+  reviewDraft.value = mergeReviewDraft(result.candidate.detail.settings ?? [], reviewDraft.value)
+  setDifferenceState([], reloading, result.candidate.digest)
+  if (reloading) reviewConflict.value = ''
+}
+
+const review = async () => {
+  if (busy.value || sourceBusy.value) return
+  const request = source()
+  beginReview('install')
+  reviewImportSource.value = request
+  await loadInstallReview()
+}
+
+const loadCatalogReview = async (reloading = false) => {
+  const selection = reviewCatalogSelection.value
+  if (!selection) return
+  const previousDraft = { ...reviewDraft.value }
+  const context = { epoch: ++pageInspectionEpoch, uuid: activeUuid.value }
+  reviewLoading.value = true
+  reviewError.value = ''
+  const result = await reviewCatalogEntry(selection.source, selection.entry)
+  if (inspectionIsStale(context)) return
+  if (result.error || !result.candidate || !result.revision) {
+    reviewLoading.value = false
+    reviewError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
+    return
+  }
+
+  let previousDetail: FiveGPNModuleDetail | null = null
+  if (result.candidate.installed) {
+    if (!result.installedDetail) {
+      reviewLoading.value = false
+      reviewError.value = t('fivegpnConflict')
+      return
+    }
+    previousDetail = result.installedDetail
+  }
+
+  candidate.value = result.candidate
+  candidateRevision.value = result.revision
+  updatePreviousDetail.value = previousDetail
+  reviewMode.value = previousDetail ? 'update' : 'install'
+  catalogTarget.value = previousDetail ? selection : null
+  if (result.url) reviewImportSource.value = { url: result.url }
+  reviewDraft.value = mergeReviewDraft(result.candidate.detail.settings ?? [], previousDraft)
+  setDifferenceState(
+    extensionReviewChanges(previousDetail, result.candidate.detail, result.candidate.digest),
+    reloading,
+    result.candidate.digest,
+  )
+  if (result.candidate.installed === result.candidate.digest) {
+    reviewConflict.value = ''
+    reviewResolvedMessage.value = t('fivegpnReviewAlreadyCurrent')
+    reviewLoading.value = false
+    await refreshCatalog()
+    return
+  }
+  if (reloading) reviewConflict.value = ''
+  reviewLoading.value = false
+}
+
+const reviewEntry = async (sourceId: string, entryId: string, isUpdate = false) => {
+  if (busy.value || sourceBusy.value) return
+  beginReview(isUpdate ? 'update' : 'install')
+  reviewCatalogSelection.value = { source: sourceId, entry: entryId }
+  await loadCatalogReview()
+}
+
+const loadEnableReview = async (reloading = false) => {
+  if (!authorizationModuleId.value) return
+  const context = { epoch: ++pageInspectionEpoch, uuid: activeUuid.value }
+  reviewLoading.value = true
+  reviewError.value = ''
+  const result = await inspectExtensionDetail(authorizationModuleId.value)
+  if (inspectionIsStale(context)) return
+  reviewLoading.value = false
+  if (!result.detail || !result.revision) {
+    reviewError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
+    return
+  }
+  authorizationDetail.value = result.detail
+  authorizationRevision.value = result.revision
+  reviewDraft.value = mergeReviewDraft(result.detail.settings ?? [], reviewDraft.value)
+  setDifferenceState([], reloading, result.detail.snapshot_digest)
+  if (result.detail.enabled) {
+    reviewConflict.value = ''
+    reviewResolvedMessage.value = t('fivegpnReviewAlreadyEnabled')
+    return
+  }
+  if (reloading) reviewConflict.value = ''
+}
+
+const openEnableReview = async (id: string) => {
+  beginReview('enable')
+  authorizationModuleId.value = id
+  await loadEnableReview()
+}
+
+const retryReview = async (reloading = false) => {
+  if (reviewMode.value === 'enable') {
+    await loadEnableReview(reloading)
+  } else if (reviewCatalogSelection.value) {
+    await loadCatalogReview(reloading)
+  } else {
+    await loadInstallReview(reloading)
+  }
+}
+
+const reloadReview = () => retryReview(true)
+
+const confirmReview = async (values: Record<string, FiveGPNSettingValue> = reviewDraft.value) => {
+  if (
+    busy.value ||
+    sourceBusy.value ||
+    reviewConflict.value ||
+    reviewLoading.value ||
+    reviewSubmitting.value
+  )
+    return
+  reviewError.value = ''
+  reviewActionController?.abort()
+  const actionController = new AbortController()
+  reviewActionController = actionController
+  reviewSubmitting.value = true
+
+  let action: (() => Promise<string>) | undefined
+  if (reviewMode.value === 'enable') {
+    if (
+      !authorizationModuleId.value ||
+      !authorizationRevision.value ||
+      authorizationBlockingReason.value
+    ) {
+      reviewSubmitting.value = false
+      if (reviewActionController === actionController) reviewActionController = undefined
+      return
+    }
+    action = () =>
+      setExtensionEnabled(
+        authorizationModuleId.value,
+        true,
+        authorizationRevision.value,
+        actionController.signal,
+      )
+  } else {
+    const reviewed = candidate.value
+    const revision = candidateRevision.value
+    const request = reviewImportSource.value
+    if (!reviewed || !revision || !request) {
+      reviewSubmitting.value = false
+      if (reviewActionController === actionController) reviewActionController = undefined
+      return
+    }
+    const fromCatalog = catalogTarget.value
+    action = () =>
+      fromCatalog
+        ? applyCatalogUpdate(
+            fromCatalog.source,
+            fromCatalog.entry,
+            reviewed,
+            revision,
+            values,
+            actionController.signal,
+          )
+        : installReviewed(reviewed, request, revision, actionController.signal)
+  }
+
+  const result = await runReviewAction(action)
+  if (reviewActionController === actionController) {
+    reviewSubmitting.value = false
+    reviewActionController = undefined
+  }
+  if (result.stale) return
+  if (result.error === 'conflict') {
+    reviewConflict.value = t('fivegpnReviewConflictPreserved')
+    return
+  }
+  if (result.error) {
+    reviewError.value = result.error
+    return
+  }
+
+  const completedMode = reviewMode.value
+  report('')
+  reviewResolvedMessage.value = t('fivegpnSaved')
+  reviewOpen.value = false
+  if (completedMode === 'enable') startInterceptionLifecyclePolling()
+  else {
+    importUrl.value = ''
+    importContent.value = ''
+    await refreshCatalog()
+  }
+}
+
+let pageMounted = false
+
+const loadPageData = async (uuid = activeUuid.value) => {
+  const catalogLoad = refreshCatalog()
+  await refreshInterception()
+  if (pageMounted && uuid === activeUuid.value) startInterceptionLifecyclePolling()
+  await catalogLoad
+}
+
+onMounted(() => {
+  pageMounted = true
+  void loadPageData()
 })
 
 watch(activeUuid, async (uuid, previous) => {
@@ -1433,19 +1373,17 @@ watch(activeUuid, async (uuid, previous) => {
   actionEpoch++
   pageInspectionEpoch++
   busy.value = false
-  reviewing.value = false
-  closeAuthorization()
   closeSettings()
   clearReview()
-  reviewError.value = ''
   stopInterceptionLifecyclePolling()
   if (!uuid) return
   await Promise.resolve()
-  await Promise.all([refreshInterception(), refreshCatalog()])
-  startInterceptionLifecyclePolling()
+  await loadPageData(uuid)
 })
 
 onUnmounted(() => {
+  pageMounted = false
+  clearReview()
   stopInterceptionLifecyclePolling()
 })
 </script>

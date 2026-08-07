@@ -1,4 +1,13 @@
-import { onBeforeUnmount, onMounted } from 'vue'
+import {
+  onBeforeUnmount,
+  onMounted,
+  toValue,
+  watch,
+  type MaybeRefOrGetter,
+  type WatchStopHandle,
+} from 'vue'
+
+let activeViewportConsumers = 0
 
 // Keep the app sized to the *visual* viewport (the area not covered by the
 // on-screen keyboard) by publishing its height as the `--app-height` CSS var.
@@ -11,7 +20,10 @@ import { onBeforeUnmount, onMounted } from 'vue'
 // pinning the page scroll, makes the whole layout shrink to the visible region
 // so normal flex layout keeps everything above the keyboard. On Android/Chromium
 // `visualViewport` behaves the same, so this is a single cross-platform path.
-export const useViewportHeight = () => {
+export const useViewportHeight = (enabled?: MaybeRefOrGetter<boolean>) => {
+  let tracking = false
+  let stopEnabledWatch: WatchStopHandle | undefined
+
   const update = () => {
     const viewport = window.visualViewport
     const height = viewport ? viewport.height : window.innerHeight
@@ -22,21 +34,44 @@ export const useViewportHeight = () => {
     if (viewport && viewport.offsetTop !== 0) window.scrollTo(0, 0)
   }
 
-  onMounted(() => {
+  const start = () => {
+    if (tracking) return
+    tracking = true
+    activeViewportConsumers++
     update()
     const viewport = window.visualViewport
     viewport?.addEventListener('resize', update)
     viewport?.addEventListener('scroll', update)
     window.addEventListener('resize', update)
-  })
+  }
 
-  onBeforeUnmount(() => {
+  const stop = () => {
+    if (!tracking) return
+    tracking = false
     const viewport = window.visualViewport
     viewport?.removeEventListener('resize', update)
     viewport?.removeEventListener('scroll', update)
     window.removeEventListener('resize', update)
-    // Stop pinning the height so the rest of the app falls back to `100dvh`;
-    // this tracking is only wanted while the terminal is open.
-    document.documentElement.style.removeProperty('--app-height')
+    activeViewportConsumers = Math.max(0, activeViewportConsumers - 1)
+    if (activeViewportConsumers === 0) {
+      document.documentElement.style.removeProperty('--app-height')
+    }
+  }
+
+  onMounted(() => {
+    if (enabled === undefined) {
+      start()
+      return
+    }
+    stopEnabledWatch = watch(
+      () => toValue(enabled),
+      (value) => (value ? start() : stop()),
+      { immediate: true },
+    )
+  })
+
+  onBeforeUnmount(() => {
+    stopEnabledWatch?.()
+    stop()
   })
 }
