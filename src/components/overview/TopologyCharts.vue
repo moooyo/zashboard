@@ -215,7 +215,7 @@ const options = computed<EChartOption>(() => ({
       },
       label: {
         color: colors.baseContent,
-        fontSize: isMiddleScreen.value ? 10 : 12,
+        fontSize: isMiddleScreen.value ? 11 : 12,
         formatter: (params: { name: string }) => {
           const maxLength = isFullScreen.value ? 45 : isMiddleScreen.value ? 20 : 30
           return params.name.length > maxLength

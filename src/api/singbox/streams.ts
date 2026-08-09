@@ -1,6 +1,8 @@
 // Reconnecting runner for sing-box gRPC-Web server-streaming RPCs.
 // Mirrors the resilience of ReconnectingWebSocket used by the Clash API path.
 
+import { captureBackendSession } from '@/store/setup'
+
 export interface StreamHandle {
   close: () => void
 }
@@ -10,6 +12,7 @@ export const runStream = <T>(
   onMessage: (msg: T) => void,
   options: { onError?: (err: unknown) => void; resetBackoffOnMessage?: boolean } = {},
 ): StreamHandle => {
+  const session = captureBackendSession()
   let controller: AbortController | null = null
   let closed = false
   let attempt = 0
@@ -34,12 +37,14 @@ export const runStream = <T>(
     }
   }
 
+  const close = () => {
+    session?.signal.removeEventListener('abort', close)
+    closed = true
+    controller?.abort()
+  }
+  session?.signal.addEventListener('abort', close, { once: true })
+
   void loop()
 
-  return {
-    close: () => {
-      closed = true
-      controller?.abort()
-    },
-  }
+  return { close }
 }

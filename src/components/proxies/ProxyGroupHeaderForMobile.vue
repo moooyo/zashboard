@@ -7,7 +7,7 @@
       {{ proxyGroup.name }}
     </div>
     <div
-      class="text-base-content/40 flex min-w-0 items-center gap-2 truncate text-[11px]"
+      class="text-caption text-base-content/40 flex min-w-0 items-center gap-2 truncate"
       :class="proxyGroup.icon && 'pr-12'"
     >
       <span class="shrink-0 tracking-wider whitespace-nowrap uppercase tabular-nums">
@@ -62,7 +62,7 @@ import { prettyBytesHelper } from '@/helper/utils'
 import { getConnectionChains } from '@/helper'
 import { activeConnections } from '@/store/connections'
 import { manageHiddenGroup, twoColumnProxyGroup } from '@/store/settings'
-import { twMerge } from 'tailwind-merge'
+import { twMerge } from '@/lib/cn'
 import { computed } from 'vue'
 import VisibilityToggle from '../common/VisibilityToggle.vue'
 import LatencyTag from './LatencyTag.vue'

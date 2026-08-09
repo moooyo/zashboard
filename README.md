@@ -26,25 +26,20 @@ You can download the zashboard files here:
 
 > All builds include sing-box native API support.
 
-release:
+The release has one deterministic MiSans bundle. Alternate CDN, system-font,
+and per-font artifacts are not published.
 
-- [dist.zip (7.81 MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip) – Includes better font-loading experience.
-- [dist-no-fonts.zip (1.44 MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-no-fonts.zip) – No fonts included, uses system fonts only.
-- [dist-cdn-fonts.zip (1.44 MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip) – Fonts loaded from unpkg.com, If you have trouble connecting to unpkg.com, **you may experience slow page loading**.
-- [dist-firasans-only.zip (1.67 MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-firasans-only.zip) – Only with FiraSans Font
-- [dist-misans-only.zip (3.54 MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-misans-only.zip) – Only with MiSans Font
-- [dist-pingfang-only.zip (3.25 MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-pingfang-only.zip) – Only with PingFang Font
-- [dist-sarasa-only.zip (3.67 MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-sarasa-only.zip) – Only with Sarasa Font
+The 5gpn fork publishes only from a strict
+`vX.Y.Z-monolith.N` tag whose commit is reachable from
+`feat/5gpn-console`; branch/manual dispatch cannot create a release. Repository
+administration must prevent release-tag updates and deletion and keep immutable
+releases enabled. The inherited upstream deployment workflow is hard-gated to
+`Zephyruso/zashboard`, so this fork cannot publish the upstream CNAME or image
+namespace.
 
-dev:
-
-- [gh-pages.zip (7.81 MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip)
-- [gh-pages-no-fonts.zip (1.44 MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages-no-fonts.zip)
-- [gh-pages-cdn-fonts.zip (1.44 MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages-cdn-fonts.zip)
-- [gh-pages-firasans-only.zip (1.67 MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages-firasans-only.zip)
-- [gh-pages-misans-only.zip (3.54 MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages-misans-only.zip)
-- [gh-pages-pingfang-only.zip (3.25 MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages-pingfang-only.zip)
-- [gh-pages-sarasa-only.zip (3.67 MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages-sarasa-only.zip)
+- [5gpn monolith releases](https://github.com/moooyo/zashboard/releases)
+- [upstream dist.zip](https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip)
+- [upstream gh-pages.zip](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip)
 
 ## **Docker Setup**
 
@@ -85,10 +80,13 @@ page's serving origin exactly. A setup link cannot send its Bearer secret to ano
 
 This is a one-time handoff. Zashboard synchronously removes the complete fragment query with
 `history.replaceState` before probing the controller. Invalid links and failed probes do not write
-the backend or its secret to `localStorage`. After a successful probe, the backend and secret are
-stored in the browser's normal backend list and the setup history entry is replaced. Reloading or
-going back cannot consume the link again. The same rules apply when a link opens in an existing
-tab or installed PWA: it is captured and scrubbed before vue-router handles the hash navigation.
+the backend or its secret to browser storage. After a successful probe, connection metadata is
+stored in the normal backend list, while the controller secret is kept in `sessionStorage` for that
+tab. The setup fragment never opts into persistent credential storage; the operator can do that
+later with the explicit **Remember controller secret** control. The setup history entry is replaced,
+so reloading or going back cannot consume the link again. The same rules apply when a link opens in
+an existing tab or installed PWA: it is captured and scrubbed before vue-router handles the hash
+navigation.
 
 Credentials in the outer URL query (for example `/ui/?secret=...#/setup`) or on any route other
 than `/setup` are rejected and scrubbed without being used. Never generate the deprecated outer

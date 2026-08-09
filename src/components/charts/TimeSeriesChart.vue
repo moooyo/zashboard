@@ -62,7 +62,7 @@ const options = computed<EChartOption>(() => {
       textStyle: {
         color: colors.baseContent,
         fontFamily: fontFamily.value,
-        fontSize: 10,
+        fontSize: 11,
       },
     },
     grid: isSeconds
@@ -95,7 +95,7 @@ const options = computed<EChartOption>(() => {
             show: true,
             color: colors.baseContent,
             fontFamily: fontFamily.value,
-            fontSize: 10,
+            fontSize: 11,
             formatter: (value: number) => (value < 0 ? '' : `${Math.round(value)} s`),
           },
         }
@@ -129,7 +129,7 @@ const options = computed<EChartOption>(() => {
         formatter: props.labelFormatter,
         color: colors.baseContent,
         fontFamily: fontFamily.value,
-        fontSize: 10,
+        fontSize: 11,
         ...(isSeconds ? {} : { align: 'left', padding: [0, 0, 0, -35] }),
       },
     },

@@ -9,9 +9,9 @@ name: 5gpn-release
 # site and images from our tree. This workflow builds the one artifact the 5gpn
 # installer pins — dist.zip — and publishes it as a prerelease. Nothing else.
 #
-# FONT is left unset on purpose: vite.config.ts defaults it to 'all', which is
-# the variant upstream ships as the unsuffixed dist.zip, and the installer pins
-# that name.
+# The fork ships one deterministic MiSans bundle. There are no alternate font
+# variants, so the installer can pin the single dist.zip without a parallel
+# release matrix.
 #
 # The tag pattern tracks the -monolith. series, not the -overlay. one it
 # replaced. The overlay was the three-process arrangement; a bundle built from
@@ -24,7 +24,10 @@ on:
   push:
     tags:
       - 'v*-monolith.*'
-  workflow_dispatch:
+
+concurrency:
+  group: 5gpn-console-release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -33,11 +36,37 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+      - name: Validate immutable tag provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          number='(0|[1-9][0-9]*)'
+          [[ "$tag" =~ ^v${number}\.${number}\.${number}-monolith\.[1-9][0-9]*$ ]] || {
+            echo "Unsupported 5gpn Console release tag: $tag" >&2
+            exit 1
+          }
+          git fetch --force --no-tags origin \
+            refs/heads/feat/5gpn-console:refs/remotes/origin/feat/5gpn-console
+          git fetch --force origin "refs/tags/$tag:refs/tags/$tag"
+          tagged_commit="$(git rev-parse "refs/tags/$tag^{commit}")"
+          event_commit="$(git rev-parse "${GITHUB_SHA}^{commit}")"
+          [[ "$tagged_commit" == "$event_commit" ]] || {
+            echo "Tag moved after its push event: $tagged_commit != $event_commit" >&2
+            exit 1
+          }
+          git merge-base --is-ancestor \
+            "$event_commit" refs/remotes/origin/feat/5gpn-console || {
+            echo "Tag $tag is not reachable from feat/5gpn-console" >&2
+            exit 1
+          }
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
 
       - name: Install and build
         run: |
@@ -54,12 +83,61 @@ jobs:
           zip -qr dist.zip dist
           sha256sum dist.zip | tee dist.zip.sha256
 
-      - name: Publish prerelease
-        uses: softprops/action-gh-release@v3
+      - name: Revalidate release identity immediately before publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          tagged_commit="$(git rev-parse "refs/tags/${GITHUB_REF_NAME}^{commit}")"
+          event_commit="$(git rev-parse "${GITHUB_SHA}^{commit}")"
+          [[ "$tagged_commit" == "$event_commit" ]] || {
+            echo "Tag moved before publication: $tagged_commit != $event_commit" >&2
+            exit 1
+          }
+          api_url="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/releases/tags/${GITHUB_REF_NAME}"
+          status="$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$api_url")"
+          case "$status" in
+            404) ;;
+            200) echo "Release ${GITHUB_REF_NAME} already exists; refusing overwrite." >&2; exit 1 ;;
+            *) echo "Release existence check returned HTTP $status." >&2; exit 1 ;;
+          esac
+
+      - name: Create prerelease draft and upload assets
+        id: release_draft
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           files: |
             dist.zip
             dist.zip.sha256
           tag_name: ${{ github.ref_name }}
+          draft: true
           prerelease: true
+          make_latest: false
           generate_release_notes: true
+          fail_on_unmatched_files: true
+
+      - name: Publish and verify immutable prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ steps.release_draft.outputs.id }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_ID" =~ ^[1-9][0-9]*$ ]]
+          gh api --method PATCH \
+            "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+            -F draft=false -F prerelease=true -f make_latest=false >/dev/null
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+            | jq -e --arg tag "$GITHUB_REF_NAME" '
+                .tag_name == $tag and
+                .draft == false and
+                .prerelease == true and
+                .immutable == true and
+                ([.assets[].name] | sort) == ["dist.zip", "dist.zip.sha256"]
+              ' >/dev/null

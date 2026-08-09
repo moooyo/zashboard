@@ -105,7 +105,7 @@
         </div>
         <div
           v-if="row.error"
-          class="text-error pl-[1.125rem] text-xs break-all"
+          class="text-error pl-5 text-xs break-all"
         >
           {{ row.error }}
         </div>

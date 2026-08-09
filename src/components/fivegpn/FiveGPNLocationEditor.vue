@@ -208,11 +208,13 @@ import {
   type FiveGPNLocationSearchResult,
   type FiveGPNLocationValue,
 } from '@/api/fivegpn'
+import { responseStatus } from '@/api/response'
 import {
   hasVisibleMapIntersection,
   locationSearchQueryTooLong,
   tileBatchHasFailure,
 } from '@/helper/fivegpnLocation'
+import { backendSessionIsCurrent, captureBackendSession } from '@/store/setup'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -359,6 +361,7 @@ const searchLocations = async () => {
 
   searchController?.abort()
   const controller = new AbortController()
+  const session = captureBackendSession()
   searchController = controller
   searching.value = true
   searchSubmitted.value = true
@@ -371,8 +374,7 @@ const searchLocations = async () => {
       controller.signal,
     )
     if (controller.signal.aborted || searchController !== controller) return
-    const errorResponse = response as typeof response & { response?: { status?: number } }
-    const status = response.status ?? errorResponse.response?.status
+    const status = response.status
     if (status === 429) {
       searchError.value = 'rate-limit'
       return
@@ -381,8 +383,13 @@ const searchLocations = async () => {
       throw new Error('Location search returned an invalid response')
     }
     searchResults.value = response.data.results.filter(validSearchResult).slice(0, 5)
-  } catch {
-    if (!controller.signal.aborted && searchController === controller) searchError.value = 'generic'
+  } catch (error) {
+    if (!backendSessionIsCurrent(session)) return
+    if (responseStatus(error) === 429) {
+      searchError.value = 'rate-limit'
+    } else if (!controller.signal.aborted && searchController === controller) {
+      searchError.value = 'generic'
+    }
   } finally {
     if (searchController === controller) {
       searching.value = false

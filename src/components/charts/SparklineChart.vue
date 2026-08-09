@@ -79,7 +79,7 @@ const options = computed<EChartOption>(() => {
         ? {
             show: true,
             inside: false,
-            fontSize: 9,
+            fontSize: 11,
             color: colors.baseContent60,
             fontFamily: fontFamily.value,
             margin: 4,

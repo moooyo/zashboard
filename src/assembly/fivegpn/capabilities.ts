@@ -1,5 +1,14 @@
 import { fetchCapabilitiesAPI } from '@/api/fivegpn'
-import { activeUuid } from '@/store/setup'
+import { responseMessage, responseStatus } from '@/api/response'
+import {
+  classifyCapabilityFailure,
+  classifyCapabilityPayload,
+} from '@/helper/fivegpnCapabilities'
+import {
+  activeBackendSession,
+  backendSessionIsCurrent,
+  captureBackendSession,
+} from '@/store/setup'
 import { computed, ref, watch } from 'vue'
 
 /**
@@ -32,7 +41,7 @@ export type FeatureState = 'unknown' | 'supported' | 'unsupported' | 'temporaril
  */
 export const UNDERSTOOD_SCHEMA_VERSIONS: Record<string, number> = {
   '5gpn-dns': 1,
-  '5gpn-interception': 5,
+  '5gpn-interception': 6,
   '5gpn-bot': 1,
 }
 
@@ -63,9 +72,9 @@ export const featureOwner = (key: string) => computed(() => owners.value[key] ??
 /** Schema version advertised by the core, or 0 when unknown. */
 export const featureVersion = (key: string) => computed(() => versions.value[key] ?? 0)
 
-// Request generation and backend UUID form a double guard. The former rejects
-// out-of-order responses from one backend; the latter prevents a late response
-// from the previous backend from contaminating the new backend's state.
+// Request generation and backend session epoch form a double guard. The former
+// rejects out-of-order responses within one session; the latter also covers an
+// in-place host or credential edit that deliberately keeps the same UUID.
 let generation = 0
 let controller: AbortController | undefined
 let retryTimer: ReturnType<typeof setTimeout> | undefined
@@ -96,20 +105,35 @@ const setAll = (state: FeatureState) => {
 const scheduleRetry = () => {
   clearRetry()
   const gen = generation
-  const uuid = activeUuid.value
+  const session = captureBackendSession()
   retryTimer = setTimeout(() => {
-    if (gen !== generation || uuid !== activeUuid.value) return
+    if (gen !== generation || !backendSessionIsCurrent(session)) return
     void initCapabilityDiscovery()
   }, RETRY_DELAY)
+}
+
+const recordCapabilityFailure = (status: number, message: string) => {
+  const failure = classifyCapabilityFailure(status)
+  if (failure === 'unsupported') {
+    setAll('unsupported')
+    return
+  }
+  if (failure === 'authentication') return
+  if (failure === 'temporary') {
+    setAll('temporarily-unavailable')
+    capabilityError.value = message
+    scheduleRetry()
+    return
+  }
+  setAll('unsupported')
+  capabilityError.value = message || `capability discovery rejected with HTTP ${status}`
 }
 
 /**
  * Probe /capabilities once and derive every feature state.
  *
- * Status 0 needs special handling. For paths in ignoreNotificationUrls, the
- * response interceptor in api/http.ts resolves instead of rejecting, so callers
- * receive an AxiosError rather than an AxiosResponse and data is undefined.
- * Always inspect status here before destructuring data.
+ * HTTP failures reject consistently. Expected 404 and transient 5xx responses
+ * are classified from AxiosError instead of being returned as fulfilled values.
  */
 export const initCapabilityDiscovery = async () => {
   clearRetry()
@@ -117,12 +141,12 @@ export const initCapabilityDiscovery = async () => {
   controller = new AbortController()
   const signal = controller.signal
   const gen = ++generation
-  const uuid = activeUuid.value
+  const session = captureBackendSession()
 
   reset()
-  if (!uuid) return
+  if (!session) return
 
-  const stale = () => gen !== generation || uuid !== activeUuid.value
+  const stale = () => gen !== generation || !backendSessionIsCurrent(session)
 
   let status = 0
   let data: Awaited<ReturnType<typeof fetchCapabilitiesAPI>>['data'] | undefined
@@ -132,30 +156,28 @@ export const initCapabilityDiscovery = async () => {
     data = res.data
   } catch (e) {
     if (stale()) return
-    // A network error, abort, or timeout means unavailable, not unsupported.
-    setAll('temporarily-unavailable')
-    capabilityError.value = e instanceof Error ? e.message : String(e)
-    scheduleRetry()
+    status = responseStatus(e)
+    recordCapabilityFailure(
+      status,
+      responseMessage(e) || (e instanceof Error ? e.message : String(e)),
+    )
     return
   }
   if (stale()) return
 
-  if (status === 404) {
-    // This core has no /capabilities endpoint, so it is not a 5gpn core. This is permanent.
-    setAll('unsupported')
-    return
-  }
-  if (status === 401) {
-    // The interceptor already logged out and redirected to setup; do not add state here.
-    return
-  }
-  if (status >= 500 || status === 0) {
-    setAll('temporarily-unavailable')
-    scheduleRetry()
+  if (status < 200 || status >= 300) {
+    recordCapabilityFailure(status, `capability discovery returned HTTP ${status}`)
     return
   }
 
-  const advertised = data?.features ?? {}
+  const classified = classifyCapabilityPayload(data)
+  if (classified.status !== 'compatible') {
+    setAll('unsupported')
+    capabilityError.value = classified.message
+    return
+  }
+
+  const advertised = classified.value.features
   const nextStates: Record<string, FeatureState> = {}
   const nextVersions: Record<string, number> = {}
   const nextOwners: Record<string, string> = {}
@@ -196,7 +218,7 @@ export const stopCapabilityDiscovery = () => {
  * and timeout case but was **never called**. Its only reference was its own
  * retry timer. As a result, states remained empty, featureState returned
  * 'unknown' for every key, featureSupported was always false, renderRoutes
- * filtered out 5gpn-dns and 5gpn-extensions, and SettingsPage omitted the
+ * filtered out the DNS and extension routes, and SettingsPage omitted the
  * interception and bot sections. The entire 5gpn half of the panel was therefore
  * unreachable on every backend, making a connected, traffic-carrying gateway
  * look exactly like upstream zashboard.
@@ -204,12 +226,12 @@ export const stopCapabilityDiscovery = () => {
  * This watcher lives at module scope rather than in a component because the gate
  * consumers (helper's renderRoutes and SettingsPage's menuItems) are outside a
  * component lifecycle. version.ts uses the same pattern. immediate probes on
- * initial load, while UUID changes cover backend switching.
+ * initial load, while session changes cover switching and in-place edits.
  */
 watch(
-  activeUuid,
-  (uuid) => {
-    if (uuid) {
+  activeBackendSession,
+  (session) => {
+    if (session) {
       void initCapabilityDiscovery()
     } else {
       // On logout or backend removal, discard conclusions that belong to that backend.

@@ -7,7 +7,7 @@
       class="text-base-content"
     />
     <span
-      class="text-base-content/40 min-w-0 flex-1 truncate text-[11px] tracking-wider uppercase tabular-nums"
+      class="text-caption text-base-content/40 min-w-0 flex-1 truncate tracking-wider uppercase tabular-nums"
       @mouseenter="checkTruncation"
     >
       {{ proxyGroup.type }} · {{ proxiesCount }}
@@ -44,7 +44,7 @@ import { getConnectionChains } from '@/helper'
 import { activeConnections } from '@/store/connections'
 import { hiddenGroupMap, proxyMap } from '@/assembly/proxies'
 import { manageHiddenGroup, proxyGroupIconMargin, proxyGroupIconSize } from '@/store/settings'
-import { twMerge } from 'tailwind-merge'
+import { twMerge } from '@/lib/cn'
 import { computed } from 'vue'
 import VisibilityToggle from '../common/VisibilityToggle.vue'
 import LatencyTag from './LatencyTag.vue'

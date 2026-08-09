@@ -2,7 +2,6 @@ import type {
   FiveGPNCandidate,
   FiveGPNCatalogSource,
   FiveGPNCatalogSourceView,
-  FiveGPNEngineLog,
   FiveGPNInterception,
   FiveGPNInterceptionEnvelope,
   FiveGPNModuleDetail,
@@ -12,7 +11,6 @@ import {
   applyCatalogUpdateAPI,
   deleteExtensionAPI,
   fetchCatalogAPI,
-  fetchEngineLogsAPI,
   fetchExtensionAPI,
   fetchInterceptionAPI,
   installExtensionAPI,
@@ -27,7 +25,13 @@ import {
   reviewCatalogEntryAPI,
   reviewExtensionAPI,
 } from '@/api/fivegpn'
-import { activeUuid } from '@/store/setup'
+import { responseData, responseMessage, responseStatus } from '@/api/response'
+import { catalogUpdateBody } from '@/helper/catalogReview'
+import {
+  activeBackendSession,
+  backendSessionIsCurrent,
+  captureBackendSession,
+} from '@/store/setup'
 import { ref, watch } from 'vue'
 import { featureSupported } from './capabilities'
 
@@ -50,29 +54,9 @@ export const interceptionError = ref('')
 
 export const interceptionSupported = featureSupported('5gpn-interception')
 
-type ResponseLike<T = unknown> = {
-  status?: number
-  data?: T
-  message?: string
-  response?: {
-    status?: number
-    data?: T
-  }
-}
-
-const responseStatus = (res: unknown) => {
-  const response = res as ResponseLike
-  return response.status ?? response.response?.status ?? 0
-}
-
-const responseData = <T>(res: unknown) => {
-  const response = res as ResponseLike<T>
-  return response.data ?? response.response?.data
-}
-
 // This uses the same double guard as capabilities: generation rejects
-// out-of-order responses from one backend, while UUID rejects late responses
-// from the previous backend after a switch.
+// out-of-order responses within one session, while the session epoch rejects
+// responses from a backend that was switched or edited in place.
 let generation = 0
 const writeQueues = new Map<string, Promise<void>>()
 let controller: AbortController | undefined
@@ -96,10 +80,10 @@ export const refreshInterception = async (background: boolean | Event = false) =
   controller?.abort()
   controller = new AbortController()
   const gen = ++generation
-  const uuid = activeUuid.value
-  const stale = () => gen !== generation || uuid !== activeUuid.value
+  const session = captureBackendSession()
+  const stale = () => gen !== generation || !backendSessionIsCurrent(session)
 
-  if (!uuid) {
+  if (!session) {
     interceptionStatus.value = 'idle'
     return
   }
@@ -117,9 +101,15 @@ export const refreshInterception = async (background: boolean | Event = false) =
     data = responseData<FiveGPNInterceptionEnvelope>(res)
   } catch (e) {
     if (stale()) return
+    const status = responseStatus(e)
+    if (status === 503) {
+      interceptionStatus.value = 'absent'
+      interception.value = null
+      return
+    }
     if (!inBackground || !interception.value) {
       interceptionStatus.value = 'error'
-      interceptionError.value = e instanceof Error ? e.message : String(e)
+      interceptionError.value = responseMessage(e) || (e instanceof Error ? e.message : String(e))
     }
     return
   }
@@ -139,8 +129,7 @@ export const refreshInterception = async (background: boolean | Event = false) =
 }
 
 const messageOf = (res: unknown) => {
-  const response = res as ResponseLike<{ message?: string }>
-  return responseData<{ message?: string }>(response)?.message ?? response.message ?? ''
+  return responseMessage(res)
 }
 
 /**
@@ -156,10 +145,10 @@ const write = (
   acceptedStatuses: readonly number[] = [200],
   expectedRevision?: string,
 ): Promise<string> => {
-  const requestedUuid = activeUuid.value
-  if (!requestedUuid) return Promise.resolve('no backend')
+  const requestedSession = captureBackendSession()
+  if (!requestedSession) return Promise.resolve('no backend')
   const execute = async () => {
-    if (requestedUuid !== activeUuid.value) return 'backend changed'
+    if (!backendSessionIsCurrent(requestedSession)) return 'backend changed'
     if (!interceptionRevision.value) return 'no revision'
     if (expectedRevision && expectedRevision !== interceptionRevision.value) return 'conflict'
     cancelInterceptionRead()
@@ -171,7 +160,7 @@ const write = (
     inspectionGeneration++
     try {
       const res = await call(expectedRevision ?? interceptionRevision.value)
-      if (requestedUuid !== activeUuid.value) return 'backend changed'
+      if (!backendSessionIsCurrent(requestedSession)) return 'backend changed'
       const status = responseStatus(res)
       const data = responseData<FiveGPNInterceptionEnvelope>(res)
       if (acceptedStatuses.includes(status) && data) {
@@ -185,19 +174,25 @@ const write = (
       }
       return messageOf(res) || `interception returned ${status}`
     } catch (e) {
-      return e instanceof Error ? e.message : String(e)
+      if (!backendSessionIsCurrent(requestedSession)) return 'backend changed'
+      if (responseStatus(e) === 409) {
+        await refreshInterception(true)
+        return 'conflict'
+      }
+      return responseMessage(e) || (e instanceof Error ? e.message : String(e))
     }
   }
 
-  const previous = writeQueues.get(requestedUuid) ?? Promise.resolve()
+  const sessionKey = String(requestedSession.epoch)
+  const previous = writeQueues.get(sessionKey) ?? Promise.resolve()
   const result = previous.then(execute, execute)
   const tail = result.then(
     () => undefined,
     () => undefined,
   )
-  writeQueues.set(requestedUuid, tail)
+  writeQueues.set(sessionKey, tail)
   void tail.then(() => {
-    if (writeQueues.get(requestedUuid) === tail) writeQueues.delete(requestedUuid)
+    if (writeQueues.get(sessionKey) === tail) writeQueues.delete(sessionKey)
   })
   return result
 }
@@ -205,8 +200,8 @@ const write = (
 export const setInterceptionSettings = (settings: { enabled: boolean; http2: boolean }) =>
   write((revision) => putInterceptionSettingsAPI({ revision, ...settings }))
 
-export const setExecutionOrder = (order: string[]) =>
-  write((revision) => putInterceptionOrderAPI({ revision, order }))
+export const setExecutionOrder = (order: string[], expectedRevision: string) =>
+  write((revision) => putInterceptionOrderAPI({ revision, order }), [200], expectedRevision)
 
 export const setExtensionEnabled = (
   id: string,
@@ -270,9 +265,9 @@ export const fetchExtensionDetail = async (
   detailController?.abort()
   detailController = new AbortController()
   const gen = ++detailGeneration
-  const uuid = activeUuid.value
-  const stale = () => gen !== detailGeneration || uuid !== activeUuid.value
-  if (!uuid) return { error: 'no backend' }
+  const session = captureBackendSession()
+  const stale = () => gen !== detailGeneration || !backendSessionIsCurrent(session)
+  if (!session) return { error: 'no backend' }
   try {
     const res = await fetchExtensionAPI(id, detailController.signal)
     if (stale()) return { error: 'backend changed' }
@@ -288,7 +283,7 @@ export const fetchExtensionDetail = async (
     return { detail: data.extension, revision: data.revision, error: '' }
   } catch (e) {
     if (stale()) return { error: '' }
-    return { error: e instanceof Error ? e.message : String(e) }
+    return { error: responseMessage(e) || (e instanceof Error ? e.message : String(e)) }
   }
 }
 
@@ -300,13 +295,13 @@ const inspectionContext = () => {
   inspectionController = new AbortController()
   return {
     generation: ++inspectionGeneration,
-    uuid: activeUuid.value,
+    session: captureBackendSession(),
     signal: inspectionController.signal,
   }
 }
 
 const inspectionStale = (context: ReturnType<typeof inspectionContext>) =>
-  context.generation !== inspectionGeneration || context.uuid !== activeUuid.value
+  context.generation !== inspectionGeneration || !backendSessionIsCurrent(context.session)
 
 export const cancelInterceptionInspection = () => {
   inspectionController?.abort()
@@ -339,13 +334,13 @@ const fetchInspectedExtensionDetail = async (
     return { detail: data.extension, revision: data.revision, error: '' }
   } catch (e) {
     if (inspectionStale(context)) return { error: 'backend changed' }
-    return { error: e instanceof Error ? e.message : String(e) }
+    return { error: responseMessage(e) || (e instanceof Error ? e.message : String(e)) }
   }
 }
 
 export const inspectExtensionDetail = async (id: string): Promise<InspectedExtensionDetail> => {
   const context = inspectionContext()
-  if (!context.uuid) return { error: 'no backend' }
+  if (!context.session) return { error: 'no backend' }
   return fetchInspectedExtensionDetail(id, context)
 }
 
@@ -358,7 +353,7 @@ export const reviewExtension = async (source: {
   content?: string
 }): Promise<{ candidate?: FiveGPNCandidate; revision?: string; error: string }> => {
   const context = inspectionContext()
-  if (!context.uuid) return { error: 'no backend' }
+  if (!context.session) return { error: 'no backend' }
   try {
     const res = await reviewExtensionAPI(source, context.signal)
     if (inspectionStale(context)) return { error: 'backend changed' }
@@ -374,7 +369,11 @@ export const reviewExtension = async (source: {
     return { error: messageOf(res) || `review returned ${status}` }
   } catch (e) {
     if (inspectionStale(context)) return { error: '' }
-    return { error: e instanceof Error ? e.message : String(e) }
+    if (responseStatus(e) === 409) {
+      await refreshInterception(true)
+      return { error: 'conflict' }
+    }
+    return { error: responseMessage(e) || (e instanceof Error ? e.message : String(e)) }
   }
 }
 
@@ -390,52 +389,6 @@ export const reviewExtension = async (source: {
  * is unavailable, installed extensions must still be readable, toggleable, and
  * removable.
  */
-/**
- * Extension logs follow the DNS query-log model: one filtered read refreshed by
- * the operator.
- *
- * Do not poll automatically. Logs are inspected after a problem rather than
- * watched as a live instrument. Fetching them every few seconds would add
- * continuous control-plane load in exchange for an unread list.
- */
-export const engineLogs = ref<FiveGPNEngineLog[]>([])
-export const engineLogError = ref('')
-export const engineLogFilter = ref('')
-export const engineLogExtension = ref('')
-export const engineLogLevel = ref('')
-
-let logController: AbortController | undefined
-
-export const refreshEngineLogs = async () => {
-  logController?.abort()
-  logController = new AbortController()
-  const uuid = activeUuid.value
-  if (!uuid) return
-  try {
-    const res = await fetchEngineLogsAPI(
-      {
-        contains: engineLogFilter.value || undefined,
-        extension: engineLogExtension.value || undefined,
-        level: engineLogLevel.value || undefined,
-        limit: 500,
-      },
-      logController.signal,
-    )
-    if (uuid !== activeUuid.value) return
-    const status = responseStatus(res)
-    const data = responseData<{ logs: FiveGPNEngineLog[] }>(res)
-    if (status === 200 && data) {
-      engineLogs.value = data.logs ?? []
-      engineLogError.value = ''
-      return
-    }
-    engineLogError.value = messageOf(res) || `logs returned ${status}`
-  } catch (e) {
-    if (uuid !== activeUuid.value) return
-    engineLogError.value = e instanceof Error ? e.message : String(e)
-  }
-}
-
 export const catalogStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
 export const catalogSources = ref<FiveGPNCatalogSourceView[]>([])
 export const catalogRevision = ref('')
@@ -448,10 +401,10 @@ export const refreshCatalog = async (refresh = false) => {
   catalogController?.abort()
   catalogController = new AbortController()
   const gen = ++catalogGeneration
-  const uuid = activeUuid.value
-  const stale = () => gen !== catalogGeneration || uuid !== activeUuid.value
+  const session = captureBackendSession()
+  const stale = () => gen !== catalogGeneration || !backendSessionIsCurrent(session)
 
-  if (!uuid) {
+  if (!session) {
     catalogStatus.value = 'idle'
     catalogRevision.value = ''
     return
@@ -478,7 +431,7 @@ export const refreshCatalog = async (refresh = false) => {
   } catch (e) {
     if (stale()) return
     catalogStatus.value = 'error'
-    catalogError.value = e instanceof Error ? e.message : String(e)
+    catalogError.value = responseMessage(e) || (e instanceof Error ? e.message : String(e))
   }
 }
 
@@ -497,6 +450,7 @@ export const applyCatalogUpdate = (
   source: string,
   entry: string,
   candidate: FiveGPNCandidate,
+  reviewedURL: string,
   expectedRevision: string,
   values?: Record<string, FiveGPNSettingValue>,
   signal?: AbortSignal,
@@ -506,7 +460,7 @@ export const applyCatalogUpdate = (
       applyCatalogUpdateAPI(
         source,
         entry,
-        { revision, digest: candidate.digest, url: candidate.detail.source_url ?? '', values },
+        catalogUpdateBody(revision, candidate, reviewedURL, values),
         signal,
       ),
     [200],
@@ -529,7 +483,7 @@ export const reviewCatalogEntry = async (
   error: string
 }> => {
   const context = inspectionContext()
-  if (!context.uuid) return { error: 'no backend' }
+  if (!context.session) return { error: 'no backend' }
   try {
     const res = await reviewCatalogEntryAPI(source, entry, context.signal)
     if (inspectionStale(context)) return { error: 'backend changed' }
@@ -559,7 +513,11 @@ export const reviewCatalogEntry = async (
     return { error: messageOf(res) || `review returned ${status}` }
   } catch (e) {
     if (inspectionStale(context)) return { error: '' }
-    return { error: e instanceof Error ? e.message : String(e) }
+    if (responseStatus(e) === 409) {
+      await refreshInterception(true)
+      return { error: 'conflict' }
+    }
+    return { error: responseMessage(e) || (e instanceof Error ? e.message : String(e)) }
   }
 }
 
@@ -582,12 +540,12 @@ const certificatePending = () =>
 
 const scheduleLifecyclePoll = (delay: number) => {
   clearLifecycleTimer()
-  const uuid = activeUuid.value
+  const session = captureBackendSession()
   lifecycleTimer = setTimeout(async () => {
     lifecycleTimer = undefined
-    if (!lifecyclePolling || !uuid || uuid !== activeUuid.value) return
+    if (!lifecyclePolling || !backendSessionIsCurrent(session)) return
     await refreshInterception(true)
-    if (!lifecyclePolling || uuid !== activeUuid.value || !certificatePending()) return
+    if (!lifecyclePolling || !backendSessionIsCurrent(session) || !certificatePending()) return
     lifecycleDelay = Math.min(lifecycleDelay * 2, 5000)
     scheduleLifecyclePoll(lifecycleDelay)
   }, delay)
@@ -650,6 +608,6 @@ export const stopInterception = () => {
   inspectionGeneration++
 }
 
-watch(activeUuid, (_uuid, previous) => {
+watch(activeBackendSession, (_session, previous) => {
   if (previous !== undefined) stopInterception()
 })

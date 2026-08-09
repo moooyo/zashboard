@@ -108,9 +108,9 @@ import FiveGPNInterceptionSettings from '@/components/settings/fivegpn/FiveGPNIn
 import OverviewSettings from '@/components/settings/overview/OverviewSettings.vue'
 import ProxiesSettings from '@/components/settings/proxies/ProxiesSettings.vue'
 import SettingsCategoryHeader from '@/components/settings/SettingsCategoryHeader.vue'
-import { botSupported, refreshBot } from '@/assembly/fivegpn/bot'
+import { botSupported } from '@/assembly/fivegpn/bot'
 import { dnsSupported } from '@/assembly/fivegpn/dns'
-import { interceptionSupported, refreshInterception } from '@/assembly/fivegpn/interception'
+import { interceptionSupported } from '@/assembly/fivegpn/interception'
 import { usePaddingForViews } from '@/composables/paddingViews'
 import {
   applyMinimalPreset,
@@ -227,7 +227,6 @@ const menuItems = computed<MenuItem[]>(() => {
       icon: ShieldCheckIcon,
       component: FiveGPNInterceptionSettings,
     })
-    void refreshInterception()
   }
 
   // Likewise, show the bot only after capability discovery returns a positive result. The bot and
@@ -239,7 +238,6 @@ const menuItems = computed<MenuItem[]>(() => {
       icon: ShieldCheckIcon,
       component: FiveGPNBotSettings,
     })
-    void refreshBot()
   }
 
   // Sort by settingsMenuOrder and filter hidden items.

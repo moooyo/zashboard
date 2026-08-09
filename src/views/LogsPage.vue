@@ -1,19 +1,21 @@
 <template>
   <div class="relative size-full overflow-x-hidden">
-    <VirtualScroller
-      :data="renderLogs"
-      :size="44"
-    >
-      <template v-slot:before>
+    <LogSurface>
+      <template #controls>
         <LogsCtrl />
       </template>
-      <template v-slot="{ item }: { item: LogWithSeq }">
-        <LogsCard
-          :log="item"
-          @connection-click="handlerConnectionClick"
-        />
-      </template>
-    </VirtualScroller>
+      <VirtualScroller
+        :data="renderLogs"
+        :size="44"
+      >
+        <template v-slot="{ item }: { item: LogWithSeq }">
+          <LogsCard
+            :log="item"
+            @connection-click="handlerConnectionClick"
+          />
+        </template>
+      </VirtualScroller>
+    </LogSurface>
     <DialogWrapper
       v-model="connectionLogsDialogVisible"
       no-padding
@@ -35,6 +37,7 @@
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
 import VirtualScroller from '@/components/common/VirtualScroller.vue'
 import LogsCtrl from '@/components/controls/LogsCtrl.tsx'
+import LogSurface from '@/components/ds/LogSurface.vue'
 import LogsCard from '@/components/logs/LogsCard.vue'
 import { toSearchRegex } from '@/helper/search'
 import {

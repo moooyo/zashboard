@@ -1,9 +1,7 @@
-import { can } from '@/assembly/backend'
 import { connectionAccessor } from '@/assembly/connections'
-import { dnsSupported } from '@/assembly/fivegpn/dns'
-import { interceptionSupported } from '@/assembly/fivegpn/interception'
 import { hiddenGroupMap, proxyMap } from '@/assembly/proxies'
 import { NOT_CONNECTED, PROXY_CHAIN_DIRECTION, PROXY_TYPE, ROUTE_NAME } from '@/constant'
+import { routeAvailable } from '@/router/requirements'
 import {
   customThemes,
   lowLatency,
@@ -125,18 +123,10 @@ export const getColorForLatency = (latency: number) => {
 }
 
 export const renderRoutes = computed(() => {
-  // capability gate per route; routes not listed here are always shown
-  const routeCapable: Partial<Record<ROUTE_NAME, boolean>> = {
-    [ROUTE_NAME.rules]: can('rules'),
-    [ROUTE_NAME.tools]: can('tools'),
-    [ROUTE_NAME.fivegpnDns]: dnsSupported.value,
-    [ROUTE_NAME.fivegpnSetupGuide]: dnsSupported.value,
-    [ROUTE_NAME.fivegpnExtensions]: interceptionSupported.value,
-  }
   return Object.values(ROUTE_NAME).filter((r) => {
     if (r === ROUTE_NAME.setup) return false
     if (!splitOverviewPage.value && r === ROUTE_NAME.overview) return false
-    if (r in routeCapable && routeCapable[r] === false) return false
+    if (!routeAvailable(r)) return false
     return true
   })
 })
@@ -159,15 +149,6 @@ export const applyCustomThemes = () => {
     style.className = `custom-theme ${theme.name}`
     document.head.appendChild(style)
   })
-}
-
-export const applyKsuTheme = () => {
-  if (window.ksu) {
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = 'https://mui.kernelsu.org/internal/colors.css'
-    document.head.appendChild(link)
-  }
 }
 
 export const isHiddenGroup = (group: string) => {

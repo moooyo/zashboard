@@ -1,27 +1,20 @@
 <template>
-  <div
+  <CardState
     v-if="hasVisibleItems"
+    :status="interceptionStatus"
+    :ready="Boolean(data)"
+    :loading-message="$t('fivegpnLoadingState')"
+    :absent-message="$t('fivegpnInterceptionAbsent')"
+    :error-message="interceptionError"
+    :retry-label="$t('fivegpnRetryState')"
+    :retrying="interceptionStatus === 'loading'"
     class="flex flex-col gap-3 text-sm"
+    @retry="refreshInterception"
   >
-    <!-- A missing engine does not mean interception is disabled. Disabled means a successfully
-         loaded document declares enabled:false; missing means the document could not be loaded.
-         Rendering both states alike would claim the configuration is honored when nothing reads it. -->
-    <template v-if="interceptionStatus === 'absent'">
-      <div class="alert alert-warning py-2">
-        <span>{{ $t('fivegpnInterceptionAbsent') }}</span>
-      </div>
-    </template>
-
-    <template v-else-if="interceptionStatus === 'error'">
-      <div class="alert alert-error py-2">
-        <span>{{ interceptionError }}</span>
-      </div>
-    </template>
-
     <!-- Render when data exists rather than only while status is ready. Refreshing changes status
          to loading, so status-based rendering would blank the panel on every refresh. Preserve the
          existing values and let the button communicate refresh activity. -->
-    <template v-else-if="data">
+    <template v-if="data">
       <div
         v-if="data.certificate.status === 'pending'"
         class="alert alert-info py-2"
@@ -119,7 +112,7 @@
         </SettingItem>
       </div>
     </template>
-  </div>
+  </CardState>
 </template>
 
 <script setup lang="ts">
@@ -132,11 +125,17 @@ import {
   startInterceptionLifecyclePolling,
   stopInterceptionLifecyclePolling,
 } from '@/assembly/fivegpn/interception'
+import CardState from '@/components/ds/CardState.vue'
 import SettingItem from '@/components/settings/SettingItem.vue'
 import { useHasAnyVisibleSetting } from '@/composables/settings'
 import { FIVEGPN_INTERCEPTION_ITEM_KEYS, getAllKeysForCategory } from '@/config/settingsItems'
 import { SETTINGS_MENU_KEY } from '@/constant'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import {
+  activeBackendSession,
+  backendSessionIsCurrent,
+  captureBackendSession,
+} from '@/store/setup'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const k = FIVEGPN_INTERCEPTION_ITEM_KEYS
 const hasVisibleItems = useHasAnyVisibleSetting(
@@ -149,6 +148,7 @@ const data = computed(() => interception.value)
 // HTTP/3 is deliberately not one of them: the fixed gateway guard blocks
 // UDP/443, and the request boundary below omits this read-only snapshot field.
 const busy = ref(false)
+let actionEpoch = 0
 
 const settingsOf = () => ({
   enabled: data.value?.enabled ?? false,
@@ -157,8 +157,12 @@ const settingsOf = () => ({
 
 const apply = async (next: ReturnType<typeof settingsOf>) => {
   if (!data.value || busy.value) return
+  const action = ++actionEpoch
+  const session = captureBackendSession()
+  if (!session) return
   busy.value = true
   const error = await setInterceptionSettings(next)
+  if (action !== actionEpoch || !backendSessionIsCurrent(session)) return
   busy.value = false
   if (error) {
     // On failure, restore the core's actual state instead of leaving a toggle that appears active.
@@ -188,6 +192,37 @@ const expiry = computed(() => {
   return at ? new Date(at * 1000).toLocaleString() : ''
 })
 
-onMounted(startInterceptionLifecyclePolling)
-onUnmounted(stopInterceptionLifecyclePolling)
+let mounted = false
+let loadEpoch = 0
+const loadSession = async (session = captureBackendSession()) => {
+  if (!session) return
+  const epoch = ++loadEpoch
+  await refreshInterception()
+  if (mounted && epoch === loadEpoch && backendSessionIsCurrent(session)) {
+    startInterceptionLifecyclePolling()
+  }
+}
+
+onMounted(() => {
+  mounted = true
+  void loadSession()
+})
+watch(activeBackendSession, (session, previous) => {
+  if (session?.epoch === previous?.epoch) return
+  actionEpoch += 1
+  loadEpoch += 1
+  busy.value = false
+  stopInterceptionLifecyclePolling()
+  if (session) {
+    void Promise.resolve().then(() => {
+      if (backendSessionIsCurrent(session)) return loadSession(session)
+    })
+  }
+})
+onUnmounted(() => {
+  mounted = false
+  actionEpoch += 1
+  loadEpoch += 1
+  stopInterceptionLifecyclePolling()
+})
 </script>

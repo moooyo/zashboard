@@ -162,7 +162,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import * as ipaddr from 'ipaddr.js'
 import { last } from 'lodash'
-import { twMerge } from 'tailwind-merge'
+import { twMerge } from '@/lib/cn'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import VueJsonPretty from 'vue-json-pretty'

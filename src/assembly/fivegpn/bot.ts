@@ -1,7 +1,12 @@
 import type { FiveGPNBotEnvelope, FiveGPNBotView } from '@/api/fivegpn'
 import { fetchBotAPI, putBotAPI } from '@/api/fivegpn'
-import { activeUuid } from '@/store/setup'
-import { ref } from 'vue'
+import { responseData, responseMessage, responseStatus } from '@/api/response'
+import {
+  activeBackendSession,
+  backendSessionIsCurrent,
+  captureBackendSession,
+} from '@/store/setup'
+import { ref, watch } from 'vue'
 import { featureSupported } from './capabilities'
 
 /**
@@ -27,6 +32,12 @@ export const botSupported = featureSupported('5gpn-bot')
 let generation = 0
 let controller: AbortController | undefined
 
+const cancelBotRead = () => {
+  controller?.abort()
+  controller = undefined
+  generation += 1
+}
+
 const adopt = (data: FiveGPNBotEnvelope) => {
   bot.value = data.bot
   botRevision.value = data.revision
@@ -35,13 +46,13 @@ const adopt = (data: FiveGPNBotEnvelope) => {
 }
 
 export const refreshBot = async () => {
-  controller?.abort()
+  cancelBotRead()
   controller = new AbortController()
   const gen = ++generation
-  const uuid = activeUuid.value
-  const stale = () => gen !== generation || uuid !== activeUuid.value
+  const session = captureBackendSession()
+  const stale = () => gen !== generation || !backendSessionIsCurrent(session)
 
-  if (!uuid) {
+  if (!session) {
     botStatus.value = 'idle'
     return
   }
@@ -56,8 +67,13 @@ export const refreshBot = async () => {
     data = res.data
   } catch (e) {
     if (stale()) return
+    if (responseStatus(e) === 503) {
+      botStatus.value = 'absent'
+      bot.value = null
+      return
+    }
     botStatus.value = 'error'
-    botError.value = e instanceof Error ? e.message : String(e)
+    botError.value = responseMessage(e) || (e instanceof Error ? e.message : String(e))
     return
   }
   if (stale()) return
@@ -86,10 +102,16 @@ export const saveBot = async (next: {
   alerts: boolean
   token?: string
 }): Promise<string> => {
-  if (!botRevision.value) return 'no revision'
+  const session = captureBackendSession()
+  if (!session) return 'no backend'
+  const revision = botRevision.value
+  if (!revision) return 'no revision'
+  cancelBotRead()
   try {
-    const res = await putBotAPI({ revision: botRevision.value, ...next })
+    const res = await putBotAPI({ revision, ...next })
+    if (!backendSessionIsCurrent(session)) return 'backend changed'
     if (res.status === 200 && res.data) {
+      cancelBotRead()
       adopt(res.data)
       return ''
     }
@@ -100,16 +122,27 @@ export const saveBot = async (next: {
     const data = res.data as unknown as { message?: string } | undefined
     return data?.message ?? `bot returned ${res.status}`
   } catch (e) {
-    return e instanceof Error ? e.message : String(e)
+    if (!backendSessionIsCurrent(session)) return 'backend changed'
+    if (responseStatus(e) === 409) {
+      await refreshBot()
+      return 'conflict'
+    }
+    const data = responseData<{ message?: string }>(e)
+    return (
+      data?.message ??
+      (responseMessage(e) || (e instanceof Error ? e.message : String(e)))
+    )
   }
 }
 
 export const stopBot = () => {
-  controller?.abort()
-  controller = undefined
-  generation++
+  cancelBotRead()
   bot.value = null
   botRevision.value = ''
   botStatus.value = 'idle'
   botError.value = ''
 }
+
+watch(activeBackendSession, (_session, previous) => {
+  if (previous !== undefined) stopBot()
+})

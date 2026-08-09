@@ -5,7 +5,7 @@
       :key="stat.label"
       class="flex flex-col items-start gap-0.5"
     >
-      <div class="text-base-content/45 text-[11px] leading-tight">{{ $t(stat.label) }}</div>
+      <div class="text-caption text-base-content/45 leading-tight">{{ $t(stat.label) }}</div>
       <div class="text-base-content/80 text-sm leading-tight tabular-nums">{{ stat.value }}</div>
     </div>
   </div>

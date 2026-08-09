@@ -3,7 +3,7 @@
     <div
       v-for="(bar, i) in bars"
       :key="i"
-      class="flex-1 rounded-[1px] transition-all duration-300 hover:opacity-80"
+      class="flex-1 rounded-none transition-all duration-300 hover:opacity-80"
       :class="bar.class"
       :style="{ height: bar.height }"
       @mouseenter="bar.tip && showTip($event, bar.tip)"

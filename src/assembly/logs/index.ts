@@ -13,6 +13,7 @@ import * as singbox from './singbox'
 
 export const logs = shallowRef<LogWithSeq[]>([])
 export const isPaused = ref(false)
+export const bufferedLogCount = ref(0)
 export const logLevel = useStorage<string>('config/log-level', LOG_LEVEL.Info)
 
 // 各内核认的 /logs?level= 取值不同(mihomo 无 trace,honk 无 fatal/panic),
@@ -39,15 +40,35 @@ watch(supportedLogLevels, (levels) => {
 const backend = () => (channel.value === Channel.Singbox ? singbox : clash)
 
 let cancel: (() => void) | undefined
+let pauseAccumulator: (() => void) | undefined
+let resumeAccumulator: (() => void) | undefined
+
+watch(
+  isPaused,
+  (paused) => {
+    if (paused) pauseAccumulator?.()
+    else resumeAccumulator?.()
+  },
+  { flush: 'sync' },
+)
 
 export const initLogs = () => {
   cancel?.()
   logs.value = []
+  bufferedLogCount.value = 0
 
-  const accumulator = createLogsAccumulator(logs, () => isPaused.value)
+  const accumulator = createLogsAccumulator(
+    logs,
+    () => isPaused.value,
+    (count) => (bufferedLogCount.value = count),
+  )
+  pauseAccumulator = accumulator.pause
+  resumeAccumulator = accumulator.resume
   const subscription = backend().subscribeLogs({ level: logLevel.value }, accumulator.push)
 
   cancel = () => {
+    pauseAccumulator = undefined
+    resumeAccumulator = undefined
     accumulator.dispose()
     subscription.close()
   }
@@ -56,4 +77,7 @@ export const initLogs = () => {
 export const stopLogs = () => {
   cancel?.()
   cancel = undefined
+  pauseAccumulator = undefined
+  resumeAccumulator = undefined
+  bufferedLogCount.value = 0
 }

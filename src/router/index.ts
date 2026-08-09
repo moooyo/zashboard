@@ -1,6 +1,6 @@
-import { can, type Cap } from '@/assembly/backend'
 import { ROUTE_NAME } from '@/constant'
 import { renderRoutes } from '@/helper'
+import { managementRouteDecision } from '@/helper/navigationGuard'
 import '@/helper/setupHandoffBootstrap'
 import { i18n } from '@/i18n'
 import { language } from '@/store/settings'
@@ -16,65 +16,95 @@ import SetupPage from '@/views/SetupPage.vue'
 import { useTitle } from '@vueuse/core'
 import { watch } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { routeMeta, routeRequirementSatisfied, type RouteRequirement } from './requirements'
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    capability?: RouteRequirement['capability']
+    feature?: RouteRequirement['feature']
+  }
+}
 
 const childrenRouter = [
   {
     path: 'proxies',
     name: ROUTE_NAME.proxies,
     component: ProxiesPage,
+    meta: routeMeta(ROUTE_NAME.proxies),
   },
   {
     path: 'overview',
     name: ROUTE_NAME.overview,
     component: OverviewPage,
+    meta: routeMeta(ROUTE_NAME.overview),
   },
   {
     path: 'connections',
     name: ROUTE_NAME.connections,
     component: ConnectionsPage,
+    meta: routeMeta(ROUTE_NAME.connections),
   },
   {
     path: 'logs',
     name: ROUTE_NAME.logs,
     component: LogsPage,
+    meta: routeMeta(ROUTE_NAME.logs),
   },
   {
     path: 'rules',
     name: ROUTE_NAME.rules,
     component: RulesPage,
+    meta: routeMeta(ROUTE_NAME.rules),
   },
   {
     path: '5gpn-setup-guide',
     name: ROUTE_NAME.fivegpnSetupGuide,
     component: () => import('@/views/FiveGPNSetupGuidePage.vue'),
+    meta: routeMeta(ROUTE_NAME.fivegpnSetupGuide),
   },
   {
     path: '5gpn-dns',
     name: ROUTE_NAME.fivegpnDns,
     component: () => import('@/views/FiveGPNDnsPage.vue'),
+    meta: routeMeta(ROUTE_NAME.fivegpnDns),
   },
   {
-    path: '5gpn-extensions',
+    path: 'extensions',
     name: ROUTE_NAME.fivegpnExtensions,
     component: () => import('@/views/FiveGPNExtensionsPage.vue'),
+    meta: routeMeta(ROUTE_NAME.fivegpnExtensions),
+  },
+  {
+    path: 'extensions/hosts',
+    name: ROUTE_NAME.fivegpnExtensionHosts,
+    component: () => import('@/views/FiveGPNExtensionHostsPage.vue'),
+    meta: routeMeta(ROUTE_NAME.fivegpnExtensionHosts),
+  },
+  {
+    path: 'marketplace',
+    name: ROUTE_NAME.fivegpnMarketplace,
+    component: () => import('@/views/FiveGPNMarketplacePage.vue'),
+    meta: routeMeta(ROUTE_NAME.fivegpnMarketplace),
+  },
+  {
+    path: 'plugin-logs',
+    name: ROUTE_NAME.fivegpnPluginLogs,
+    component: () => import('@/views/FiveGPNPluginLogsPage.vue'),
+    meta: routeMeta(ROUTE_NAME.fivegpnPluginLogs),
   },
   {
     path: 'tools',
     name: ROUTE_NAME.tools,
     component: () => import('@/views/ToolsPage.vue'),
+    meta: routeMeta(ROUTE_NAME.tools),
   },
   {
     path: 'settings',
     name: ROUTE_NAME.settings,
     component: SettingsPage,
+    meta: routeMeta(ROUTE_NAME.settings),
   },
 ]
-
-// Routes that require a specific capability to be visitable.
-const ROUTE_CAPABILITY: Partial<Record<string, Cap>> = {
-  [ROUTE_NAME.rules]: 'rules',
-  [ROUTE_NAME.tools]: 'tools',
-}
 
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
@@ -120,16 +150,13 @@ router.beforeEach((to, from) => {
     to.meta.transition = toIndex < fromIndex ? 'slide-right' : 'slide-left'
   }
 
-  if (!activeBackend.value && to.name !== ROUTE_NAME.setup) {
-    router.push({ name: ROUTE_NAME.setup })
-    return
-  }
-
-  // Block navigation to a page the active backend's channels can't serve.
-  const requiredCap = typeof to.name === 'string' ? ROUTE_CAPABILITY[to.name] : undefined
-  if (requiredCap && !can(requiredCap)) {
-    router.push({ name: ROUTE_NAME.proxies })
-  }
+  return managementRouteDecision({
+    hasBackend: Boolean(activeBackend.value),
+    isSetup: to.name === ROUTE_NAME.setup,
+    requirementSatisfied: routeRequirementSatisfied(to.meta),
+    setupRoute: ROUTE_NAME.setup,
+    fallbackRoute: ROUTE_NAME.proxies,
+  })
 })
 
 router.afterEach((to) => {
@@ -142,12 +169,11 @@ watch([language, activeBackend], () => {
   })
 })
 
-// 能力变化(切后端 / 内核探测出结果)后,把停留在已失效页面的用户送回代理页。
+// If a backend switch or capability probe invalidates the current page, leave
+// the management surface immediately instead of displaying stale controls.
 watch(renderRoutes, () => {
-  const routeName = router.currentRoute.value.name
-  const requiredCap = typeof routeName === 'string' ? ROUTE_CAPABILITY[routeName] : undefined
-  if (requiredCap && !can(requiredCap)) {
-    router.push({ name: ROUTE_NAME.proxies })
+  if (!routeRequirementSatisfied(router.currentRoute.value.meta)) {
+    void router.replace({ name: ROUTE_NAME.proxies })
   }
 })
 

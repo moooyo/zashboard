@@ -18,7 +18,7 @@
     >
       <ProxyIcon
         v-if="node?.icon"
-        class="-mt-[2px] shrink-0 align-middle"
+        class="-mt-1 shrink-0 align-middle"
         :icon="node.icon"
         :fill="active ? 'fill-primary-content' : 'fill-base-content'"
       /><span
@@ -58,7 +58,7 @@ import { proxyLatencyTest } from '@/assembly/proxies'
 import { getIPv6ByName, getTestUrl, proxyMap } from '@/assembly/proxies'
 import { IPv6test, proxyCardSize, proxySortType, truncateProxyName } from '@/store/settings'
 import { smartWeightsMap } from '@/store/smart'
-import { twMerge } from 'tailwind-merge'
+import { twMerge } from '@/lib/cn'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LatencyTag from './LatencyTag.vue'

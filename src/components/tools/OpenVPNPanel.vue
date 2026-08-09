@@ -11,7 +11,7 @@
             {{ endpoint.endpointTag || 'OpenVPN' }}
           </span>
           <span
-            class="rounded-full px-2 py-0.5 text-[0.65rem] tracking-normal"
+            class="text-caption rounded-full px-2 py-0.5 tracking-normal"
             :class="statePill(endpoint.state)"
           >
             {{ endpoint.stateText || endpoint.state || $t('unknown') }}

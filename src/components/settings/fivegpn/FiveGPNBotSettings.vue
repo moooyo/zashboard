@@ -1,21 +1,17 @@
 <template>
-  <div
+  <CardState
     v-if="hasVisibleItems"
+    :status="botStatus"
+    :ready="Boolean(data)"
+    :loading-message="$t('fivegpnLoadingState')"
+    :absent-message="$t('fivegpnBotAbsent')"
+    :error-message="botError"
+    :retry-label="$t('fivegpnRetryState')"
+    :retrying="botStatus === 'loading'"
     class="flex flex-col gap-3 text-sm"
+    @retry="refreshBot"
   >
-    <template v-if="botStatus === 'absent'">
-      <div class="alert alert-warning py-2">
-        <span>{{ $t('fivegpnBotAbsent') }}</span>
-      </div>
-    </template>
-
-    <template v-else-if="botStatus === 'error'">
-      <div class="alert alert-error py-2">
-        <span>{{ botError }}</span>
-      </div>
-    </template>
-
-    <template v-else-if="data">
+    <template v-if="data">
       <!-- Runtime status and configuration are separate concerns: a bot can be enabled and
            configured while Telegram is unreachable. That is a network issue, so it gets its own row. -->
       <div
@@ -118,16 +114,18 @@
         <span>{{ notice }}</span>
       </div>
     </template>
-  </div>
+  </CardState>
 </template>
 
 <script setup lang="ts">
 import { bot, botError, botStatus, refreshBot, saveBot } from '@/assembly/fivegpn/bot'
+import CardState from '@/components/ds/CardState.vue'
 import SettingItem from '@/components/settings/SettingItem.vue'
 import { useHasAnyVisibleSetting } from '@/composables/settings'
 import { FIVEGPN_BOT_ITEM_KEYS, getAllKeysForCategory } from '@/config/settingsItems'
 import { SETTINGS_MENU_KEY } from '@/constant'
-import { computed, reactive, ref, watch } from 'vue'
+import { activeBackendSession } from '@/store/setup'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -138,6 +136,7 @@ const data = computed(() => bot.value)
 const busy = ref(false)
 const notice = ref('')
 const noticeIsError = ref(false)
+let actionEpoch = 0
 
 const draft = reactive({ enabled: false, alerts: false })
 const adminText = ref('')
@@ -172,15 +171,18 @@ const report = (error: string) => {
 }
 
 const write = async (payload: { token?: string }) => {
+  const action = ++actionEpoch
+  const session = activeBackendSession.value
+  if (!session) return
   busy.value = true
-  report(
-    await saveBot({
-      enabled: draft.enabled,
-      alerts: draft.alerts,
-      admins: parsedAdmins.value,
-      ...payload,
-    }),
-  )
+  const error = await saveBot({
+    enabled: draft.enabled,
+    alerts: draft.alerts,
+    admins: parsedAdmins.value,
+    ...payload,
+  })
+  if (action !== actionEpoch || activeBackendSession.value?.epoch !== session.epoch) return
+  report(error)
   busy.value = false
 }
 
@@ -192,5 +194,22 @@ const clearToken = () => {
   return write({ token: '-' })
 }
 
-refreshBot()
+watch(activeBackendSession, (session, previous) => {
+  if (session?.epoch === previous?.epoch) return
+  actionEpoch += 1
+  busy.value = false
+  notice.value = ''
+  token.value = ''
+  if (session) {
+    void Promise.resolve().then(() => {
+      if (activeBackendSession.value?.epoch === session.epoch) return refreshBot()
+    })
+  }
+})
+
+onMounted(() => void refreshBot())
+onUnmounted(() => {
+  actionEpoch += 1
+  busy.value = false
+})
 </script>

@@ -1,0 +1,35 @@
+@theme {
+  /* Seven named type steps; caption is the 11px minimum. */
+  --text-caption: 0.6875rem;
+  --text-caption--line-height: 1rem;
+  --text-label: 0.75rem;
+  --text-label--line-height: 1rem;
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.25rem;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-title-sm: 1.125rem;
+  --text-title-sm--line-height: 1.5rem;
+  --text-title: 1.5rem;
+  --text-title--line-height: 2rem;
+  --text-display: 2rem;
+  --text-display--line-height: 2.5rem;
+
+  /* Five radius steps. */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+
+  /* Five control heights on the established 4px grid. */
+  --spacing-control-xs: 2rem;
+  --spacing-control-sm: 2.25rem;
+  --spacing-control-md: 2.5rem;
+  --spacing-control-lg: 2.75rem;
+  --spacing-control-xl: 3rem;
+
+  /* Shared translucent surfaces. */
+  --color-tint-soft: color-mix(in srgb, var(--color-base-content) 6%, transparent);
+  --color-tint-strong: color-mix(in srgb, var(--color-base-content) 12%, transparent);
+}

@@ -34,8 +34,10 @@ const failures = []
 if (!/^watch\(/m.test(body)) {
   failures.push('capabilities.ts has no module-level watch; nothing starts the probe')
 }
-if (!/^\s*activeUuid,\s*$/m.test(body)) {
-  failures.push('the probe is not triggered by activeUuid; it would not follow a backend switch')
+if (!/^\s*activeBackendSession,\s*$/m.test(body)) {
+  failures.push(
+    'the probe is not triggered by activeBackendSession; it would not follow a backend edit',
+  )
 }
 if (!/immediate:\s*true/.test(body)) {
   failures.push('the probe trigger is not immediate; the first load would render no 5gpn surface')

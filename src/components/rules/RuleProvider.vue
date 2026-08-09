@@ -52,7 +52,7 @@ import { fromNow } from '@/helper/utils'
 import { fetchRules, rulesFilter } from '@/assembly/rules'
 import type { RuleProvider } from '@/types'
 import { ArrowPathIcon } from '@heroicons/vue/24/outline'
-import { twMerge } from 'tailwind-merge'
+import { twMerge } from '@/lib/cn'
 import { ref } from 'vue'
 const isUpdating = ref(false)
 const props = defineProps<{

@@ -38,20 +38,6 @@
   </head>
   <body class="h-dvh w-screen">
     <div id="app"></div>
-    <script>
-      ;(function () {
-        const media = window.matchMedia('(prefers-color-scheme: dark)')
-        const favicon = document.getElementById('favicon')
-        const setFavicon = (isDark) => {
-          favicon.href = isDark ? './favicon-dark.svg' : './favicon.svg'
-        }
-
-        media.addEventListener('change', () => {
-          setFavicon(media.matches)
-        })
-        setFavicon(media.matches)
-      })()
-    </script>
     <script
       type="module"
       src="/src/bootstrap.ts"

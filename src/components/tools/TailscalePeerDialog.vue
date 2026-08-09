@@ -5,7 +5,7 @@
   >
     <template #title-right>
       <span
-        class="ml-2 rounded-full px-2 py-0.5 text-[0.65rem]"
+        class="text-caption ml-2 rounded-full px-2 py-0.5"
         :class="
           peer.online ? 'bg-success/15 text-success' : 'bg-base-content/10 text-base-content/60'
         "

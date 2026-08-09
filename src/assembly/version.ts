@@ -7,7 +7,12 @@ import HonkLogo from '@/assets/images/honk.svg'
 import MetacubexLogo from '@/assets/images/metacubex.jpg'
 import SingBoxLogo from '@/assets/images/sing-box.svg'
 import { MIHOMO, MIHOMO_CHANNEL } from '@/constant'
-import { activeBackend } from '@/store/setup'
+import {
+  activeBackend,
+  activeBackendSession,
+  backendSessionIsCurrent,
+  captureBackendSession,
+} from '@/store/setup'
 import type { Backend } from '@/types'
 import { computed, nextTick, ref, watch } from 'vue'
 import { apiVersion, can, Channel, channel, core, Core, resetCore } from './backend'
@@ -82,15 +87,17 @@ const fetchSingboxStartedAt = async (): Promise<number> => {
   }
 }
 
-const probeBackend = async (backend: Backend) => {
+const probeBackend = async (backend: Backend, session: ReturnType<typeof captureBackendSession>) => {
   const { data } = await fetchVersionAPI()
 
-  // Discard a result if the operator switched backends while probing.
-  if (activeBackend.value?.uuid !== backend.uuid) return
+  // Discard a result if the operator switched or edited the backend while probing.
+  if (!backendSessionIsCurrent(session)) return
 
   version.value = data?.version || ''
   core.value = detectCore(version.value)
-  startedAt.value = can('startedAt') ? await fetchSingboxStartedAt() : 0
+  const nextStartedAt = can('startedAt') ? await fetchSingboxStartedAt() : 0
+  if (!backendSessionIsCurrent(session)) return
+  startedAt.value = nextStartedAt
 }
 
 // Consumers that need a reliable core/channel conclusion await this probe.
@@ -103,13 +110,14 @@ export const coreReady = async () => {
 }
 
 watch(
-  activeBackend,
+  activeBackendSession,
   (val) => {
     resetCore()
     version.value = ''
     startedAt.value = 0
 
-    probe = val ? probeBackend(val).catch(() => {}) : Promise.resolve()
+    const backend = activeBackend.value
+    probe = val && backend ? probeBackend(backend, val).catch(() => {}) : Promise.resolve()
   },
   { immediate: true },
 )

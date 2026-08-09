@@ -1,9 +1,17 @@
 import { backendConfigurationsEqual } from '@/helper/setupHandoff'
+import { BackendSessionTracker } from '@/helper/backendSession'
+import {
+  BACKEND_LIST_STORAGE_KEY,
+  BACKEND_SESSION_SECRETS_KEY,
+  dehydrateBackendState,
+  hydrateBackendState,
+  type StoredBackend,
+} from '@/helper/backendCredentialStorage'
 import type { Backend } from '@/types'
 import { useStorage } from '@vueuse/core'
 import { omit } from 'lodash'
 import { v4 as uuid } from 'uuid'
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { sourceIPLabelList } from './settings'
 
 // Legacy backends had no `type` and stored sing-box as a nested channel.
@@ -46,11 +54,32 @@ const migrateBackendList = (list: LegacyBackend[]): Backend[] => {
   return migrated
 }
 
-export const backendList = useStorage<Backend[]>('setup/api-list', [])
+const storedBackendList = useStorage<StoredBackend[]>(BACKEND_LIST_STORAGE_KEY, [])
+const backendSessionSecrets = useStorage<Record<string, string>>(
+  BACKEND_SESSION_SECRETS_KEY,
+  {},
+  sessionStorage,
+)
+export const backendList = ref<Backend[]>(
+  hydrateBackendState(storedBackendList.value, backendSessionSecrets.value),
+)
 
 if (backendList.value.some((item) => !item.type || 'singboxChannel' in item)) {
   backendList.value = migrateBackendList(backendList.value as LegacyBackend[])
 }
+
+const persistBackendState = () => {
+  const state = dehydrateBackendState(backendList.value)
+  // Publish the session copy first so stripping or newly remembering a legacy
+  // local secret cannot lose the current tab's credential between writes.
+  backendSessionSecrets.value = state.sessionSecrets
+  storedBackendList.value = state.stored
+}
+
+watch(backendList, persistBackendState, { deep: true, flush: 'sync' })
+// Immediately remove legacy unacknowledged secrets from localStorage while
+// preserving them for this tab's current session.
+persistBackendState()
 
 export const showBackendSettingsDialog = ref(false)
 
@@ -61,6 +90,22 @@ export const activeUuid = useStorage<string>('setup/active-uuid', '')
 export const activeBackend = computed(() =>
   backendList.value.find((backend) => backend.uuid === activeUuid.value),
 )
+
+const sessionTracker = new BackendSessionTracker()
+export const activeBackendSession = shallowRef(sessionTracker.update(activeBackend.value ?? null))
+
+watch(
+  [activeUuid, activeBackend],
+  () => {
+    activeBackendSession.value = sessionTracker.update(activeBackend.value ?? null)
+  },
+  { deep: true, flush: 'sync' },
+)
+
+export const captureBackendSession = () => activeBackendSession.value
+
+export const backendSessionIsCurrent = (session: { epoch: number } | null | undefined) =>
+  Boolean(session && activeBackendSession.value?.epoch === session.epoch)
 
 export const switchActiveBackend = (direction: 1 | -1) => {
   if (backendList.value.length < 2) {
@@ -87,6 +132,9 @@ export const addBackend = (backend: Omit<Backend, 'uuid'>) => {
   )
 
   if (currentEnd) {
+    if (typeof backend.rememberSecret === 'boolean') {
+      currentEnd.rememberSecret = backend.rememberSecret
+    }
     activeUuid.value = currentEnd.uuid
     return
   }

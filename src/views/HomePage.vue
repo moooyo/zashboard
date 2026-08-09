@@ -117,7 +117,14 @@ import { fetchProxies, resetProxies } from '@/assembly/proxies'
 import { proxiesTabShow } from '@/assembly/proxies'
 import { fetchRules, rulesTabShow } from '@/assembly/rules'
 import { isSidebarCollapsed } from '@/store/settings'
-import { activeBackend, activeUuid, backendList } from '@/store/setup'
+import {
+  activeBackend,
+  activeBackendSession,
+  activeUuid,
+  backendList,
+  backendSessionIsCurrent,
+  captureBackendSession,
+} from '@/store/setup'
 import type { Backend } from '@/types'
 import { useDocumentVisibility, useElementBounding } from '@vueuse/core'
 import { ref, watch } from 'vue'
@@ -159,10 +166,10 @@ watch(
 )
 
 watch(
-  activeUuid,
+  activeBackendSession,
   async () => {
     await resetProxies()
-    if (!activeUuid.value) {
+    if (!activeBackendSession.value) {
       // 后端被清空(登出 / 401 / 新增后端)时关闭常驻流,
       // 否则它们会以无主状态留在 Setup 页继续运行并无限重连。
       stopConnections()
@@ -229,11 +236,11 @@ watch(
     ) {
       return
     }
+    const session = captureBackendSession()
     try {
-      const activeBackendUuid = activeBackend.value.uuid
       const isAvailable = await isBackendAvailable(activeBackend.value)
 
-      if (activeBackendUuid !== activeUuid.value) {
+      if (!backendSessionIsCurrent(session)) {
         return
       }
 
@@ -241,7 +248,7 @@ watch(
         autoSwitchBackendDialog.value = true
       }
     } catch {
-      autoSwitchBackendDialog.value = true
+      if (backendSessionIsCurrent(session)) autoSwitchBackendDialog.value = true
     }
   },
   {

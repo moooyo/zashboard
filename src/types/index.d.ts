@@ -11,6 +11,8 @@ export type Backend = {
   port: string
   secondaryPath: string // 仅 clash
   password: string // 通用:Clash secret / sing-box gRPC Bearer token
+  // Secrets are session-only unless the operator explicitly opts in.
+  rememberSecret?: boolean
   uuid: string
   label?: string
   disableTunMode?: boolean // 仅 clash

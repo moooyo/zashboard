@@ -46,7 +46,7 @@
             v-if="isUpdateableRuleSet"
             :class="
               twMerge(
-                'btn btn-circle btn-ghost btn-xs -mt-[2px] ml-1',
+                'btn btn-circle btn-ghost btn-xs -mt-1 ml-1',
                 isUpdating ? 'animate-spin' : '',
               )
             "
@@ -56,7 +56,7 @@
           </button>
           <InformationCircleIcon
             v-if="rule.extra"
-            class="-mt-[2px] ml-1 inline-block h-4 w-4 opacity-60"
+            class="-mt-1 ml-1 inline-block h-4 w-4 opacity-60"
             @mouseenter="showRuleHitInfoTip"
             @click.stop
           />
@@ -126,7 +126,7 @@ import {
   QuestionMarkCircleIcon,
 } from '@heroicons/vue/24/outline'
 import dayjs from 'dayjs'
-import { twMerge } from 'tailwind-merge'
+import { twMerge } from '@/lib/cn'
 import type { Ref } from 'vue'
 import { computed, createApp, defineComponent, h, inject, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'

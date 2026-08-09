@@ -5,14 +5,33 @@
 import { ROUTE_NAME } from '@/constant'
 import { showNotification } from '@/helper/notification'
 import { getUrlFromBackend } from '@/helper/utils'
-import { activeBackend, activeUuid } from '@/store/setup'
-import axios, { AxiosError } from 'axios'
+import { activeBackend, activeBackendSession, activeUuid } from '@/store/setup'
+import axios, { AxiosError, type GenericAbortSignal } from 'axios'
 import { nextTick } from 'vue'
 
+const requestSessionEpochs = new WeakMap<object, number>()
+
+const combineSignals = (request: GenericAbortSignal | undefined, session: AbortSignal) => {
+  if (!request || request === session) return session
+  if (
+    typeof request.addEventListener !== 'function' ||
+    typeof request.removeEventListener !== 'function' ||
+    !('reason' in request) ||
+    !('throwIfAborted' in request)
+  ) {
+    return request.aborted ? AbortSignal.abort() : session
+  }
+  return AbortSignal.any([request as AbortSignal, session])
+}
+
 axios.interceptors.request.use((config) => {
-  if (activeBackend.value) {
-    config.baseURL = getUrlFromBackend(activeBackend.value)
-    config.headers['Authorization'] = 'Bearer ' + activeBackend.value.password
+  const backend = activeBackend.value
+  const session = activeBackendSession.value
+  if (backend && session) {
+    config.baseURL = getUrlFromBackend(backend)
+    config.headers['Authorization'] = 'Bearer ' + backend.password
+    requestSessionEpochs.set(config, session.epoch)
+    config.signal = combineSignals(config.signal, session.signal)
   }
   return config
 })
@@ -23,8 +42,7 @@ const ignoreNotificationUrls = [
   '/weights',
   '/storage/zashboard',
   // Capability discovery probes endpoints a stock core does not have. A 404 is
-  // the expected answer there, not something to raise a toast about — and
-  // resolving instead of rejecting is what lets the caller branch on `status`.
+  // the expected answer there, not something to raise a toast about.
   '/capabilities',
   '/5gpn',
 ]
@@ -37,16 +55,34 @@ const ignoresNotification = (url?: string) =>
   !!url && ignoreNotificationUrls.some((u) => url.endsWith(u) || url.includes(u + '/'))
 
 axios.interceptors.response.use(
-  null,
+  (response) => {
+    const epoch = requestSessionEpochs.get(response.config)
+    if (epoch !== undefined && epoch !== activeBackendSession.value?.epoch) {
+      return Promise.reject(
+        new AxiosError(
+          'backend session changed',
+          AxiosError.ERR_CANCELED,
+          response.config,
+          response.request,
+          response,
+        ),
+      )
+    }
+    return response
+  },
   async (
     error: AxiosError<{
       message: string
     }>,
   ) => {
-    if (error.status === 401 && activeUuid.value) {
+    const requestEpoch = error.config ? requestSessionEpochs.get(error.config) : undefined
+    const stale = requestEpoch !== undefined && requestEpoch !== activeBackendSession.value?.epoch
+    if (stale) return Promise.reject(error)
+
+    if ((error.status === 401 || error.response?.status === 401) && activeUuid.value) {
       const { default: router } = await import('@/router')
       const currentBackendUuid = activeUuid.value
-      activeUuid.value = null
+      activeUuid.value = ''
       router.push({
         name: ROUTE_NAME.setup,
         query: { editBackend: currentBackendUuid },
@@ -65,9 +101,11 @@ axios.interceptors.response.use(
         raw: `${decodeURIComponent(error.config?.url || '')} \n${errorMessage}`,
         type: 'alert-error',
       })
-      return Promise.reject(error)
     }
 
-    return error
+    // Suppressing a notification never changes the promise contract. Returning
+    // AxiosError as a fulfilled value made every caller carry two incompatible
+    // response shapes and allowed failed controller writes to look successful.
+    return Promise.reject(error)
   },
 )

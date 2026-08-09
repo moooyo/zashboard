@@ -34,7 +34,7 @@ import { getHistoryByName, getLatencyByName } from '@/assembly/proxies'
 import { BoltIcon } from '@heroicons/vue/24/outline'
 import { CountUp } from 'countup.js'
 import dayjs from 'dayjs'
-import { twMerge } from 'tailwind-merge'
+import { twMerge } from '@/lib/cn'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const { showTip } = useTooltip()

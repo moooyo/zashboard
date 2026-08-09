@@ -12,21 +12,21 @@ const entry = (overrides = {}) => ({
 
 test('marketplace renders current entries as a disabled up-to-date action', () => {
   const source = readFileSync(
-    new URL('../src/views/FiveGPNExtensionsPage.vue', import.meta.url),
+    new URL('../src/views/FiveGPNMarketplacePage.vue', import.meta.url),
     'utf8',
   )
 
   assert.match(source, /catalogInstallState\(entry\) === 'current'/u)
   assert.match(
     source,
-    /reviewing \|\| busy \|\| sourceBusy \|\| catalogInstallState\(entry\) === 'current'/u,
+    /reviewing \|\| sourceBusy \|\| catalogInstallState\(entry\) === 'current'/u,
   )
   assert.match(source, /\$t\('fivegpnUpToDate'\)/u)
   assert.match(source, /\$t\('fivegpnUpdateAvailable'\)/u)
 
-  const confirm = source.match(/const confirmReview = async[\s\S]*?\n\}\n\nonMounted/u)?.[0]
+  const confirm = source.match(/const confirmReview = async[\s\S]*?\n\}\n\nconst loadPage/u)?.[0]
   assert.ok(confirm, 'the reviewed confirmation handler is missing')
-  assert.match(confirm, /importContent\.value = ''\s+await refreshCatalog\(\)\s+\}/u)
+  assert.match(confirm, /reviewOpen\.value = false\s+await refreshCatalog\(\)/u)
 })
 
 test('catalog entries distinguish install, current, and update states', () => {
@@ -42,8 +42,12 @@ test('catalog entries distinguish install, current, and update states', () => {
 })
 
 test('installed extensions can update only through a reviewed marketplace entry', () => {
-  const page = readFileSync(
+  const installedPage = readFileSync(
     new URL('../src/views/FiveGPNExtensionsPage.vue', import.meta.url),
+    'utf8',
+  )
+  const marketplacePage = readFileSync(
+    new URL('../src/views/FiveGPNMarketplacePage.vue', import.meta.url),
     'utf8',
   )
   const api = readFileSync(new URL('../src/api/fivegpn.ts', import.meta.url), 'utf8')
@@ -52,15 +56,20 @@ test('installed extensions can update only through a reviewed marketplace entry'
     'utf8',
   )
 
-  assert.doesNotMatch(page, /fivegpnCheckUpdate|checkUpdate|updateTarget|applyReviewedUpdate/u)
-  assert.match(page, /fivegpnMarketplaceUpdateOnly/u)
-  assert.match(page, /catalogTarget/u)
-  assert.match(page, /applyCatalogUpdate/u)
+  assert.doesNotMatch(
+    installedPage,
+    /fivegpnCheckUpdate|checkUpdate|updateTarget|applyReviewedUpdate|applyCatalogUpdate/u,
+  )
+  assert.match(installedPage, /fivegpnMarketplaceUpdateOnly/u)
+  assert.match(marketplacePage, /applyCatalogUpdate/u)
+  assert.match(marketplacePage, /reviewedURL\.value/u)
 
-  const confirm = page.match(/const confirmReview = async[\s\S]*?\n\}\n\nonMounted/u)?.[0]
+  const confirm = marketplacePage.match(
+    /const confirmReview = async[\s\S]*?\n\}\n\nconst loadPage/u,
+  )?.[0]
   assert.ok(confirm, 'the reviewed confirmation handler is missing')
   assert.doesNotMatch(confirm, /reviewed\.installed|applyReviewedUpdate/u)
-  assert.match(confirm, /fromCatalog[\s\S]*applyCatalogUpdate/u)
+  assert.match(confirm, /applyCatalogUpdate[\s\S]*reviewedURL\.value/u)
 
   assert.doesNotMatch(
     api,

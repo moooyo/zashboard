@@ -1,34 +1,78 @@
 <template>
-  <div
+  <CardState
     v-if="hasVisibleItems"
+    :status="dnsStatus"
+    :ready="Boolean(draft)"
+    :loading-message="$t('fivegpnLoadingState')"
+    :absent-message="$t('fivegpnDnsAbsent')"
+    :error-message="dnsError"
+    :retry-label="$t('fivegpnRetryState')"
+    :retrying="dnsStatus === 'loading'"
     class="flex flex-col gap-3 text-sm"
+    @retry="refreshDns"
   >
-    <!-- A missing engine does not mean DNS is disabled. Disabled means a successfully loaded
-         document says so; missing means the document could not be loaded. Rendering both states
-         alike would tell the operator that policy is active when nothing reads it. -->
-    <template v-if="dnsStatus === 'absent'">
-      <div class="alert alert-warning py-2">
-        <span>{{ $t('fivegpnDnsAbsent') }}</span>
-      </div>
-    </template>
-
-    <template v-else-if="dnsStatus === 'error'">
-      <div class="alert alert-error py-2">
-        <span>{{ dnsError }}</span>
-      </div>
-    </template>
-
     <!-- Render from draft rather than status. Refreshing changes status to loading, and rendering
          from status would briefly blank the entire section while the draft may contain unsaved edits. -->
-    <template v-else-if="draft">
+    <template v-if="draft">
       <div
-        v-if="notice"
-        class="alert py-2"
-        :class="noticeIsError ? 'alert-error' : 'alert-success'"
+        class="border-base-content/10 bg-base-100/95 sticky top-2 z-20 mb-3 rounded-box border p-3 shadow-lg backdrop-blur"
       >
-        <span>{{ notice }}</span>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div
+            class="min-w-0"
+            role="status"
+            aria-live="polite"
+          >
+            <div
+              class="font-medium"
+              :class="dnsWriteConflict ? 'text-warning' : saveStateIsError ? 'text-error' : ''"
+            >
+              {{ saveStateTitle }}
+            </div>
+            <div
+              v-if="saveStateDetail"
+              class="mt-1 break-words text-xs opacity-70"
+            >
+              {{ saveStateDetail }}
+            </div>
+          </div>
+          <div class="ml-auto flex flex-wrap items-center gap-2">
+            <button
+              v-if="dnsWriteConflict"
+              class="btn btn-warning btn-sm"
+              :disabled="saving"
+              @click="discardConflict"
+            >
+              {{ $t('fivegpnDiscardAndReload') }}
+            </button>
+            <template v-else>
+              <button
+                class="btn btn-sm"
+                :disabled="saving || (!dirty && !writeFailure)"
+                @click="discardDraft"
+              >
+                {{ $t('fivegpnDiscardChanges') }}
+              </button>
+              <button
+                class="btn btn-primary btn-sm"
+                :disabled="saving || !dirty"
+                @click="saveDraft"
+              >
+                <span
+                  v-if="saving"
+                  class="loading loading-spinner loading-xs"
+                ></span>
+                {{ $t('fivegpnSaveChanges') }}
+              </button>
+            </template>
+          </div>
+        </div>
       </div>
 
+      <fieldset
+        class="contents"
+        :disabled="saving"
+      >
       <div class="settings-section-label">{{ $t('fivegpnDnsPolicy') }}</div>
       <div class="settings-grid">
         <SettingItem :setting-key="k.fivegpnDnsFallback">
@@ -42,7 +86,6 @@
           <select
             v-model="draft.policy.fallback"
             class="select select-sm w-32"
-            @change="apply"
           >
             <option value="auto">{{ $t('fivegpnFallbackAuto') }}</option>
             <option value="direct">{{ $t('fivegpnFallbackDirect') }}</option>
@@ -109,7 +152,6 @@
             v-model="draft.gateway"
             class="input input-sm w-44"
             placeholder="203.0.113.10"
-            @change="apply"
           />
         </SettingItem>
 
@@ -163,7 +205,6 @@
             v-model="draft.upstreams.ecs"
             class="input input-sm w-44"
             placeholder="112.96.32.0/24"
-            @change="apply"
           />
         </SettingItem>
       </div>
@@ -200,8 +241,10 @@
         the foundation of arbitration, and zero would classify the entire Chinese internet as foreign.
         It therefore moved to the persistent card instead of sitting beside duplicated numbers here.
       -->
+      </fieldset>
+
     </template>
-  </div>
+  </CardState>
 
   <DialogWrapper
     v-model="rulesDialog"
@@ -222,12 +265,10 @@
           v-model="entry.rule.enabled"
           type="checkbox"
           class="toggle toggle-sm"
-          @change="apply"
         />
         <select
           v-model="entry.rule.intent"
           class="select select-xs w-24"
-          @change="apply"
         >
           <option value="block">{{ $t('fivegpnIntentBlock') }}</option>
           <option value="direct">{{ $t('fivegpnIntentDirect') }}</option>
@@ -240,7 +281,6 @@
         <select
           v-model="entry.rule.kind"
           class="select select-xs w-36"
-          @change="apply"
         >
           <option value="domain">{{ $t('fivegpnKindDomain') }}</option>
           <option value="domain-suffix">{{ $t('fivegpnKindSuffix') }}</option>
@@ -250,7 +290,6 @@
           v-model="entry.rule.value"
           class="input input-xs min-w-56 flex-1"
           :placeholder="$t('fivegpnRuleValue')"
-          @change="apply"
         />
         <div class="ml-auto flex gap-1">
           <button
@@ -312,12 +351,10 @@
             v-model="entry.rule.enabled"
             type="checkbox"
             class="toggle toggle-sm"
-            @change="apply"
           />
           <select
             v-model="entry.rule.intent"
             class="select select-xs w-24"
-            @change="apply"
           >
             <option value="block">{{ $t('fivegpnIntentBlock') }}</option>
             <option value="direct">{{ $t('fivegpnIntentDirect') }}</option>
@@ -326,7 +363,6 @@
           <select
             v-model="entry.rule.format"
             class="select select-xs w-28"
-            @change="apply"
           >
             <option value="plain">plain</option>
             <option value="gfwlist">gfwlist</option>
@@ -339,7 +375,6 @@
             type="number"
             class="input input-xs w-24"
             :placeholder="$t('fivegpnInterval')"
-            @change="apply"
           />
           <!-- Subscription order also matters because two lists may cover the same name with
                different intents. The ordering controls moved here now that subscriptions are no
@@ -371,7 +406,6 @@
           v-model="entry.rule.value"
           class="input input-xs w-full font-mono"
           placeholder="https://example.com/list.txt"
-          @change="apply"
         />
         <div class="text-xs opacity-60">{{ subscriptionNote(entry.rule.id) }}</div>
       </div>
@@ -408,7 +442,6 @@
         v-model="chinaText"
         class="textarea textarea-sm w-full font-mono"
         rows="6"
-        @change="apply"
       />
       <p class="text-xs opacity-70">{{ $t('fivegpnUpstreamGrammar') }}</p>
     </div>
@@ -423,7 +456,6 @@
         v-model="trustText"
         class="textarea textarea-sm w-full font-mono"
         rows="6"
-        @change="apply"
       />
       <p class="text-xs opacity-70">{{ $t('fivegpnUpstreamGrammar') }}</p>
     </div>
@@ -500,10 +532,16 @@
 <script setup lang="ts">
 import type { FiveGPNDnsDocument } from '@/api/fivegpn'
 import {
+  clearDnsWriteError,
   dnsDocument,
   dnsError,
+  dnsRevision,
   dnsStatus,
   dnsSubscriptions,
+  dnsWriteConflict,
+  dnsWriteError,
+  dnsWritesPending,
+  discardDnsConflict,
   explain,
   explaining,
   explanation,
@@ -511,11 +549,16 @@ import {
   flushCache,
   refreshDns,
   saveDns,
+  startDnsSubscriptionSampling,
+  stopDnsSubscriptionSampling,
 } from '@/assembly/fivegpn/dns'
+import CardState from '@/components/ds/CardState.vue'
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
 import SettingItem from '@/components/settings/SettingItem.vue'
 import { useHasAnyVisibleSetting } from '@/composables/settings'
 import { useTooltip } from '@/helper/tooltip'
+import { cloneWholeDocument, wholeDocumentChanged } from '@/helper/wholeDocumentDraft'
+import { activeBackendSession } from '@/store/setup'
 import { getAllKeysForCategory, FIVEGPN_DNS_ITEM_KEYS } from '@/config/settingsItems'
 import { SETTINGS_MENU_KEY } from '@/constant'
 import {
@@ -523,7 +566,7 @@ import {
   PencilSquareIcon,
   QuestionMarkCircleIcon,
 } from '@heroicons/vue/24/outline'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -538,8 +581,9 @@ const FALLBACK_HINT: Record<string, string> = {
 }
 
 const draft = ref<FiveGPNDnsDocument | null>(null)
+const baseDocument = ref<FiveGPNDnsDocument | null>(null)
+const draftRevision = ref('')
 const notice = ref('')
-const noticeIsError = ref(false)
 const probeName = ref('')
 
 const rulesDialog = ref(false)
@@ -548,16 +592,74 @@ const chinaDialog = ref(false)
 const trustDialog = ref(false)
 const probeDialog = ref(false)
 
-// The draft is a deep copy. Editing the store document directly would leave Cancel with nowhere to
-// return and make a failed save look active in the UI while the backend knows nothing about it.
-const clone = (doc: FiveGPNDnsDocument): FiveGPNDnsDocument => JSON.parse(JSON.stringify(doc))
-
 const reset = () => {
-  draft.value = dnsDocument.value ? clone(dnsDocument.value) : null
+  baseDocument.value = dnsDocument.value ? cloneWholeDocument(dnsDocument.value) : null
+  draft.value = dnsDocument.value ? cloneWholeDocument(dnsDocument.value) : null
+  draftRevision.value = dnsRevision.value
   notice.value = ''
 }
 
-watch(dnsDocument, reset, { immediate: true })
+watch(
+  [dnsDocument, dnsRevision],
+  () => {
+    // A successful earlier write in the same queue must not erase a later
+    // local edit that is still in flight. The final success resets once the
+    // queue drains; a conflict keeps its attempted draft visible.
+    if (
+      dnsWritesPending.value > 0 ||
+      dnsWriteConflict.value ||
+      dnsWriteError.value ||
+      wholeDocumentChanged(baseDocument.value, draft.value)
+    ) {
+      return
+    }
+    reset()
+  },
+  { immediate: true },
+)
+
+watch(dnsWritesPending, (pending) => {
+  if (pending === 0 && !dnsWriteConflict.value && !dnsWriteError.value) reset()
+})
+
+watch(
+  dnsWriteConflict,
+  (conflict) => {
+    if (!conflict) return
+    draft.value = cloneWholeDocument(conflict.draft)
+    notice.value = ''
+  },
+  { immediate: true },
+)
+
+watch(activeBackendSession, (session, previous) => {
+  if (session?.epoch === previous?.epoch) return
+  reset()
+  if (session) {
+    void Promise.resolve().then(() => {
+      if (activeBackendSession.value?.epoch === session.epoch) return refreshDns()
+    })
+  }
+})
+
+const dirty = computed(() => wholeDocumentChanged(baseDocument.value, draft.value))
+const saving = computed(() => dnsWritesPending.value > 0)
+const writeFailure = computed(() => {
+  if (notice.value) return notice.value
+  return dnsWriteError.value === 'conflict' ? '' : dnsWriteError.value
+})
+const saveStateIsError = computed(() => Boolean(writeFailure.value))
+const saveStateTitle = computed(() => {
+  if (dnsWriteConflict.value) return t('fivegpnDnsConflictPreserved')
+  if (saving.value) return t('fivegpnDnsSaving')
+  if (writeFailure.value) return t('fivegpnDnsSaveFailed')
+  return dirty.value ? t('fivegpnUnsaved') : t('fivegpnSaved')
+})
+const saveStateDetail = computed(() => {
+  if (writeFailure.value) return writeFailure.value
+  if (dirty.value && !saving.value && !dnsWriteConflict.value) return t('fivegpnDnsDraftHint')
+  return ''
+})
 
 const splitLines = (v: string) =>
   v
@@ -638,7 +740,6 @@ const importDefaultSubscriptions = () => {
       intervalSeconds: 86400,
     })
   }
-  apply()
 }
 
 const addSubscription = () => {
@@ -657,7 +758,6 @@ const addSubscription = () => {
 const removeSubscription = (id: string) => {
   if (!draft.value) return
   draft.value.policy.rules = draft.value.policy.rules.filter((r) => r.id !== id)
-  apply()
 }
 
 // Move one position within a group. entries is a filtered group whose items retain their absolute
@@ -671,22 +771,18 @@ const moveWithin = (entries: { index: number }[], position: number, delta: numbe
   const a = entries[position].index
   const b = entries[target].index
   ;[rules[a], rules[b]] = [rules[b], rules[a]]
-  apply()
 }
 
 const removeRule = (id: string) => {
   if (!draft.value) return
   draft.value.policy.rules = draft.value.policy.rules.filter((r) => r.id !== id)
-  apply()
 }
 
 // The client creates rule IDs because they also name subscription cache files; the server requires
 // only that they are path-safe.
 //
-// A new rule is not applied on creation: it has an empty value, which the core
-// would refuse, and reporting that as an error to someone who has just pressed
-// "add" is telling them off for a step they are in the middle of. It writes when
-// the value changes.
+// A new rule remains local until the complete document is valid and the
+// operator explicitly saves it.
 const addRule = () => {
   if (!draft.value) return
   const rules = draft.value.policy.rules
@@ -704,22 +800,25 @@ const addRule = () => {
   })
 }
 
-// Every row writes when it changes, and there is no save button, because that
-// is what a zashboard settings row that writes to the backend does --
-// BackendPortsGrid patches /configs on @change, and the tun / allow-lan toggles
-// beside it do the same. A save bar here was this panel inventing a second
-// interaction model for the same job.
-//
-// @change rather than the model updating: on an <input> it fires on blur or
-// Enter, so typing an address does not send a request per keystroke. Add,
-// remove and reorder call this directly, because those have no blur to wait for.
-const apply = async () => {
-  if (!draft.value) return
-  const error = await saveDns(draft.value)
-  noticeIsError.value = Boolean(error)
-  // Silence on success. A settings row that announces every accepted change is
-  // noise; what an operator needs to see is the one that was refused.
-  notice.value = error === 'conflict' ? t('fivegpnConflict') : error
+const saveDraft = async () => {
+  if (!draft.value || !dirty.value || saving.value || dnsWriteConflict.value) return
+  clearDnsWriteError()
+  notice.value = ''
+  const sessionEpoch = activeBackendSession.value?.epoch
+  const error = await saveDns(draft.value, draftRevision.value)
+  if (sessionEpoch !== activeBackendSession.value?.epoch) return
+  notice.value = error === 'conflict' ? '' : error
+}
+
+const discardDraft = () => {
+  if (!baseDocument.value || saving.value || dnsWriteConflict.value) return
+  clearDnsWriteError()
+  reset()
+}
+
+const discardConflict = async () => {
+  await discardDnsConflict()
+  reset()
 }
 
 const runProbe = () => explain(probeName.value)
@@ -744,5 +843,9 @@ const subscriptionNote = (ruleId: string) => {
   return t('fivegpnSubEntries', { entries: status.entries })
 }
 
-refreshDns()
+onMounted(() => {
+  startDnsSubscriptionSampling()
+  void refreshDns()
+})
+onUnmounted(stopDnsSubscriptionSampling)
 </script>

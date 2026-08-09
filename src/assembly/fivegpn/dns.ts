@@ -8,13 +8,21 @@ import type {
 } from '@/api/fivegpn'
 import {
   fetchDnsAPI,
+  fetchDnsStatsAPI,
   fetchQueryLogAPI,
   flushDnsCacheAPI,
   putDnsAPI,
   resolveTestAPI,
 } from '@/api/fivegpn'
-import { activeUuid } from '@/store/setup'
-import { ref } from 'vue'
+import { responseData, responseMessage, responseStatus } from '@/api/response'
+import { SerialRevisionWriter } from '@/helper/serialRevisionWriter'
+import { SingleFlightRequest } from '@/helper/singleFlightRequest'
+import {
+  activeBackendSession,
+  backendSessionIsCurrent,
+  captureBackendSession,
+} from '@/store/setup'
+import { ref, watch } from 'vue'
 import { featureSupported } from './capabilities'
 
 /**
@@ -37,10 +45,31 @@ export const dnsError = ref('')
 export const dnsSupported = featureSupported('5gpn-dns')
 
 // This uses the same double guard as capabilities: generation rejects
-// out-of-order responses from one backend, while UUID rejects late responses
-// from the previous backend after a switch.
+// out-of-order responses within one session, while the session epoch rejects
+// responses from a backend that was switched or edited in place.
 let generation = 0
 let controller: AbortController | undefined
+
+const cancelDnsRead = () => {
+  controller?.abort()
+  controller = undefined
+  generation += 1
+}
+
+export type DnsWriteConflict = {
+  sessionEpoch: number
+  baseRevision: string
+  serverRevision?: string
+  draft: FiveGPNDnsDocument
+}
+
+export const dnsWritesPending = ref(0)
+export const dnsWriteConflict = ref<DnsWriteConflict | null>(null)
+export const dnsWriteError = ref('')
+const dnsWriter = new SerialRevisionWriter<FiveGPNDnsDocument, FiveGPNDnsEnvelope>()
+
+const cloneDocument = (document: FiveGPNDnsDocument): FiveGPNDnsDocument =>
+  JSON.parse(JSON.stringify(document))
 
 /**
  * Statistics sampling updates only stats and never touches dnsDocument.
@@ -78,72 +107,101 @@ export const chinaLatencyHistory = ref<FiveGPNQpsPoint[]>(makeQpsHistory())
 export const trustLatencyHistory = ref<FiveGPNQpsPoint[]>(makeQpsHistory())
 
 let sampleTimer: ReturnType<typeof setInterval> | undefined
+let subscriptionTimer: ReturnType<typeof setInterval> | undefined
 let lastTotal = -1
 let lastAt = 0
 let samplers = 0
+let subscriptionSamplers = 0
+const statsRequest = new SingleFlightRequest<FiveGPNDnsStats>()
+const subscriptionRequest = new SingleFlightRequest<FiveGPNSubscriptionStatus[]>()
+
+const SUBSCRIPTION_SAMPLE_INTERVAL = 30000
 
 const sampleOnce = async () => {
-  const uuid = activeUuid.value
-  if (!uuid) return
-  let data: FiveGPNDnsEnvelope | undefined
-  try {
-    const res = await fetchDnsAPI()
-    if (res.status !== 200 || !res.data) return
-    data = res.data
-  } catch {
-    // A sampling failure does not change status; one network wobble must not mark the engine absent.
-    return
-  }
-  if (uuid !== activeUuid.value) return
+  const session = captureBackendSession()
+  if (!session) return
+  await statsRequest.run(
+    async (signal) => {
+      const res = await fetchDnsStatsAPI(signal)
+      if (res.status !== 200 || !res.data) throw new Error(`dns stats returned ${res.status}`)
+      return res.data
+    },
+    (stats) => {
+      if (!backendSessionIsCurrent(session)) return
+      dnsStats.value = stats
+      const now = Date.now()
+      const total = stats.total ?? 0
+      // The first sample establishes a baseline. A core restart decreases the
+      // counter and starts a new baseline instead of producing a negative rate.
+      if (lastTotal >= 0 && total >= lastTotal && lastAt > 0) {
+        const seconds = Math.max((now - lastAt) / 1000, 0.001)
+        qps.value = (total - lastTotal) / seconds
+      } else {
+        qps.value = 0
+      }
+      lastTotal = total
+      lastAt = now
 
-  dnsStats.value = data.stats
-  // Adopt subscription status as well. It is a read-only fetch result rather
-  // than document state. Sampling intentionally avoids dnsDocument because that
-  // would erase an active draft, but entry counts describe what is currently
-  // installed, belong with stats, and already arrive in the same response. If
-  // ignored here, the standalone overview card can never observe them.
-  dnsSubscriptions.value = data.subscriptions ?? []
-  const now = Date.now()
-  const total = data.stats?.total ?? 0
-  // The first sample establishes a baseline and cannot produce a rate. A core
-  // restart makes total decrease; that starts a new counter rather than a
-  // negative rate, so it also only rebuilds the baseline.
-  if (lastTotal >= 0 && total >= lastTotal && lastAt > 0) {
-    const seconds = Math.max((now - lastAt) / 1000, 0.001)
-    qps.value = (total - lastTotal) / seconds
-  } else {
-    qps.value = 0
-  }
-  lastTotal = total
-  lastAt = now
+      qpsHistory.value.push({ name: now, value: [now, qps.value] })
+      qpsHistory.value = qpsHistory.value.slice(-QPS_POINTS)
 
-  qpsHistory.value.push({ name: now, value: [now, qps.value] })
-  qpsHistory.value = qpsHistory.value.slice(-QPS_POINTS)
+      const pushLatency = (
+        history: typeof qpsHistory,
+        group?: { latencyCount: number; p50Ms: number },
+      ) => {
+        const measured = (group?.latencyCount ?? 0) > 0
+        history.value.push(
+          measured
+            ? { name: now, value: [now, group!.p50Ms] }
+            : { name: now, value: [now, 0], init: true },
+        )
+        history.value = history.value.slice(-QPS_POINTS)
+      }
+      pushLatency(chinaLatencyHistory, stats.china)
+      pushLatency(trustLatencyHistory, stats.trust)
+    },
+  )
+}
 
-  // Upstream latency has a 15-minute sample age limit, so an idle gateway really
-  // can return to "no samples". Plotting an ordinary zero would falsely claim
-  // zero milliseconds. Mark the point with init, following makeQpsHistory's
-  // placeholder convention: draw it on the zero line without a tooltip and do
-  // not present it as a measurement.
-  const pushLatency = (
-    history: typeof qpsHistory,
-    group?: { latencyCount: number; p50Ms: number },
-  ) => {
-    const measured = (group?.latencyCount ?? 0) > 0
-    history.value.push(
-      measured
-        ? { name: now, value: [now, group!.p50Ms] }
-        : { name: now, value: [now, 0], init: true },
-    )
-    history.value = history.value.slice(-QPS_POINTS)
-  }
-  pushLatency(chinaLatencyHistory, data.stats?.china)
-  pushLatency(trustLatencyHistory, data.stats?.trust)
+const sampleSubscriptionsOnce = async () => {
+  const session = captureBackendSession()
+  if (!session) return
+  await subscriptionRequest.run(
+    async (signal) => {
+      const res = await fetchDnsAPI(signal)
+      if (res.status !== 200 || !res.data) throw new Error(`dns returned ${res.status}`)
+      return res.data.subscriptions ?? []
+    },
+    (subscriptions) => {
+      if (backendSessionIsCurrent(session)) dnsSubscriptions.value = subscriptions
+    },
+  )
+}
+
+/** Low-frequency subscription status is independent of the one-second chart. */
+export const startDnsSubscriptionSampling = () => {
+  subscriptionSamplers += 1
+  if (subscriptionTimer) return
+  void sampleSubscriptionsOnce()
+  subscriptionTimer = setInterval(
+    () => void sampleSubscriptionsOnce(),
+    SUBSCRIPTION_SAMPLE_INTERVAL,
+  )
+}
+
+export const stopDnsSubscriptionSampling = () => {
+  if (subscriptionSamplers === 0) return
+  subscriptionSamplers -= 1
+  if (subscriptionSamplers > 0 || !subscriptionTimer) return
+  clearInterval(subscriptionTimer)
+  subscriptionTimer = undefined
+  subscriptionRequest.cancel()
 }
 
 /** Reference count so multiple mounted cards share one timer. */
 export const startQpsSampling = () => {
   samplers += 1
+  startDnsSubscriptionSampling()
   if (sampleTimer) return
   lastTotal = -1
   lastAt = 0
@@ -155,10 +213,13 @@ export const startQpsSampling = () => {
 }
 
 export const stopQpsSampling = () => {
-  samplers = Math.max(0, samplers - 1)
+  if (samplers === 0) return
+  samplers -= 1
+  stopDnsSubscriptionSampling()
   if (samplers > 0 || !sampleTimer) return
   clearInterval(sampleTimer)
   sampleTimer = undefined
+  statsRequest.cancel()
   qps.value = 0
 }
 
@@ -172,13 +233,13 @@ const adopt = (data: FiveGPNDnsEnvelope) => {
 }
 
 export const refreshDns = async () => {
-  controller?.abort()
+  cancelDnsRead()
   controller = new AbortController()
   const gen = ++generation
-  const uuid = activeUuid.value
-  const stale = () => gen !== generation || uuid !== activeUuid.value
+  const session = captureBackendSession()
+  const stale = () => gen !== generation || !backendSessionIsCurrent(session)
 
-  if (!uuid) {
+  if (!session) {
     dnsStatus.value = 'idle'
     return
   }
@@ -194,8 +255,14 @@ export const refreshDns = async () => {
     data = res.data
   } catch (e) {
     if (stale()) return
+    const status = responseStatus(e)
+    if (status === 503) {
+      dnsStatus.value = 'absent'
+      dnsDocument.value = null
+      return
+    }
     dnsStatus.value = 'error'
-    dnsError.value = e instanceof Error ? e.message : String(e)
+    dnsError.value = responseMessage(e) || (e instanceof Error ? e.message : String(e))
     return
   }
   if (stale()) return
@@ -225,22 +292,99 @@ export const refreshDns = async () => {
  * state and expose the conflict instead of overwriting it; having this page open
  * in two tabs is normal, not exceptional.
  */
-export const saveDns = async (document: FiveGPNDnsDocument): Promise<string> => {
-  if (!dnsRevision.value) return 'no revision'
+export const saveDns = async (
+  document: FiveGPNDnsDocument,
+  expectedRevision = dnsRevision.value,
+): Promise<string> => {
+  const session = captureBackendSession()
+  const baseRevision = expectedRevision
+  if (!session) return 'no backend'
+  if (!baseRevision) return 'no revision'
+
+  const draft = cloneDocument(document)
+  const sessionKey = String(session.epoch)
+  dnsWritesPending.value += 1
   try {
-    const res = await putDnsAPI({ revision: dnsRevision.value, document })
-    if (res.status === 200 && res.data) {
-      adopt(res.data)
+    const outcome = await dnsWriter.enqueue({
+      sessionKey,
+      baseRevision,
+      value: draft,
+      isCurrent: () => backendSessionIsCurrent(session),
+      write: async (revision, value) => {
+        // A GET that began before this transaction must never publish an old
+        // document or revision after the PUT succeeds.
+        cancelDnsRead()
+        try {
+          const res = await putDnsAPI({ revision, document: value })
+          if (res.status === 200 && res.data) {
+            // Fence any read started while the write was in flight and before
+            // the server committed the new document.
+            cancelDnsRead()
+            return { status: 'saved' as const, revision: res.data.revision, response: res.data }
+          }
+          if (res.status === 409) {
+            return {
+              status: 'conflict' as const,
+              serverRevision: responseData<{ revision?: string }>(res)?.revision,
+            }
+          }
+          return {
+            status: 'error' as const,
+            message: messageOf(res) || `dns returned ${res.status}`,
+          }
+        } catch (error) {
+          const status = responseStatus(error)
+          if (status === 409) {
+            return {
+              status: 'conflict' as const,
+              serverRevision: responseData<{ revision?: string }>(error)?.revision,
+            }
+          }
+          return {
+            status: 'error' as const,
+            message:
+              responseMessage(error) || (error instanceof Error ? error.message : String(error)),
+          }
+        }
+      },
+    })
+
+    if (!backendSessionIsCurrent(session)) return 'backend changed'
+    if (outcome.status === 'saved') {
+      adopt(outcome.response)
+      dnsWriteError.value = ''
       return ''
     }
-    if (res.status === 409) {
-      await refreshDns()
+    if (outcome.status === 'conflict') {
+      dnsWriteConflict.value = {
+        sessionEpoch: session.epoch,
+        baseRevision: outcome.baseRevision,
+        serverRevision: outcome.serverRevision,
+        draft: cloneDocument(outcome.attempted),
+      }
+      dnsWriteError.value = 'conflict'
       return 'conflict'
     }
-    return messageOf(res) || `dns returned ${res.status}`
-  } catch (e) {
-    return e instanceof Error ? e.message : String(e)
+    dnsWriteError.value = outcome.message
+    return outcome.message
+  } finally {
+    if (backendSessionIsCurrent(session)) {
+      dnsWritesPending.value = Math.max(0, dnsWritesPending.value - 1)
+    }
   }
+}
+
+/** Explicitly discard the preserved local draft and adopt the server document. */
+export const discardDnsConflict = async () => {
+  const conflict = dnsWriteConflict.value
+  if (conflict) dnsWriter.clear(String(conflict.sessionEpoch))
+  dnsWriteConflict.value = null
+  dnsWriteError.value = ''
+  await refreshDns()
+}
+
+export const clearDnsWriteError = () => {
+  dnsWriteError.value = ''
 }
 
 const messageOf = (res: { data?: unknown }) => {
@@ -259,11 +403,11 @@ let logController: AbortController | undefined
 export const refreshQueryLog = async () => {
   logController?.abort()
   logController = new AbortController()
-  const uuid = activeUuid.value
-  if (!uuid) return
+  const session = captureBackendSession()
+  if (!session) return
   try {
     const res = await fetchQueryLogAPI(queryLogFilter.value, 500, logController.signal)
-    if (uuid !== activeUuid.value) return
+    if (!backendSessionIsCurrent(session)) return
     if (res.status === 200 && res.data) {
       queryLog.value = res.data.entries ?? []
       queryLogError.value = ''
@@ -271,6 +415,7 @@ export const refreshQueryLog = async () => {
     }
     queryLogError.value = `query log returned ${res.status}`
   } catch (e) {
+    if (!backendSessionIsCurrent(session)) return
     queryLogError.value = e instanceof Error ? e.message : String(e)
   }
 }
@@ -280,12 +425,26 @@ export const refreshQueryLog = async () => {
 export const explanation = ref<FiveGPNExplanation | null>(null)
 export const explanationError = ref('')
 export const explaining = ref(false)
+let explainGeneration = 0
+let explainController: AbortController | undefined
 
 export const explain = async (name: string) => {
+  explainController?.abort()
+  const gen = ++explainGeneration
+  const session = captureBackendSession()
+  if (!session) {
+    explainController = undefined
+    explaining.value = false
+    return
+  }
+  const requestController = new AbortController()
+  explainController = requestController
+  const stale = () => gen !== explainGeneration || !backendSessionIsCurrent(session)
   explaining.value = true
   explanationError.value = ''
   try {
-    const res = await resolveTestAPI(name)
+    const res = await resolveTestAPI(name, requestController.signal)
+    if (stale()) return
     if (res.status === 200 && res.data) {
       explanation.value = res.data
       return
@@ -293,10 +452,11 @@ export const explain = async (name: string) => {
     explanation.value = null
     explanationError.value = messageOf(res) || `resolve returned ${res.status}`
   } catch (e) {
+    if (stale()) return
     explanation.value = null
     explanationError.value = e instanceof Error ? e.message : String(e)
   } finally {
-    explaining.value = false
+    if (!stale()) explaining.value = false
   }
 }
 
@@ -306,11 +466,24 @@ export const flushCache = async () => {
 }
 
 export const stopDns = () => {
-  controller?.abort()
+  cancelDnsRead()
   logController?.abort()
-  controller = undefined
   logController = undefined
-  generation++
+  explainController?.abort()
+  explainController = undefined
+  explainGeneration += 1
+  statsRequest.cancel()
+  subscriptionRequest.cancel()
+  lastTotal = -1
+  lastAt = 0
+  qps.value = 0
+  qpsHistory.value = makeQpsHistory()
+  chinaLatencyHistory.value = makeQpsHistory()
+  trustLatencyHistory.value = makeQpsHistory()
+  dnsWriter.clear()
+  dnsWritesPending.value = 0
+  dnsWriteConflict.value = null
+  dnsWriteError.value = ''
   dnsDocument.value = null
   dnsStats.value = null
   dnsSubscriptions.value = []
@@ -319,4 +492,12 @@ export const stopDns = () => {
   dnsError.value = ''
   queryLog.value = []
   explanation.value = null
+  if (activeBackendSession.value) {
+    if (samplers > 0) void sampleOnce()
+    if (subscriptionSamplers > 0) void sampleSubscriptionsOnce()
+  }
 }
+
+watch(activeBackendSession, (_session, previous) => {
+  if (previous !== undefined) stopDns()
+})

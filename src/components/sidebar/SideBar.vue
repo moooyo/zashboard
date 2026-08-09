@@ -22,49 +22,52 @@
     -->
     <div :class="twMerge('flex h-full flex-col gap-2', isSidebarCollapsed ? 'w-18 px-0' : 'w-60')">
       <div
-        ref="navRef"
-        class="relative flex-1 shrink-0"
+        class="flex-1 shrink-0"
       >
-        <div
-          aria-hidden="true"
-          class="sidebar-tab-indicator bg-neutral pointer-events-none absolute"
-          :class="{ 'sidebar-tab-indicator-ready': indicatorReady }"
-          :style="indicatorStyle"
-        />
-        <!--
-          h-full previously fixed this ul to nav's height. That caused two problems. DaisyUI's .menu
-          uses flex-flow: column wrap, so once nav became shorter than its content, rows wrapped into
-          a second column and were clipped by overflow-x-hidden. Also, the ul size never changed, so
-          useResizeObserver never fired and nothing remeasured the indicator when capability discovery
-          added the 5gpn tabs after the first frame. Natural height fixes both problems.
-        -->
-        <ul
-          ref="menuRef"
-          class="sidebar-route-menu menu w-full flex-nowrap"
-        >
-          <li
+        <ul class="sidebar-route-menu menu w-full flex-nowrap">
+          <template
             v-for="r in renderRoutes"
             :key="r"
-            :data-sidebar-route="r"
-            @mouseenter="(e) => mouseenterHandler(e, r)"
           >
-            <a
-              :class="[
-                r === route.name ? 'sidebar-tab-active' : 'hover:bg-base-300!',
-                isSidebarCollapsed && 'justify-center',
-                'relative z-10 py-2',
-              ]"
-              @click.passive="() => router.push({ name: r })"
+            <li
+              v-if="r === ROUTE_NAME.fivegpnExtensions"
+              class="menu-title mt-2"
+              :aria-label="$t('fivegpnPluginGroup')"
             >
-              <component
-                :is="ROUTE_ICON_MAP[r]"
-                class="h-5 w-5"
+              <span v-if="!isSidebarCollapsed">{{ $t('fivegpnPluginGroup') }}</span>
+              <hr
+                v-else
+                aria-hidden="true"
+                class="border-base-300 w-full"
               />
-              <template v-if="!isSidebarCollapsed">
-                {{ $t(r) }}
-              </template>
-            </a>
-          </li>
+            </li>
+            <li
+              v-if="r === ROUTE_NAME.tools"
+              aria-hidden="true"
+              class="px-2 py-1"
+            >
+              <hr class="border-base-300 w-full" />
+            </li>
+            <li @mouseenter="(e) => mouseenterHandler(e, r)">
+              <a
+                :class="[
+                  r !== route.name && 'hover:bg-base-300!',
+                  isSidebarCollapsed && 'justify-center',
+                  'py-2',
+                ]"
+                :aria-current="r === route.name ? 'page' : undefined"
+                @click.passive="() => router.push({ name: r })"
+              >
+                <component
+                  :is="ROUTE_ICON_MAP[r]"
+                  class="h-5 w-5"
+                />
+                <template v-if="!isSidebarCollapsed">
+                  {{ $t(r) }}
+                </template>
+              </a>
+            </li>
+          </template>
         </ul>
       </div>
       <template v-if="isSidebarCollapsed">
@@ -92,14 +95,13 @@
 
 <script setup lang="ts">
 import CommonSidebar from '@/components/sidebar/CommonCtrl.vue'
-import { ROUTE_ICON_MAP } from '@/constant'
+import { ROUTE_ICON_MAP, ROUTE_NAME } from '@/constant'
 import { renderRoutes } from '@/helper'
 import { useTooltip } from '@/helper/tooltip'
+import { twMerge } from '@/lib/cn'
 import router from '@/router'
 import { isSidebarCollapsed, showStatisticsWhenSidebarCollapsed } from '@/store/settings'
-import { useResizeObserver } from '@vueuse/core'
-import { twMerge } from 'tailwind-merge'
-import { nextTick, ref, watch } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import OverviewCarousel from './OverviewCarousel.vue'
@@ -111,15 +113,6 @@ const emit = defineEmits<{
 }>()
 
 const sidebarRef = ref<HTMLDivElement>()
-const navRef = ref<HTMLDivElement>()
-const menuRef = ref<HTMLUListElement>()
-const indicatorReady = ref(false)
-const indicatorStyle = ref({
-  height: '0px',
-  opacity: '0',
-  transform: 'translate3d(0, 0, 0)',
-  width: '0px',
-})
 const { showTip } = useTooltip()
 const { t } = useI18n()
 
@@ -132,48 +125,8 @@ const mouseenterHandler = (e: MouseEvent, r: string) => {
 
 const route = useRoute()
 
-const syncTabIndicator = () => {
-  const nav = navRef.value
-  const menu = menuRef.value
-  if (!nav || !menu || typeof route.name !== 'string') return
-
-  const activeTab = menu.querySelector<HTMLElement>(
-    `[data-sidebar-route="${CSS.escape(route.name)}"] > a`,
-  )
-  if (!activeTab) return
-
-  const navRect = nav.getBoundingClientRect()
-  const activeTabRect = activeTab.getBoundingClientRect()
-
-  indicatorStyle.value = {
-    height: `${activeTabRect.height}px`,
-    opacity: '1',
-    transform: `translate3d(${activeTabRect.left - navRect.left}px, ${activeTabRect.top - navRect.top}px, 0)`,
-    width: `${activeTabRect.width}px`,
-  }
-}
-
-// Include renderRoutes here because capability discovery responds after the first frame, adding the
-// three 5gpn tabs roughly one frame later. Neither the route name nor collapse state changes, so
-// nothing else remeasures the indicator. Refreshing on a 5gpn page would leave the highlight at its
-// pre-discovery position.
-watch(
-  [() => route.name, isSidebarCollapsed, renderRoutes],
-  async () => {
-    await nextTick()
-    syncTabIndicator()
-    requestAnimationFrame(() => {
-      indicatorReady.value = true
-    })
-  },
-  { immediate: true },
-)
-
-useResizeObserver(menuRef, syncTabIndicator)
-
 const handleTransitionEnd = (e: TransitionEvent) => {
   if (e.target !== sidebarRef.value || e.propertyName !== 'width') return
-  syncTabIndicator()
   emit('transitionend')
 }
 </script>

@@ -1,12 +1,10 @@
 import { SETTINGS_CATEGORIES } from '@/config/settingsItems'
 import {
-  ALL_THEME,
   CONNECTIONS_TABLE_ACCESSOR_KEY,
   CONNECTION_DISPLAY_STYLE,
   DETAILED_CARD_STYLE,
   EMOJIS,
   FOLDER_MODE,
-  FONTS,
   GEOIP_ASN_DATABASE_URL,
   GEOIP_COUNTRY_DATABASE_URL,
   GLOBAL,
@@ -27,6 +25,7 @@ import {
   type THEME,
 } from '@/constant'
 import { getMinCardWidth, isMiddleScreen, isPreferredDark } from '@/helper/utils'
+import { normalizeSavedTheme } from '@/helper/themeCatalog'
 import type { SourceIPLabel } from '@/types'
 import { useStorage } from '@vueuse/core'
 import { computed } from 'vue'
@@ -91,18 +90,9 @@ export const theme = computed(() => {
 })
 export const customThemes = useStorage<THEME[]>('config/custom-themes', [])
 
-const replaceLegacyTheme = (theme: string, defaultTheme: string) => {
-  if (theme === 'dark-apple') {
-    return 'dark'
-  }
-  if ([...ALL_THEME, ...customThemes.value.map((theme) => theme.name)].includes(theme)) {
-    return theme
-  }
-  return defaultTheme
-}
-
-defaultTheme.value = replaceLegacyTheme(defaultTheme.value, 'light')
-darkTheme.value = replaceLegacyTheme(darkTheme.value, 'dark')
+const customThemeNames = customThemes.value.map((theme) => theme.name)
+defaultTheme.value = normalizeSavedTheme(defaultTheme.value, 'light', customThemeNames)
+darkTheme.value = normalizeSavedTheme(darkTheme.value, 'dark', customThemeNames)
 
 export const language = useStorage<LANG>(
   'config/language',
@@ -121,19 +111,6 @@ export const isSidebarCollapsed = computed({
   },
   set: (value) => {
     isSidebarCollapsedConfig.value = value
-  },
-})
-const fontConfig = useStorage<FONTS>('config/font', FONTS.MI_SANS)
-export const font = computed({
-  get: () => {
-    const mode = import.meta.env.MODE
-    if (Object.values(FONTS).includes(mode as FONTS)) {
-      return mode as FONTS
-    }
-    return fontConfig.value
-  },
-  set: (val) => {
-    fontConfig.value = val
   },
 })
 export const emoji = useStorage<EMOJIS>(

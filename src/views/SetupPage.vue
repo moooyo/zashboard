@@ -99,6 +99,19 @@
           v-model="form.password"
         />
       </div>
+      <label class="flex cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          class="checkbox checkbox-sm mt-0.5"
+          v-model="form.rememberSecret"
+        />
+        <span class="min-w-0">
+          <span class="block text-sm">{{ $t('rememberControllerSecret') }}</span>
+          <span class="text-caption text-base-content/60 block">
+            {{ $t('rememberControllerSecretHint') }}
+          </span>
+        </span>
+      </label>
 
       <button
         class="btn btn-primary btn-sm w-full"
@@ -219,6 +232,7 @@ const form = reactive({
   port: served?.port ?? '9090',
   secondaryPath: '',
   password: '',
+  rememberSecret: false,
   label: '',
 })
 
@@ -317,7 +331,7 @@ const processPendingSetupHandoff = () => {
   }
 
   const setupHandoff = startSetupHandoff(handoff, {
-    prepare: (backend) => Object.assign(form, backend),
+    prepare: (backend) => Object.assign(form, backend, { rememberSecret: false }),
     probe: async (backend) => {
       const available = await isBackendAvailable({ uuid: '', ...backend }, 10000)
       return generation === handoffGeneration && available

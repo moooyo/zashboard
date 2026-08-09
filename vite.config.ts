@@ -21,17 +21,14 @@ const getGitCommitId = (): string => {
   }
 }
 
-// Selects which fonts get bundled. One of:
-//   all (default) | cdn | firasans | misans | pingfang | sarasa | none
-// See src/assets/load-fonts.ts for what each value loads.
-const font = process.env.FONT || 'all'
-
 // https://vite.dev/config/
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(version),
     __COMMIT_ID__: JSON.stringify(getGitCommitId()),
-    __FONT__: JSON.stringify(font),
+  },
+  build: {
+    manifest: true,
   },
   base: './',
   plugins: [

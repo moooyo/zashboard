@@ -3,6 +3,7 @@ import { useCtrlsBar } from '@/composables/useCtrlsBar'
 import { LOG_LEVEL } from '@/constant'
 import { useTooltip } from '@/helper/tooltip'
 import {
+  bufferedLogCount,
   initLogs,
   isPaused,
   logFilter,
@@ -18,8 +19,6 @@ import {
   ArrowDownTrayIcon,
   LinkIcon,
   LinkSlashIcon,
-  PauseIcon,
-  PlayIcon,
   QuestionMarkCircleIcon,
   WrenchScrewdriverIcon,
   XMarkIcon,
@@ -31,6 +30,7 @@ import { useI18n } from 'vue-i18n'
 import CtrlsBar from '../common/CtrlsBar.vue'
 import DialogWrapper from '../common/DialogWrapper.vue'
 import TextInput from '../common/TextInput.vue'
+import LiveToggle from '../ds/LiveToggle.vue'
 
 export default defineComponent({
   setup() {
@@ -272,12 +272,18 @@ export default defineComponent({
               <LinkIcon class="h-4 w-4" />
             )}
           </button>
-          <button
-            class="btn btn-circle btn-sm"
-            onClick={() => (isPaused.value = !isPaused.value)}
-          >
-            {isPaused.value ? <PlayIcon class="h-4 w-4" /> : <PauseIcon class="h-4 w-4" />}
-          </button>
+          <LiveToggle
+            paused={isPaused.value}
+            buffered={bufferedLogCount.value}
+            pauseLabel={t('logsPauseAndBuffer')}
+            resumeLabel={t('logsResumeBuffered')}
+            onUpdate:paused={(value: boolean) => (isPaused.value = value)}
+          />
+          {isPaused.value ? (
+            <span class="text-caption text-warning whitespace-nowrap">
+              {t('logsPausedBufferingHint', { count: bufferedLogCount.value })}
+            </span>
+          ) : null}
           <button
             class="btn btn-circle btn-sm"
             onClick={() => (logs.value = [])}

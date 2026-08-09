@@ -15,8 +15,9 @@ import './http'
  * bearer, one-time ticket, handoff session, and dual-origin model have all been
  * removed, so there is no second credential here.
  *
- * These paths are listed in ignoreNotificationUrls in api/http.ts, so a 404 is
- * resolved as an AxiosError. Callers must inspect status before destructuring data.
+ * These paths are listed in ignoreNotificationUrls in api/http.ts, which only
+ * suppresses expected toasts. HTTP failures still reject consistently and
+ * callers classify the AxiosError where a status has product meaning.
  */
 
 export type FeatureDescriptor = {
@@ -345,7 +346,7 @@ export type FiveGPNCatalogSource = {
 }
 
 export type FiveGPNCatalogSourceView = FiveGPNCatalogSource & {
-  /** Fetch failure reason. Entries are absent on failure, but the source remains listed for removal. */
+  /** Fetch failure reason. A last complete snapshot may remain visible beside this error. */
   error?: string
   fetched_at?: string
   metadata: { id?: string; name?: string; description?: string; homepage?: string }
@@ -365,30 +366,49 @@ export const fetchCatalogAPI = (refresh = false, signal?: AbortSignal) =>
   })
 
 /**
- * Extension logs. This is a single read, not a subscription.
+ * Extension logs. Each request returns one bounded ring snapshot rather than
+ * opening a second streaming listener. The dedicated view may poll snapshots
+ * while mounted; pausing that view never pauses ingestion in the core.
  *
  * Operators usually need to know what happened before a failure, after it has
  * already occurred. The core therefore retains a bounded in-memory ring for
  * authenticated reads instead of exposing a second log listener.
  */
 export type FiveGPNEngineLog = {
+  seq: string
   time: string
   level: 'info' | 'warn' | 'error'
   source: 'script' | 'engine'
   extension?: string
   action?: string
-  phase?: string
+  phase?: 'request' | 'response'
   duration_ms?: number
   url?: string
   script_digest?: string
   message: string
 }
 
+export type FiveGPNEngineLogPage = {
+  logs: FiveGPNEngineLog[]
+  stream_id: string
+  oldest_seq: string
+  latest_seq: string
+  dropped: string
+  reset: boolean
+}
+
 export const fetchEngineLogsAPI = (
-  params: { extension?: string; level?: string; contains?: string; limit?: number },
+  params: {
+    extension?: string
+    level?: string
+    contains?: string
+    limit?: number
+    stream_id?: string
+    after?: string
+  },
   signal?: AbortSignal,
 ) =>
-  axios.get<{ logs: FiveGPNEngineLog[] }>('/5gpn/interception/logs', {
+  axios.get<FiveGPNEngineLogPage>('/5gpn/interception/logs', {
     params,
     signal,
     timeout: 5000,
@@ -601,7 +621,11 @@ export const fetchQueryLogAPI = (q: string, limit: number, signal?: AbortSignal)
     timeout: 5000,
   })
 
-export const resolveTestAPI = (name: string) =>
-  axios.get<FiveGPNExplanation>('/5gpn/dns/resolve', { params: { name }, timeout: 15000 })
+export const resolveTestAPI = (name: string, signal?: AbortSignal) =>
+  axios.get<FiveGPNExplanation>('/5gpn/dns/resolve', {
+    params: { name },
+    signal,
+    timeout: 15000,
+  })
 
 export const flushDnsCacheAPI = () => axios.post('/5gpn/dns/flush')

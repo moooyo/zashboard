@@ -1,6 +1,6 @@
 import { StartedService } from '@/gen/daemon/started_service_pb'
 import { getSingboxSecret, getSingboxUrlFromBackend } from '@/helper/utils'
-import { activeBackend } from '@/store/setup'
+import { activeBackend, captureBackendSession } from '@/store/setup'
 import type { Backend } from '@/types'
 import { createClient, type Client, type Interceptor } from '@connectrpc/connect'
 import { createGrpcWebTransport } from '@connectrpc/connect-web'
@@ -12,15 +12,27 @@ const authInterceptor = (secret: string): Interceptor => {
   }
 }
 
+const sessionInterceptor = (signal: AbortSignal): Interceptor => {
+  return (next) => (request) =>
+    next({
+      ...request,
+      signal: AbortSignal.any([request.signal, signal]),
+    })
+}
+
 export class SingboxClient {
   readonly client: Client<typeof StartedService>
 
-  constructor(baseUrl: string, secret: string) {
+  constructor(baseUrl: string, secret: string, sessionSignal?: AbortSignal) {
+    const interceptors = [
+      ...(secret ? [authInterceptor(secret)] : []),
+      ...(sessionSignal ? [sessionInterceptor(sessionSignal)] : []),
+    ]
     this.client = createClient(
       StartedService,
       createGrpcWebTransport({
         baseUrl,
-        interceptors: secret ? [authInterceptor(secret)] : [],
+        interceptors,
       }),
     )
   }
@@ -35,14 +47,21 @@ const backendKey = (backend: Backend) =>
 
 export const getSingboxClient = (): SingboxClient | null => {
   const backend = activeBackend.value
+  const session = captureBackendSession()
   const baseUrl = backend ? getSingboxUrlFromBackend(backend) : ''
   if (!backend || !baseUrl) {
     current = null
     return null
   }
-  const key = backendKey(backend)
+  // The same backend configuration can be left and selected again without any
+  // field changing. Its prior session signal is already aborted, so key the
+  // client by the session epoch as well as the connection coordinates.
+  const key = `${backendKey(backend)}:${session?.epoch ?? 0}`
   if (current?.key === key) return current.client
-  current = { key, client: new SingboxClient(baseUrl, getSingboxSecret(backend)) }
+  current = {
+    key,
+    client: new SingboxClient(baseUrl, getSingboxSecret(backend), session?.signal),
+  }
   return current.client
 }
 

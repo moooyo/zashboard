@@ -32,7 +32,7 @@
             class="min-w-0 flex-1"
           />
         </div>
-        <div class="flex flex-wrap gap-x-4 text-[11px] tabular-nums">
+        <div class="text-caption flex flex-wrap gap-x-4 tabular-nums">
           <template v-if="item.stats">
             <span
               v-for="stat in item.stats"

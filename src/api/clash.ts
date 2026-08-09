@@ -2,7 +2,8 @@
 // sing-box compatibility mode, and honk expose different subsets; capability
 // decisions belong to assembly/backend.ts rather than this request layer.
 import { getUrlFromBackend } from '@/helper/utils'
-import { activeBackend } from '@/store/setup'
+import { createSocketMessageDispatch } from '@/helper/socketMessageDispatch'
+import { activeBackend, captureBackendSession } from '@/store/setup'
 import type {
   Backend,
   Config,
@@ -14,7 +15,6 @@ import type {
   RuleProvider,
 } from '@/types'
 import axios from 'axios'
-import { debounce } from 'lodash'
 import ReconnectingWebSocket from 'reconnectingwebsocket'
 import { shallowRef } from 'vue'
 
@@ -135,6 +135,7 @@ export const queryDNSAPI = (params: { name: string; type: string }) => {
 
 export const createClashWebSocket = <T>(url: string, searchParams?: Record<string, string>) => {
   const backend = activeBackend.value!
+  const session = captureBackendSession()
   const resurl = new URL(`${getUrlFromBackend(backend).replace('http', 'ws')}/${url}`)
 
   // Only send the query token when the password really is the credential.
@@ -159,15 +160,19 @@ export const createClashWebSocket = <T>(url: string, searchParams?: Record<strin
   const data = shallowRef<T>()
   const websocket = new ReconnectingWebSocket(resurl.toString())
 
-  const close = () => {
-    websocket.close()
-  }
-
   const messageHandler = ({ data: message }: { data: string }) => {
     data.value = JSON.parse(message)
   }
+  const messageDispatch = createSocketMessageDispatch(messageHandler, url === 'logs')
 
-  websocket.onmessage = url === 'logs' ? messageHandler : debounce(messageHandler, 100)
+  const close = () => {
+    session?.signal.removeEventListener('abort', close)
+    messageDispatch.cancel()
+    websocket.close()
+  }
+  session?.signal.addEventListener('abort', close, { once: true })
+
+  websocket.onmessage = messageDispatch.handler
 
   return {
     data,

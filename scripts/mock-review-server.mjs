@@ -116,8 +116,8 @@ const server = http.createServer((request, response) => {
   if (url.pathname === '/version') return send(response, 200, { version: 'mihomo 5gpn mock' })
   if (url.pathname === '/capabilities') {
     return send(response, 200, {
-      controllerApi: 'v1',
-      features: { '5gpn-interception': { version: 5, owner: 'mihomo' } },
+      controllerApi: '1',
+      features: { '5gpn-interception': { version: 6, owner: 'mihomo' } },
     })
   }
   if (url.pathname === '/5gpn/interception') {

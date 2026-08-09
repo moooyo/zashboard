@@ -11,6 +11,8 @@ import {
   WrenchScrewdriverIcon,
 } from '@heroicons/vue/24/outline'
 
+export { THEME_CATALOG as ALL_THEME } from '@/helper/themeCatalog'
+
 export const IS_APPLE_DEVICE = /Mac|iPod|iPhone|iPad/.test(navigator.platform)
 
 export const GLOBAL = 'GLOBAL'
@@ -22,14 +24,6 @@ export enum LANG {
   ZH_CN = 'zh-CN',
   ZH_TW = 'zh-TW',
   RU_RU = 'ru-RU',
-}
-
-export enum FONTS {
-  MI_SANS = 'MiSans',
-  SARASA_UI = 'SarasaUi',
-  PING_FANG = 'PingFang',
-  FIRA_SANS = 'FiraSans',
-  SYSTEM_UI = 'SystemUI',
 }
 
 export enum EMOJIS {
@@ -161,6 +155,9 @@ export enum ROUTE_NAME {
   fivegpnDns = 'fivegpnDns',
   fivegpnSetupGuide = 'fivegpnSetupGuide',
   fivegpnExtensions = 'fivegpnExtensions',
+  fivegpnExtensionHosts = 'fivegpnExtensionHosts',
+  fivegpnMarketplace = 'fivegpnMarketplace',
+  fivegpnPluginLogs = 'fivegpnPluginLogs',
   tools = 'tools',
   settings = 'settings',
   setup = 'setup',
@@ -175,6 +172,9 @@ export const ROUTE_ICON_MAP = {
   [ROUTE_NAME.fivegpnDns]: SignalIcon,
   [ROUTE_NAME.fivegpnSetupGuide]: AcademicCapIcon,
   [ROUTE_NAME.fivegpnExtensions]: PuzzlePieceIcon,
+  [ROUTE_NAME.fivegpnExtensionHosts]: PuzzlePieceIcon,
+  [ROUTE_NAME.fivegpnMarketplace]: GlobeAltIcon,
+  [ROUTE_NAME.fivegpnPluginLogs]: DocumentTextIcon,
   [ROUTE_NAME.tools]: WrenchScrewdriverIcon,
   [ROUTE_NAME.settings]: Cog6ToothIcon,
   [ROUTE_NAME.setup]: CubeTransparentIcon,
@@ -235,28 +235,6 @@ export const DETAILED_CARD_STYLE = [
     CONNECTIONS_TABLE_ACCESSOR_KEY.DlSpeed,
     CONNECTIONS_TABLE_ACCESSOR_KEY.Close,
   ],
-]
-
-export const ALL_THEME = [
-  'light',
-  'dark',
-  'light-neutral',
-  'dark-neutral',
-  ...(window.ksu ? ['light-monet', 'dark-monet'] : []),
-  'halloween',
-  'forest',
-  'lofi',
-  'wireframe',
-  'black',
-  'dracula',
-  'business',
-  'night',
-  'dim',
-  'nord',
-  'sunset',
-  'abyss',
-  'cupcake',
-  'dark-daisyui5',
 ]
 
 export const DEFAULT_THEME = {

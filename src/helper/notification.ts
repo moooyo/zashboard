@@ -102,7 +102,8 @@ const setAlert = (
   // textContent, never innerHTML. Notification text reaches here from the
   // backend — an error body's `message` field and proxy-group names both flow
   // through showNotification — and this origin holds the controller secret in
-  // localStorage, so a reflected string executing here hands it over.
+  // sessionStorage (or localStorage after explicit opt-in), so a reflected
+  // string executing here hands it over.
   //
   // `raw` bypasses translation entirely. Server-supplied strings must not reach
   // vue-i18n's message compiler either: `{`, `}` and `@:` are message-format

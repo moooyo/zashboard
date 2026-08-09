@@ -168,6 +168,8 @@ const ru: LANG_MESSAGE = {
   host: 'Хост',
   port: 'Порт',
   password: 'Пароль',
+  rememberControllerSecret: 'Запомнить секрет контроллера',
+  rememberControllerSecretHint: 'Сохранить после закрытия всех вкладок. Иначе секрет хранится только в сеансе.',
   submit: 'Отправить',
   cancel: 'Отмена',
   delete: 'Удалить',
@@ -374,6 +376,11 @@ const ru: LANG_MESSAGE = {
   hideLogRegex: 'Скрыть журнал Regex',
   hideLogTip:
     'Используйте регистронезависимое регулярное выражение, чтобы найти и скрыть нежелательные записи журнала.',
+  logsPausedBuffered: 'В буфере: {count}',
+  logsPauseAndBuffer: 'Пауза с буферизацией',
+  logsResumeBuffered: 'Показать буфер',
+  logsPausedBufferingHint:
+    'Вид приостановлен; новых записей в буфере: {count}. Они появятся после возобновления.',
   sameConnectionLogs: 'Журналы одного соединения',
   loadBalance: 'Балансировка нагрузки',
   label: 'Метка',
@@ -625,7 +632,56 @@ const ru: LANG_MESSAGE = {
 
   // 5gpn: навигация и страницы
   fivegpnDns: 'DNS',
+  fivegpnLoadingState: 'Загрузка состояния шлюза',
+  fivegpnRetryState: 'Повторить',
   fivegpnExtensions: 'Расширения',
+  fivegpnExtensionHosts: 'Аудит хостов',
+  fivegpnMarketplace: 'Маркетплейс',
+  fivegpnPluginLogs: 'Журнал плагинов',
+  fivegpnPluginGroup: 'Плагины',
+  fivegpnMarketplaceHint:
+    'Каталог содержит только метаданные обнаружения. Каждая установка или обновление загружается и проверяется перед применением.',
+  fivegpnCatalogReportedName: 'Имя, заявленное каталогом',
+  fivegpnMarketplaceAllSources: 'Все',
+  fivegpnMarketplaceSearch: 'Поиск по имени, ID, описанию или тегу',
+  fivegpnMarketplaceSort: 'Сортировка Marketplace',
+  fivegpnMarketplaceSortCatalog: 'Порядок каталога',
+  fivegpnMarketplaceSortName: 'Имя',
+  fivegpnMarketplaceSortId: 'ID',
+  fivegpnMarketplaceSortVersion: 'Версия',
+  fivegpnMarketplaceNoResults: 'Нет записей Marketplace для выбранного источника и поиска.',
+  fivegpnExtensionHostsHint:
+    'Проверьте объявления перехвата и определите первое включённое расширение для конкретного имени хоста.',
+  fivegpnExtensionHostSearch: 'Введите имя хоста, чтобы определить выход',
+  fivegpnExtensionHostWinner:
+    '{extension} — первый настроенный владелец для {host}; привязка выхода: {egress}.',
+  fivegpnExtensionHostBlocked: 'Трафик сейчас закрыт при ошибке ({phase}): {reason}',
+  fivegpnExtensionRuntimeUnavailable: 'граница среды выполнения недоступна',
+  fivegpnExtensionHostNoWinner: 'Ни одно включённое расширение не перехватывает {host}.',
+  fivegpnExtensionPriority: 'Приоритет',
+  fivegpnExtensionRuntime: 'Состояние',
+  fivegpnPluginLogsMemoryOnly: 'Ограниченное кольцо в памяти; записи не сохраняются.',
+  fivegpnPluginLogsPause: 'Приостановить вид',
+  fivegpnPluginLogsResume: 'Возобновить вид',
+  fivegpnPluginLogsPausedHint:
+    'Вид заморожен. Кольцо шлюза продолжает принимать события; новых сохранённых событий: {count}.',
+  fivegpnPluginLogsPausedAfterReset:
+    'Вид остаётся на предыдущем потоке. Перезапущенный поток сейчас хранит {count} событий; переключение произойдёт после возобновления.',
+  fivegpnPluginLogsStreamReset:
+    'Поток журнала шлюза перезапущен. Текущее состояние следует за новым кольцом; приостановленный вид остаётся замороженным до возобновления.',
+  fivegpnPluginLogsDropped:
+    'Событий перезаписано до того, как курсор браузера успел их прочитать: {count}.',
+  fivegpnPluginLogsClear: 'Очистить вид',
+  fivegpnPluginLogsUndo: 'Отменить очистку',
+  fivegpnPluginLogsFilters: 'Фильтры',
+  fivegpnPluginLogExpand: 'Развернуть запись журнала',
+  fivegpnPluginLogCollapse: 'Свернуть запись журнала',
+  fivegpnPluginLogPhase: 'Фаза',
+  fivegpnPluginLogSource: 'Источник',
+  fivegpnPluginLogDuration: 'Длительность',
+  fivegpnPluginLogScriptDigest: 'Дайджест скрипта',
+  fivegpnPluginLogSequence: 'Последовательность',
+  fivegpnDone: 'Готово',
   fivegpnDnsAbsent:
     'Движок DNS не установлен: его документ не загрузился, поэтому ни одна политика не действует — это не то же самое, что выключенный DNS.',
   fivegpnTabPolicy: 'Политика',
@@ -754,6 +810,15 @@ const ru: LANG_MESSAGE = {
   fivegpnSaved: 'Сохранено',
   fivegpnConflict:
     'Кто-то изменил это, пока вы редактировали. Актуальное состояние загружено — проверьте и повторите.',
+  fivegpnDnsConflictPreserved:
+    'Документ DNS был изменён в другом месте. Локальный черновик сохранён и не применён.',
+  fivegpnDiscardAndReload: 'Удалить черновик и загрузить актуальное',
+  fivegpnDnsSaving: 'Сохранение документа DNS…',
+  fivegpnDnsSaveFailed: 'Изменения DNS не сохранены',
+  fivegpnDnsDraftHint:
+    'Изменения остаются локальными до сохранения полного документа DNS.',
+  fivegpnDiscardChanges: 'Отменить изменения',
+  fivegpnSaveChanges: 'Сохранить изменения',
   fivegpnImportUrl: 'Установить по URL манифеста',
   fivegpnPasteManifest: 'Или вставьте манифест',
   fivegpnReview: 'Проверить',
@@ -775,6 +840,7 @@ const ru: LANG_MESSAGE = {
   fivegpnInstalledVersion: 'Установлено {version}',
   fivegpnNewExtension: 'Новое расширение',
   fivegpnExtensionSource: 'Источник манифеста',
+  fivegpnResolvedExtensionSource: 'Источник манифеста после перенаправления',
   fivegpnExecutionOrder: 'Порядок выполнения',
   fivegpnExactActions: 'Полные действия сценариев',
   fivegpnUpstreamMappings: 'Сопоставления upstream',

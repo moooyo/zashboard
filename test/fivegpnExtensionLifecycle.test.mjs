@@ -59,7 +59,7 @@ test('flat coordinates support an omitted accuracy field with a local default', 
   )
 })
 
-test('interception v5 exposes location search and transactional runtime state', () => {
+test('interception v6 keeps installed, marketplace, and review responsibilities explicit', () => {
   const api = readFileSync(new URL('../src/api/fivegpn.ts', import.meta.url), 'utf8')
   const assembly = readFileSync(
     new URL('../src/assembly/fivegpn/interception.ts', import.meta.url),
@@ -69,8 +69,12 @@ test('interception v5 exposes location search and transactional runtime state', 
     new URL('../src/assembly/fivegpn/capabilities.ts', import.meta.url),
     'utf8',
   )
-  const page = readFileSync(
+  const installedPage = readFileSync(
     new URL('../src/views/FiveGPNExtensionsPage.vue', import.meta.url),
+    'utf8',
+  )
+  const marketplacePage = readFileSync(
+    new URL('../src/views/FiveGPNMarketplacePage.vue', import.meta.url),
     'utf8',
   )
   const editor = readFileSync(
@@ -85,74 +89,70 @@ test('interception v5 exposes location search and transactional runtime state', 
     new URL('../src/components/common/DialogWrapper.vue', import.meta.url),
     'utf8',
   )
+  const response = readFileSync(new URL('../src/api/response.ts', import.meta.url), 'utf8')
 
-  assert.match(api, /runtime:\s*FiveGPNModuleRuntime/)
-  assert.match(api, /snapshot_digest:\s*string/)
-  assert.match(api, /digest:\s*string\s+url:\s*string/)
-  assert.match(api, /setting_count:\s*number/)
-  assert.match(api, /extensions\/\$\{encodeURIComponent\(id\)\}\/settings`/)
-  assert.doesNotMatch(api, /settings\/\$\{encodeURIComponent\(key\)\}/)
-  assert.match(assembly, /controller\?\.abort\(\)[\s\S]*const gen = \+\+generation/)
-  assert.match(assembly, /expectedRevision && expectedRevision !== interceptionRevision\.value/)
-  assert.match(assembly, /writeQueues\.get\(requestedUuid\)/)
-  assert.match(assembly, /writeQueues\.set\(requestedUuid, tail\)/)
-  assert.match(assembly, /url: candidate\.detail\.source_url \?\? ''/)
-  assert.match(assembly, /Math\.min\(lifecycleDelay \* 2, 5000\)/)
+  assert.match(api, /runtime:\s*FiveGPNModuleRuntime/u)
+  assert.match(api, /snapshot_digest:\s*string/u)
+  assert.match(api, /digest:\s*string\s+url:\s*string/u)
+  assert.match(api, /setting_count:\s*number/u)
+  assert.match(api, /encodeURIComponent\(id\).*\/settings/us)
+  assert.doesNotMatch(api, /encodeURIComponent\(key\).*\/settings/us)
+  assert.match(api, /seq:\s*string/u)
+  assert.match(api, /stream_id:\s*string/u)
+  assert.match(api, /after\?:\s*string/u)
+
+  assert.match(assembly, /const sessionKey = String\(requestedSession\.epoch\)/u)
+  assert.match(assembly, /writeQueues\.get\(sessionKey\)/u)
+  assert.match(assembly, /expectedRevision && expectedRevision !== interceptionRevision\.value/u)
+  assert.match(assembly, /Math\.min\(lifecycleDelay \* 2, 5000\)/u)
   const pendingProjection = assembly.match(
-    /const certificatePending = \(\) =>(?<body>[\s\S]*?)const scheduleLifecyclePoll/,
+    /const certificatePending = \(\) =>(?<body>[\s\S]*?)const scheduleLifecyclePoll/u,
   )
-  assert.match(pendingProjection?.groups?.body ?? '', /certificate_pending/)
-  assert.match(pendingProjection?.groups?.body ?? '', /certificate\.status === 'pending'/)
-  assert.doesNotMatch(pendingProjection?.groups?.body ?? '', /armed/)
-  assert.match(assembly, /catalogRevision\.value = data\.revision/)
-  assert.match(page, /setCatalogSources\(sources, baselineRevision\)/)
-  assert.match(capabilities, /'5gpn-interception': 5/)
-  assert.match(api, /\/5gpn\/interception\/location\/search/)
-  assert.match(page, /@change="requestToggle\(module, \$event\)"/)
-  assert.match(reviewDialog, /fivegpnNetworkGrantWarning/)
-  assert.match(page, /fivegpnUpdateAndKeepEnabled/)
-  assert.match(page, /reviewConflict/)
-  assert.match(page, /result\.candidate\.installed === result\.candidate\.digest/)
-  assert.match(page, /result\.detail\.enabled/)
-  assert.match(page, /authorizationRevision/)
-  assert.match(page, /authorizationDetail\.value\?\.snapshot_digest/)
-  assert.match(page, /setDifferenceState\(\[\], reloading, result\.detail\.snapshot_digest\)/)
-  assert.match(page, /capture-dns:\$\{reviewDetail\.value\?\.capture_dns/)
-  assert.match(page, /execution-position:\$\{reviewExecutionPosition\.value\}/)
-  assert.match(page, /editingRevision/)
-  assert.match(page, /candidateRevision/)
-  assert.match(editor, /conflictMessage/)
-  assert.match(editor, /location\.accuracy\.type === 'text' \? '25' : 25/)
-  assert.match(reviewDialog, /loading && !detail/)
-  assert.match(reviewDialog, /mobile-sheet/)
-  assert.match(reviewDialog, /<template #footer>/)
-  assert.match(reviewDialog, /fivegpnReloadAndReview/)
-  assert.match(reviewDialog, /detail\.source_url/)
-  assert.match(reviewDialog, /fivegpnExactActions/)
-  assert.match(reviewDialog, /detail\.upstream_mappings/)
-  assert.match(reviewDialog, /detail\.capture_dns/)
-  assert.match(reviewDialog, /executionPosition/)
-  assert.match(reviewDialog, /<details class="max-w-\[65%\].*md:hidden">/)
-  assert.match(reviewDialog, /<details class="md:hidden">/)
-  assert.match(reviewDialog, /useViewportHeight\(open\)/)
-  assert.match(reviewDialog, /\{\{ digest \|\| '—' \}\}/)
-  assert.doesNotMatch(reviewDialog, /shortDigest/)
-  assert.match(reviewDialog, /setting\.value !== undefined \? setting\.value : setting\.default/)
-  assert.match(assembly, /cancelInterceptionInspection/)
-  assert.match(assembly, /response\.status \?\? response\.response\?\.status/)
-  assert.match(assembly, /responseData<\{ message\?: string \}>\(response\)/)
-  assert.match(dialog, /restoreFocusTo/)
-  assert.match(dialog, /acquireModalLock/)
-  assert.match(dialog, /historyEntry/)
-  assert.match(dialog, /restoreFromHistory/)
-  assert.match(dialog, /historyPushed = true\s+isOpen\.value = true/)
-  assert.match(page, /reviewing \|\| busy \|\| sourceBusy \|\| \(!importUrl && !importContent\)/)
-  assert.doesNotMatch(page, /changed since you reviewed\|catalog and the publisher have diverged/)
-  assert.match(
-    page,
-    /const catalogLoad = refreshCatalog\(\)[\s\S]*await refreshInterception\(\)[\s\S]*startInterceptionLifecyclePolling\(\)[\s\S]*await catalogLoad/,
-  )
+  assert.match(pendingProjection?.groups?.body ?? '', /certificate_pending/u)
+  assert.match(pendingProjection?.groups?.body ?? '', /certificate\.status === 'pending'/u)
+  assert.doesNotMatch(pendingProjection?.groups?.body ?? '', /armed/u)
+  assert.match(capabilities, /'5gpn-interception': 6/u)
+  assert.match(api, /\/5gpn\/interception\/location\/search/u)
+
+  assert.match(installedPage, /@change="requestToggle\(module, \$event\)"/u)
+  assert.match(installedPage, /fivegpnMarketplaceUpdateOnly/u)
+  assert.doesNotMatch(installedPage, /setCatalogSources|applyCatalogUpdate/u)
+  assert.match(installedPage, /authorizationRevision/u)
+  assert.match(installedPage, /authorizationDetail\.value\?\.snapshot_digest/u)
+  assert.match(installedPage, /reviewCaptureDNSDifferenceKey/u)
+  assert.match(installedPage, /reviewPositionDifferenceKey/u)
+  assert.match(installedPage, /editingRevision/u)
+  assert.match(installedPage, /candidateRevision/u)
+
+  assert.match(marketplacePage, /setCatalogSources\(sources, revision\)/u)
+  assert.match(marketplacePage, /catalogInstallState\(entry\) === 'current'/u)
+  assert.match(marketplacePage, /reviewedURL\.value = result\.url/u)
+  assert.match(marketplacePage, /applyCatalogUpdate[\s\S]*reviewedURL\.value/u)
+  assert.match(marketplacePage, /source\.name \|\| source\.id/u)
+
+  assert.match(editor, /conflictMessage/u)
+  assert.match(editor, /location\.accuracy\.type === 'text' \? '25' : 25/u)
+  assert.match(reviewDialog, /fivegpnNetworkGrantWarning/u)
+  assert.match(reviewDialog, /loading && !detail/u)
+  assert.match(reviewDialog, /mobile-sheet/u)
+  assert.match(reviewDialog, /<template #footer>/u)
+  assert.match(reviewDialog, /fivegpnReloadAndReview/u)
+  assert.match(reviewDialog, /reviewedSource \|\| detail\.source_url/u)
+  assert.match(reviewDialog, /fivegpnExactActions/u)
+  assert.match(reviewDialog, /detail\.upstream_mappings/u)
+  assert.match(reviewDialog, /detail\.capture_dns/u)
+  assert.match(reviewDialog, /executionPosition/u)
+  assert.match(reviewDialog, /useViewportHeight\(open\)/u)
+  assert.doesNotMatch(reviewDialog, /shortDigest/u)
+  assert.match(assembly, /cancelInterceptionInspection/u)
+  assert.match(response, /export const responseStatus/u)
+  assert.match(response, /export const responseData/u)
+  assert.match(dialog, /restoreFocusTo/u)
+  assert.match(dialog, /acquireModalLock/u)
+  assert.match(dialog, /historyEntry/u)
+  assert.match(dialog, /restoreFromHistory/u)
 })
+
 
 test('review differences and typed drafts survive a revision reload safely', () => {
   const before = {

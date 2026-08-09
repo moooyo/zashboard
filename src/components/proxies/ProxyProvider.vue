@@ -5,7 +5,7 @@
         <div class="flex flex-1 items-center gap-2.5">
           <span class="text-base-content">{{ proxyProvider.name }}</span>
           <span
-            class="text-base-content/40 min-w-0 flex-1 truncate text-[11px] tracking-wider uppercase tabular-nums"
+            class="text-caption text-base-content/40 min-w-0 flex-1 truncate tracking-wider uppercase tabular-nums"
           >
             {{ proxyProvider.vehicleType }} · {{ proxiesCount }}
           </span>
@@ -79,7 +79,7 @@ import { proxyProviederList } from '@/assembly/proxies'
 import { ArrowPathIcon, BoltIcon } from '@heroicons/vue/24/outline'
 import dayjs from 'dayjs'
 import { toFinite } from 'lodash'
-import { twMerge } from 'tailwind-merge'
+import { twMerge } from '@/lib/cn'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CollapseCard from '../common/CollapseCard.vue'

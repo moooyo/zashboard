@@ -4,7 +4,7 @@
 // 5gpn retains Zashboard's installable PWA shape, but the worker is deliberately
 // network-only. An offline gateway Console cannot control anything, while a
 // cached control plane can expose actions and contracts from an older release.
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -22,8 +22,95 @@ const assets = join(DIST, 'assets')
 const bundles = readdirSync(assets).filter((file) => file.endsWith('.js'))
 const bundleText = bundles.map((file) => readFileSync(join(assets, file), 'utf8')).join('\n')
 
+const kib = (value) => value * 1024
+const mib = (value) => kib(value * 1024)
+const formatBytes = (value) => `${(value / 1024).toFixed(1)} KiB`
+const outputFiles = readdirSync(assets).map((file) => ({
+  bytes: statSync(join(assets, file)).size,
+  file: `assets/${file}`,
+}))
+
+const budget = {
+  initialJavaScript: mib(2.25),
+  largestLazyJavaScript: kib(700),
+  stylesheets: mib(1.25),
+  fonts: mib(3.5),
+}
+
+const viteManifestPath = join(DIST, '.vite', 'manifest.json')
+if (!existsSync(viteManifestPath)) {
+  failures.push('the Vite manifest is missing, so initial and lazy budgets cannot be verified')
+} else {
+  try {
+    const manifest = JSON.parse(readFileSync(viteManifestPath, 'utf8'))
+    const initialFiles = new Set()
+    const visited = new Set()
+
+    const addStaticGraph = (key) => {
+      if (visited.has(key)) return
+      visited.add(key)
+      const entry = manifest[key]
+      if (!entry) return
+      if (entry.file) initialFiles.add(entry.file)
+      for (const css of entry.css ?? []) initialFiles.add(css)
+      for (const imported of entry.imports ?? []) addStaticGraph(imported)
+    }
+
+    const entries = Object.entries(manifest).filter(([, entry]) => entry.isEntry)
+    if (entries.length === 0) failures.push('the Vite manifest has no application entry')
+    for (const [key, entry] of entries) {
+      addStaticGraph(key)
+      // bootstrap.ts performs one immediate dynamic import only after it has
+      // synchronously scrubbed the setup fragment. That application graph is
+      // startup work even though the security boundary makes it dynamic.
+      for (const imported of entry.dynamicImports ?? []) addStaticGraph(imported)
+    }
+
+    const initialJavaScript = outputFiles
+      .filter(({ file }) => initialFiles.has(file) && file.endsWith('.js'))
+      .reduce((sum, { bytes }) => sum + bytes, 0)
+    const lazyJavaScript = outputFiles.filter(
+      ({ file }) => file.endsWith('.js') && !initialFiles.has(file),
+    )
+    const largestLazyJavaScript = Math.max(0, ...lazyJavaScript.map(({ bytes }) => bytes))
+    const stylesheetBytes = outputFiles
+      .filter(({ file }) => file.endsWith('.css'))
+      .reduce((sum, { bytes }) => sum + bytes, 0)
+    const fontFiles = outputFiles.filter(({ file }) => /\.(?:otf|ttf|woff2?)$/u.test(file))
+    const fontBytes = fontFiles.reduce((sum, { bytes }) => sum + bytes, 0)
+
+    if (initialJavaScript === 0) {
+      failures.push('the initial JavaScript graph is empty; the budget classification is invalid')
+    }
+
+    const measurements = [
+      ['initial JavaScript', initialJavaScript, budget.initialJavaScript],
+      ['largest lazy JavaScript chunk', largestLazyJavaScript, budget.largestLazyJavaScript],
+      ['all CSS', stylesheetBytes, budget.stylesheets],
+      ['all fonts', fontBytes, budget.fonts],
+    ]
+    for (const [label, actual, maximum] of measurements) {
+      if (actual > maximum) {
+        failures.push(`${label} is ${formatBytes(actual)}; budget is ${formatBytes(maximum)}`)
+      }
+    }
+
+    const allowedFont = /\/(?:MiSans-VF|NotoColorEmoji-flagsonly|TwemojiMozilla-flags)[^/]*\.(?:ttf|woff2)$/u
+    for (const { file } of fontFiles) {
+      if (!allowedFont.test(`/${file}`)) {
+        failures.push(`the release contains a non-MiSans text font: ${file}`)
+      }
+    }
+  } catch (error) {
+    failures.push(`the Vite manifest or bundle budget is invalid: ${error}`)
+  }
+}
+
 if (/registerSW\.js/u.test(html) || existsSync(join(DIST, 'registerSW.js'))) {
   failures.push('vite-plugin-pwa injected its unhandled registration helper')
+}
+if (/<script(?![^>]*\bsrc=)[^>]*>/iu.test(html)) {
+  failures.push("index.html contains inline script that violates script-src 'self'")
 }
 if (!bundleText.includes('serviceWorker.register')) {
   failures.push('the shipped application no longer registers its PWA worker')

@@ -89,6 +89,20 @@
             v-model="editForm.password"
           />
         </div>
+
+        <label class="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            class="checkbox checkbox-sm mt-0.5"
+            v-model="editForm.rememberSecret"
+          />
+          <span class="min-w-0">
+            <span class="block text-sm">{{ t('rememberControllerSecret') }}</span>
+            <span class="text-caption text-base-content/60 block">
+              {{ t('rememberControllerSecretHint') }}
+            </span>
+          </span>
+        </label>
       </div>
 
       <div class="flex justify-end gap-2">
@@ -173,6 +187,7 @@ watch(
       port: backend.port,
       secondaryPath: backend.secondaryPath,
       password: backend.password,
+      rememberSecret: backend.rememberSecret === true,
       label: backend.label || '',
       disableTunMode: backend.disableTunMode || false,
     }

@@ -11,7 +11,7 @@
             {{ endpoint.endpointTag || 'Tailscale' }}
           </span>
           <span
-            class="rounded-full px-2 py-0.5 text-[0.65rem] tracking-normal"
+            class="text-caption rounded-full px-2 py-0.5 tracking-normal"
             :class="statePill(endpoint.backendState)"
           >
             {{ endpoint.stateText || endpoint.backendState || $t('unknown') }}
@@ -106,18 +106,18 @@
             </button>
             <span
               v-if="peer.exitNode || peer.exitNodeOption"
-              class="shrink-0 rounded-full px-2 py-0.5 text-[0.65rem]"
+              class="text-caption shrink-0 rounded-full px-2 py-0.5"
               :class="peer.exitNode ? 'bg-primary/15 text-primary' : 'bg-info/15 text-info'"
               >{{ $t('exitNode') }}</span
             >
             <span
               v-if="peer.shareeNode"
-              class="bg-base-content/8 text-base-content/60 shrink-0 rounded-full px-2 py-0.5 text-[0.65rem]"
+              class="text-caption bg-base-content/8 text-base-content/60 shrink-0 rounded-full px-2 py-0.5"
               >{{ $t('sharedIn') }}</span
             >
             <span
               v-if="peer.expired"
-              class="bg-error/15 text-error shrink-0 rounded-full px-2 py-0.5 text-[0.65rem]"
+              class="text-caption bg-error/15 text-error shrink-0 rounded-full px-2 py-0.5"
               >{{ $t('expired') }}</span
             >
             <button

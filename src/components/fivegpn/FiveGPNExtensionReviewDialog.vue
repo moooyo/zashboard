@@ -39,10 +39,23 @@
               <template v-else>{{ detail.version }}</template>
             </p>
             <p
-              v-if="detail.source_url"
+              v-if="reviewedSource || detail.source_url"
               class="mt-1 flex min-w-0 items-center gap-1 text-xs opacity-60"
             >
               <span class="shrink-0">{{ $t('fivegpnExtensionSource') }}:</span>
+              <code
+                class="scrollbar-hidden min-w-0 overflow-x-auto whitespace-nowrap"
+                :title="reviewedSource || detail.source_url"
+                tabindex="0"
+              >
+                {{ reviewedSource || detail.source_url }}
+              </code>
+            </p>
+            <p
+              v-if="reviewedSource && detail.source_url && reviewedSource !== detail.source_url"
+              class="mt-1 flex min-w-0 items-center gap-1 text-xs opacity-60"
+            >
+              <span class="shrink-0">{{ $t('fivegpnResolvedExtensionSource') }}:</span>
               <code
                 class="scrollbar-hidden min-w-0 overflow-x-auto whitespace-nowrap"
                 :title="detail.source_url"
@@ -385,6 +398,7 @@ const props = defineProps<{
   egressIsNew?: boolean
   bindingIsNew?: boolean
   installedVersion?: string
+  reviewedSource?: string
   executionPosition: string
   historyRestorable?: boolean
   changes: FiveGPNReviewChange[]
