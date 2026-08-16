@@ -1,0 +1,40 @@
+apiVersion: 5gpn.io/v1
+kind: Extension
+
+metadata:
+  id: io.5gpn.console-acceptance
+  name: Console Acceptance Fixture
+  version: 1.0.0
+  description: Produces deterministic plugin log entries and a synthetic HTTP response.
+
+permissions:
+  persistentStorage: false
+  network: false
+
+traffic:
+  captureHosts:
+    - console-acceptance.example
+
+actions:
+  - id: emit-log-levels
+    phase: request
+    match:
+      hosts:
+        - console-acceptance.example
+      schemes:
+        - https
+      methods:
+        - GET
+      pathRegex: ^/console-acceptance$
+    script:
+      inline: |
+        function transform() {
+          console.log("console-acceptance:log");
+          console.info("console-acceptance:info");
+          console.warn("console-acceptance:warn");
+          console.error("console-acceptance:error");
+          return { response: { status: 204, headers: { "X-Console-Acceptance": "1" } } };
+        }
+      bodyMode: none
+      timeoutMs: 1000
+      maxBodyBytes: 1024

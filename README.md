@@ -14,6 +14,13 @@ Browser support
 - Safari 16.4 (released March 2023)
 - Not supported on iOS 16.4 jailbroken version.
 
+## **5gpn acceptance**
+
+The maintained fork keeps its browser-facing release acceptance in
+[`docs/5gpn-console-acceptance.md`](./docs/5gpn-console-acceptance.md). The
+runbook fixes the required core capability versions and test-data digests, and
+keeps Console checks separate from destructive gateway and runtime acceptance.
+
 ## **Online**
 
 You can access the online zashboard at the following link:

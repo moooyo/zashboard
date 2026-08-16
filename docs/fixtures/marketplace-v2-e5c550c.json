@@ -1,0 +1,109 @@
+{
+  "apiVersion": "5gpn.io/marketplace/v1",
+  "kind": "ExtensionMarketplace",
+  "metadata": {
+    "id": "io.5gpn.official",
+    "name": "5gpn Official Acceptance Snapshot",
+    "description": "A bounded acceptance snapshot copied from the official e5c550c46e819a06e078751ee9a245dda07bcbe7 publication.",
+    "homepage": "https://github.com/moooyo/5gpn-extensions",
+    "source": {
+      "repository": "https://github.com/moooyo/5gpn-extensions",
+      "revision": "e5c550c46e819a06e078751ee9a245dda07bcbe7"
+    }
+  },
+  "entries": [
+    {
+      "id": "io.5gpn.apple-wloc",
+      "name": "Apple WLOC Location Override",
+      "version": "3.0.0",
+      "description": "Runs the reviewed Yu9191/wloc scripts against Apple Wi-Fi and cellular location responses.",
+      "tags": [
+        "apple",
+        "location",
+        "testing"
+      ],
+      "license": {
+        "spdx": "MIT",
+        "url": "https://raw.githubusercontent.com/moooyo/5gpn-extensions/e5c550c46e819a06e078751ee9a245dda07bcbe7/LICENSES/MIT.txt"
+      },
+      "documentationUrl": "https://github.com/moooyo/5gpn-extensions/blob/e5c550c46e819a06e078751ee9a245dda07bcbe7/apple-wloc/README.md",
+      "manifest": {
+        "url": "https://raw.githubusercontent.com/moooyo/5gpn-extensions/e5c550c46e819a06e078751ee9a245dda07bcbe7/apple-wloc/extension.yaml",
+        "sha256": "facffe31b49539a0628379607cdf1b81306f45d2ff81a5586102fa31468055f7",
+        "size": 3952
+      },
+      "capabilities": {
+        "captureHostCount": 2,
+        "actionCount": 2,
+        "settingCount": 5,
+        "network": false,
+        "persistentStorage": true,
+        "upstreamMappingCount": 0,
+        "routingRuleCount": 0,
+        "egressGroupRequired": false
+      }
+    },
+    {
+      "id": "io.5gpn.bilibili-cleaner",
+      "name": "Bilibili Cleaner",
+      "version": "4.2.0",
+      "description": "Runs the reviewed kokoryh/Sparkle Bilibili scripts and rewrite rules against the Bilibili app.",
+      "tags": [
+        "ads",
+        "bilibili",
+        "media"
+      ],
+      "license": {
+        "spdx": "GPL-3.0-only",
+        "url": "https://raw.githubusercontent.com/moooyo/5gpn-extensions/e5c550c46e819a06e078751ee9a245dda07bcbe7/LICENSES/GPL-3.0-only.txt"
+      },
+      "documentationUrl": "https://github.com/moooyo/5gpn-extensions/blob/e5c550c46e819a06e078751ee9a245dda07bcbe7/bilibili-cleaner/README.md",
+      "manifest": {
+        "url": "https://raw.githubusercontent.com/moooyo/5gpn-extensions/e5c550c46e819a06e078751ee9a245dda07bcbe7/bilibili-cleaner/extension.yaml",
+        "sha256": "a61d2f59544f0da85aae372e5dcab62bbce2ea2a5136d87f996bfdb0c64c42d7",
+        "size": 25862
+      },
+      "capabilities": {
+        "captureHostCount": 6,
+        "actionCount": 24,
+        "settingCount": 5,
+        "network": true,
+        "persistentStorage": true,
+        "upstreamMappingCount": 0,
+        "routingRuleCount": 5,
+        "egressGroupRequired": false
+      }
+    },
+    {
+      "id": "io.5gpn.testflight-region-unlock",
+      "name": "TestFlight Region Unlock",
+      "version": "2.2.0",
+      "description": "Rewrites the TestFlight install storefront; needs a matching regional egress group to have any effect.",
+      "tags": [
+        "apple",
+        "region",
+        "testflight"
+      ],
+      "license": {
+        "spdx": "CC-BY-NC-SA-4.0",
+        "url": "https://raw.githubusercontent.com/moooyo/5gpn-extensions/e5c550c46e819a06e078751ee9a245dda07bcbe7/LICENSES/CC-BY-NC-SA-4.0.txt"
+      },
+      "documentationUrl": "https://github.com/moooyo/5gpn-extensions/blob/e5c550c46e819a06e078751ee9a245dda07bcbe7/testflight-region-unlock/README.md",
+      "manifest": {
+        "url": "https://raw.githubusercontent.com/moooyo/5gpn-extensions/e5c550c46e819a06e078751ee9a245dda07bcbe7/testflight-region-unlock/extension.yaml",
+        "sha256": "09e8c651cb4a5a47bd4d50fce3ee0abf46cae8c41c2a835ebeeee8ce84244c4b",
+        "size": 1521
+      },
+      "capabilities": {
+        "captureHostCount": 1,
+        "actionCount": 1,
+        "settingCount": 1,
+        "network": false,
+        "persistentStorage": false,
+        "upstreamMappingCount": 0,
+        "routingRuleCount": 0,
+        "egressGroupRequired": false
+      }
+    }
+  ]
+}
