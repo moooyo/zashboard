@@ -6,7 +6,6 @@ import type {
   FiveGPNInterception,
   FiveGPNInterceptionEnvelope,
   FiveGPNModuleDetail,
-  FiveGPNReviewContract,
   FiveGPNSettingValue,
 } from '@/api/fivegpn'
 import {
@@ -30,6 +29,7 @@ import {
 } from '@/api/fivegpn'
 import { responseData, responseMessage, responseStatus } from '@/api/response'
 import { catalogUpdateBody } from '@/helper/catalogReview'
+import { withReviewContract } from '@/helper/fivegpnExtensionReview'
 import { activeBackendSession, backendSessionIsCurrent, captureBackendSession } from '@/store/setup'
 import { ref, watch } from 'vue'
 import { featureSupported } from './capabilities'
@@ -222,28 +222,30 @@ export function setExtensionEnabled(
   id: string,
   enabled: true,
   expectedRevision: string,
-  reviewContract: FiveGPNReviewContract,
+  reviewContract: number,
   signal?: AbortSignal,
 ): Promise<string>
 export function setExtensionEnabled(
   id: string,
   enabled: boolean,
   expectedRevision?: string,
-  reviewContract?: FiveGPNReviewContract,
+  reviewContract?: number,
   signal?: AbortSignal,
 ) {
   if (enabled) {
-    if (reviewContract === undefined) return Promise.resolve('missing review contract')
-    return write(
-      (revision) =>
-        putExtensionEnabledAPI(
-          id,
-          { revision, enabled: true, review_contract: reviewContract },
-          signal,
-        ),
-      [200],
-      expectedRevision,
+    const request = withReviewContract(reviewContract, FIVEGPN_REVIEW_CONTRACT, () =>
+      write(
+        (revision) =>
+          putExtensionEnabledAPI(
+            id,
+            { revision, enabled: true, review_contract: FIVEGPN_REVIEW_CONTRACT },
+            signal,
+          ),
+        [200],
+        expectedRevision,
+      ),
     )
+    return request ?? Promise.resolve('review contract changed; reload the current state')
   }
   return write(
     (revision) => putExtensionEnabledAPI(id, { revision, enabled: false }, signal),
@@ -286,21 +288,28 @@ export const installReviewed = (
   source: { url?: string; content?: string },
   expectedRevision: string,
   signal?: AbortSignal,
-) =>
-  write(
-    (revision) =>
-      installExtensionAPI(
-        {
-          revision,
-          review_contract: FIVEGPN_REVIEW_CONTRACT,
-          digest: candidate.digest,
-          ...source,
-        },
-        signal,
+) => {
+  const request = withReviewContract(
+    candidate.detail.review_contract,
+    FIVEGPN_REVIEW_CONTRACT,
+    () =>
+      write(
+        (revision) =>
+          installExtensionAPI(
+            {
+              revision,
+              review_contract: FIVEGPN_REVIEW_CONTRACT,
+              digest: candidate.digest,
+              ...source,
+            },
+            signal,
+          ),
+        [200],
+        expectedRevision,
       ),
-    [200],
-    expectedRevision,
   )
+  return request ?? Promise.resolve('review contract changed; reload the current state')
+}
 
 let detailGeneration = 0
 let detailController: AbortController | undefined
@@ -500,21 +509,28 @@ export const applyCatalogUpdate = (
   expectedRevision: string,
   values?: Record<string, FiveGPNSettingValue>,
   signal?: AbortSignal,
-) =>
-  write(
-    (revision) =>
-      applyCatalogUpdateAPI(
-        source,
-        entry,
-        {
-          ...catalogUpdateBody(revision, candidate, reviewedURL, values),
-          review_contract: FIVEGPN_REVIEW_CONTRACT,
-        },
-        signal,
+) => {
+  const request = withReviewContract(
+    candidate.detail.review_contract,
+    FIVEGPN_REVIEW_CONTRACT,
+    () =>
+      write(
+        (revision) =>
+          applyCatalogUpdateAPI(
+            source,
+            entry,
+            {
+              ...catalogUpdateBody(revision, candidate, reviewedURL, values),
+              review_contract: FIVEGPN_REVIEW_CONTRACT,
+            },
+            signal,
+          ),
+        [200],
+        expectedRevision,
       ),
-    [200],
-    expectedRevision,
   )
+  return request ?? Promise.resolve('review contract changed; reload the current state')
+}
 
 /**
  * Review a catalog entry. The returned URL is the source supplied during

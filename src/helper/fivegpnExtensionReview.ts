@@ -43,6 +43,11 @@ export type FiveGPNReviewChange =
 
 const sameJSON = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
 
+export const reviewContractMatches = (value: unknown, expected: number) => value === expected
+
+export const withReviewContract = <T>(value: unknown, expected: number, action: () => T) =>
+  reviewContractMatches(value, expected) ? action() : undefined
+
 export const extensionReviewChanges = (
   before: FiveGPNModuleDetail | null,
   after: FiveGPNModuleDetail | null,

@@ -235,7 +235,7 @@
       v-model="reviewOpen"
       v-model:draft="reviewDraft"
       :mode="reviewMode"
-      :detail="candidate?.detail ?? null"
+      :detail="reviewDetail"
       :digest="candidate?.digest ?? ''"
       digest-kind="snapshot"
       :installed-version="candidate?.installedVersion"
@@ -259,10 +259,11 @@
 </template>
 
 <script setup lang="ts">
-import type {
-  FiveGPNCandidate,
-  FiveGPNModuleDetail,
-  FiveGPNSettingValue,
+import {
+  FIVEGPN_REVIEW_CONTRACT,
+  type FiveGPNCandidate,
+  type FiveGPNModuleDetail,
+  type FiveGPNSettingValue,
 } from '@/api/fivegpn'
 import { catalogInstallState } from '@/assembly/fivegpn/catalog'
 import {
@@ -284,6 +285,7 @@ import { usePaddingForViews } from '@/composables/paddingViews'
 import {
   extensionReviewChanges,
   mergeReviewDraft,
+  reviewContractMatches,
   type FiveGPNReviewChange,
 } from '@/helper/fivegpnExtensionReview'
 import { projectMarketplace, type MarketplaceSort } from '@/helper/marketplaceView'
@@ -449,6 +451,12 @@ const reviewBaselineDifferenceKeys = ref<string[]>([])
 let inspectionEpoch = 0
 let actionController: AbortController | undefined
 
+const reviewDetail = computed(() => {
+  const detail = candidate.value?.detail
+  return detail && reviewContractMatches(detail.review_contract, FIVEGPN_REVIEW_CONTRACT)
+    ? detail
+    : null
+})
 const candidateChanges = computed(() =>
   extensionReviewChanges(previousDetail.value, candidate.value?.detail ?? null, candidate.value?.digest),
 )
@@ -523,6 +531,21 @@ const loadReview = async (reloading = false) => {
     reviewError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
     return
   }
+  if (
+    !reviewContractMatches(result.candidate.detail.review_contract, FIVEGPN_REVIEW_CONTRACT) ||
+    (result.installedDetail &&
+      !reviewContractMatches(result.installedDetail.review_contract, FIVEGPN_REVIEW_CONTRACT))
+  ) {
+    candidate.value = null
+    previousDetail.value = null
+    candidateRevision.value = ''
+    reviewedURL.value = ''
+    reviewDraft.value = {}
+    reviewNewDifferenceKeys.value = []
+    reviewBaselineDifferenceKeys.value = []
+    reviewError.value = t('fivegpnReviewContractChanged')
+    return
+  }
   candidate.value = result.candidate
   previousDetail.value = result.installedDetail ?? null
   candidateRevision.value = result.revision
@@ -551,7 +574,23 @@ const confirmReview = async (values: Record<string, FiveGPNSettingValue>) => {
   const target = selection.value
   const reviewed = candidate.value
   const revision = candidateRevision.value
-  if (!target || !reviewed || !revision || !reviewedURL.value || reviewSubmitting.value) return
+  if (
+    !target ||
+    !reviewed ||
+    !revision ||
+    !reviewedURL.value ||
+    reviewSubmitting.value ||
+    !reviewContractMatches(reviewed.detail.review_contract, FIVEGPN_REVIEW_CONTRACT)
+  ) {
+    if (reviewed && !reviewContractMatches(reviewed.detail.review_contract, FIVEGPN_REVIEW_CONTRACT)) {
+      candidate.value = null
+      previousDetail.value = null
+      candidateRevision.value = ''
+      reviewedURL.value = ''
+      reviewError.value = t('fivegpnReviewContractChanged')
+    }
+    return
+  }
   actionController?.abort()
   const controller = new AbortController()
   actionController = controller

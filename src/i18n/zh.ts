@@ -785,6 +785,8 @@ const zh: LANG_MESSAGE = {
   fivegpnUnsaved: '有未保存的改动',
   fivegpnSaved: '已保存',
   fivegpnConflict: '在你编辑期间有人改过它。最新状态已经取回 —— 请重新确认后再试。',
+  fivegpnReviewContractChanged:
+    '网关使用了不同的审阅契约。请重新加载 Console 后再审阅；当前未授权任何操作。',
   fivegpnDnsConflictPreserved: 'DNS 文档已在别处发生变化。你的本地草稿已保留，且尚未应用。',
   fivegpnDiscardAndReload: '放弃草稿并加载最新状态',
   fivegpnDnsSaving: '正在保存 DNS 文档…',

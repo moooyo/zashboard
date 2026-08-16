@@ -262,7 +262,7 @@ export type FiveGPNRoutingRule = {
 }
 
 export type FiveGPNModuleDetail = FiveGPNModuleSummary & {
-  review_contract: FiveGPNReviewContract
+  review_contract?: number
   description?: string
   imported_at?: string
   source_url?: string

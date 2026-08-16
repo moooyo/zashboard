@@ -787,6 +787,8 @@ const zhTW: LANG_MESSAGE = {
   fivegpnUnsaved: '有未儲存的變更',
   fivegpnSaved: '已儲存',
   fivegpnConflict: '在你編輯期間有人改過它。最新狀態已經取回 —— 請重新確認後再試。',
+  fivegpnReviewContractChanged:
+    '閘道使用了不同的審閱契約。請重新載入 Console 後再審閱；目前未授權任何操作。',
   fivegpnDnsConflictPreserved: 'DNS 文件已在別處變更。你的本機草稿已保留，且尚未套用。',
   fivegpnDiscardAndReload: '放棄草稿並載入最新狀態',
   fivegpnDnsSaving: '正在儲存 DNS 文件…',

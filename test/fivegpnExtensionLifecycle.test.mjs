@@ -6,6 +6,8 @@ import {
   compactReviewRoutingRule,
   extensionReviewChanges,
   mergeReviewDraft,
+  reviewContractMatches,
+  withReviewContract,
 } from '../src/helper/fivegpnExtensionReview.ts'
 import {
   findFlatLocationSettings,
@@ -60,6 +62,33 @@ test('flat coordinates support an omitted accuracy field with a local default', 
   )
 })
 
+test('review confirmation accepts only the locally understood contract', () => {
+  assert.equal(reviewContractMatches(7, 7), true)
+  for (const value of [undefined, null, 6, 8, '7']) {
+    assert.equal(reviewContractMatches(value, 7), false)
+  }
+
+  let writes = 0
+  for (const value of [undefined, null, 6, 8, '7']) {
+    assert.equal(
+      withReviewContract(value, 7, () => {
+        writes += 1
+        return 'written'
+      }),
+      undefined,
+    )
+  }
+  assert.equal(writes, 0)
+  assert.equal(
+    withReviewContract(7, 7, () => {
+      writes += 1
+      return 'written'
+    }),
+    'written',
+  )
+  assert.equal(writes, 1)
+})
+
 test('interception v7 keeps installed, marketplace, and review responsibilities explicit', () => {
   const api = readFileSync(new URL('../src/api/fivegpn.ts', import.meta.url), 'utf8')
   const assembly = readFileSync(
@@ -98,6 +127,7 @@ test('interception v7 keeps installed, marketplace, and review responsibilities 
 
   assert.match(api, /runtime:\s*FiveGPNModuleRuntime/u)
   assert.match(api, /snapshot_digest:\s*string/u)
+  assert.match(api, /FiveGPNModuleDetail[\s\S]*review_contract\?:\s*number/u)
   assert.match(api, /review_contract:\s*FiveGPNReviewContract/u)
   assert.match(api, /kind:\s*'script'/u)
   assert.doesNotMatch(api, /FiveGPNActionSummary/u)
@@ -133,7 +163,14 @@ test('interception v7 keeps installed, marketplace, and review responsibilities 
     assembly,
     /putInterceptionOrderAPI\(\{[\s\S]*review_contract: FIVEGPN_REVIEW_CONTRACT/u,
   )
-  assert.match(assembly, /enabled: true, review_contract: reviewContract/u)
+  assert.match(
+    assembly,
+    /withReviewContract\(reviewContract, FIVEGPN_REVIEW_CONTRACT,[\s\S]*return request \?\? Promise\.resolve/u,
+  )
+  assert.ok((assembly.match(/withReviewContract\(/gu) ?? []).length >= 3)
+  assert.ok((assembly.match(/candidate\.detail\.review_contract/gu) ?? []).length >= 2)
+  assert.match(assembly, /enabled: true, review_contract: FIVEGPN_REVIEW_CONTRACT/u)
+  assert.doesNotMatch(assembly, /enabled: true, review_contract: reviewContract/u)
   assert.match(assembly, /\{ revision, enabled: false \}/u)
   assert.match(assembly, /installExtensionAPI\([\s\S]*review_contract: FIVEGPN_REVIEW_CONTRACT/u)
   assert.match(
@@ -143,6 +180,19 @@ test('interception v7 keeps installed, marketplace, and review responsibilities 
   assert.match(
     installedPage,
     /authorizationRevision\.value,[\s\S]*detail\.review_contract,[\s\S]*actionController\.signal/u,
+  )
+  assert.match(
+    installedPage,
+    /reviewContractMatches\(result\.candidate\.detail\.review_contract, FIVEGPN_REVIEW_CONTRACT\)/u,
+  )
+  assert.match(
+    installedPage,
+    /reviewContractMatches\(result\.detail\.review_contract, FIVEGPN_REVIEW_CONTRACT\)/u,
+  )
+  assert.match(installedPage, /fivegpnReviewContractChanged/u)
+  assert.match(
+    installedPage,
+    /const reviewDetail = computed\([\s\S]*reviewContractMatches\(detail\.review_contract, FIVEGPN_REVIEW_CONTRACT\)/u,
   )
   assert.match(api, /\/5gpn\/interception\/location\/search/u)
 
@@ -160,6 +210,16 @@ test('interception v7 keeps installed, marketplace, and review responsibilities 
   assert.match(marketplacePage, /catalogInstallState\(entry\) === 'current'/u)
   assert.match(marketplacePage, /reviewedURL\.value = result\.url/u)
   assert.match(marketplacePage, /applyCatalogUpdate[\s\S]*reviewedURL\.value/u)
+  assert.match(
+    marketplacePage,
+    /reviewContractMatches\(result\.candidate\.detail\.review_contract, FIVEGPN_REVIEW_CONTRACT\)/u,
+  )
+  assert.match(
+    marketplacePage,
+    /result\.installedDetail[\s\S]*reviewContractMatches\(result\.installedDetail\.review_contract, FIVEGPN_REVIEW_CONTRACT\)/u,
+  )
+  assert.match(marketplacePage, /:detail="reviewDetail"/u)
+  assert.match(marketplacePage, /fivegpnReviewContractChanged/u)
   assert.match(marketplacePage, /source\.name \|\| source\.id/u)
 
   assert.match(editor, /conflictMessage/u)

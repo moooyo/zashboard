@@ -807,6 +807,8 @@ const en = {
   fivegpnSaved: 'Saved',
   fivegpnConflict:
     'Someone changed this while you were editing. The latest state has been loaded — review it and try again.',
+  fivegpnReviewContractChanged:
+    'The gateway uses a different review contract. Reload the Console before reviewing again; no action was authorized.',
   fivegpnDnsConflictPreserved:
     'The DNS document changed elsewhere. Your local draft is preserved and has not been applied.',
   fivegpnDiscardAndReload: 'Discard draft and load latest',

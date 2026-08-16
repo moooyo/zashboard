@@ -300,12 +300,13 @@
 </template>
 
 <script setup lang="ts">
-import type {
-  FiveGPNCandidate,
-  FiveGPNCaptureDNS,
-  FiveGPNModuleDetail,
-  FiveGPNModuleSummary,
-  FiveGPNSettingValue,
+import {
+  FIVEGPN_REVIEW_CONTRACT,
+  type FiveGPNCandidate,
+  type FiveGPNCaptureDNS,
+  type FiveGPNModuleDetail,
+  type FiveGPNModuleSummary,
+  type FiveGPNSettingValue,
 } from '@/api/fivegpn'
 import {
   cancelInterceptionInspection,
@@ -339,6 +340,7 @@ import {
 import {
   extensionReviewChanges,
   mergeReviewDraft,
+  reviewContractMatches,
   type FiveGPNReviewChange,
 } from '@/helper/fivegpnExtensionReview'
 import { activeBackendSession, backendSessionIsCurrent, captureBackendSession } from '@/store/setup'
@@ -498,6 +500,9 @@ const requiredSettingMissing = (detail: FiveGPNModuleDetail) =>
 const authorizationBlockingReason = computed(() => {
   const detail = authorizationDetail.value
   if (!detail) return ''
+  if (!reviewContractMatches(detail.review_contract, FIVEGPN_REVIEW_CONTRACT)) {
+    return t('fivegpnReviewContractChanged')
+  }
   if (!egressAvailable(detail.egress_group)) {
     return t('fivegpnUnavailableEgress', { group: detail.egress_group })
   }
@@ -623,9 +628,13 @@ const reviewDifferenceKey = (change: FiveGPNReviewChange) => JSON.stringify(chan
 const candidateChanges = computed(() =>
   extensionReviewChanges(null, candidate.value?.detail ?? null, candidate.value?.digest),
 )
-const reviewDetail = computed(() =>
-  reviewMode.value === 'enable' ? authorizationDetail.value : (candidate.value?.detail ?? null),
-)
+const reviewDetail = computed(() => {
+  const detail =
+    reviewMode.value === 'enable' ? authorizationDetail.value : (candidate.value?.detail ?? null)
+  return detail && reviewContractMatches(detail.review_contract, FIVEGPN_REVIEW_CONTRACT)
+    ? detail
+    : null
+})
 const reviewExecutionPosition = computed(() => {
   const id = reviewDetail.value?.id
   const order = data.value?.execution_order ?? []
@@ -749,6 +758,15 @@ const loadInstallReview = async (reloading = false) => {
     reviewError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
     return
   }
+  if (!reviewContractMatches(result.candidate.detail.review_contract, FIVEGPN_REVIEW_CONTRACT)) {
+    candidate.value = null
+    candidateRevision.value = ''
+    reviewDraft.value = {}
+    reviewNewDifferenceKeys.value = []
+    reviewBaselineDifferenceKeys.value = []
+    reviewError.value = t('fivegpnReviewContractChanged')
+    return
+  }
   if (result.candidate.installed) {
     reviewError.value = t('fivegpnMarketplaceUpdateOnly')
     return
@@ -778,6 +796,15 @@ const loadEnableReview = async (reloading = false) => {
   reviewLoading.value = false
   if (!result.detail || !result.revision) {
     reviewError.value = result.error === 'conflict' ? t('fivegpnConflict') : result.error
+    return
+  }
+  if (!reviewContractMatches(result.detail.review_contract, FIVEGPN_REVIEW_CONTRACT)) {
+    authorizationDetail.value = null
+    authorizationRevision.value = ''
+    reviewDraft.value = {}
+    reviewNewDifferenceKeys.value = []
+    reviewBaselineDifferenceKeys.value = []
+    reviewError.value = t('fivegpnReviewContractChanged')
     return
   }
   authorizationDetail.value = result.detail
@@ -841,7 +868,17 @@ const confirmReview = async () => {
     const reviewed = candidate.value
     const revision = candidateRevision.value
     const request = reviewImportSource.value
-    if (!reviewed || !revision || !request) {
+    if (
+      !reviewed ||
+      !revision ||
+      !request ||
+      !reviewContractMatches(reviewed.detail.review_contract, FIVEGPN_REVIEW_CONTRACT)
+    ) {
+      if (reviewed && !reviewContractMatches(reviewed.detail.review_contract, FIVEGPN_REVIEW_CONTRACT)) {
+        candidate.value = null
+        candidateRevision.value = ''
+        reviewError.value = t('fivegpnReviewContractChanged')
+      }
       reviewSubmitting.value = false
       if (reviewActionController === actionController) reviewActionController = undefined
       return
