@@ -179,7 +179,7 @@ test('interception v7 keeps installed, marketplace, and review responsibilities 
   )
   assert.match(
     installedPage,
-    /authorizationRevision\.value,[\s\S]*detail\.review_contract,[\s\S]*actionController\.signal/u,
+    /const reviewContract = detail\?\.review_contract[\s\S]*reviewContractMatches\(reviewContract, FIVEGPN_REVIEW_CONTRACT\)[\s\S]*authorizationRevision\.value,[\s\S]*reviewContract,[\s\S]*actionController\.signal/u,
   )
   assert.match(
     installedPage,

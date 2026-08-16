@@ -846,10 +846,12 @@ const confirmReview = async () => {
   let action: (() => Promise<string>) | undefined
   if (reviewMode.value === 'enable') {
     const detail = authorizationDetail.value
+    const reviewContract = detail?.review_contract
     if (
       !authorizationModuleId.value ||
       !authorizationRevision.value ||
       !detail ||
+      !reviewContractMatches(reviewContract, FIVEGPN_REVIEW_CONTRACT) ||
       authorizationBlockingReason.value
     ) {
       reviewSubmitting.value = false
@@ -861,7 +863,7 @@ const confirmReview = async () => {
         authorizationModuleId.value,
         true,
         authorizationRevision.value,
-        detail.review_contract,
+        reviewContract,
         actionController.signal,
       )
   } else {

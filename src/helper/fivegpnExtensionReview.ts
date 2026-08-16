@@ -43,7 +43,10 @@ export type FiveGPNReviewChange =
 
 const sameJSON = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
 
-export const reviewContractMatches = (value: unknown, expected: number) => value === expected
+export const reviewContractMatches = <T extends number>(
+  value: unknown,
+  expected: T,
+): value is T => value === expected
 
 export const withReviewContract = <T>(value: unknown, expected: number, action: () => T) =>
   reviewContractMatches(value, expected) ? action() : undefined
