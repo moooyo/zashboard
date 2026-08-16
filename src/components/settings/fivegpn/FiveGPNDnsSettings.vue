@@ -141,18 +141,11 @@
       <div class="settings-section-label">{{ $t('fivegpnDnsUpstreams') }}</div>
       <div class="settings-grid">
         <SettingItem :setting-key="k.fivegpnDnsGateway">
-          <div class="setting-item-label">
-            {{ $t('fivegpnGateway') }}
-            <QuestionMarkCircleIcon
-              class="h-4 w-4 cursor-pointer"
-              @mouseenter="showTip($event, $t('fivegpnGatewayHint'))"
-            />
+          <div class="setting-item-label">{{ $t('fivegpnGateway') }}</div>
+          <div class="min-w-0 text-right">
+            <span class="block break-all font-mono text-sm">{{ draft.gateway || '—' }}</span>
+            <span class="block text-xs opacity-70">{{ $t('fivegpnGatewayHint') }}</span>
           </div>
-          <input
-            v-model="draft.gateway"
-            class="input input-sm w-44"
-            placeholder="203.0.113.10"
-          />
         </SettingItem>
 
         <SettingItem :setting-key="k.fivegpnDnsChina">

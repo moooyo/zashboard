@@ -731,7 +731,7 @@ const en = {
   fivegpnSubNotFetched: 'not fetched yet',
   fivegpnGateway: 'Gateway address',
   fivegpnGatewayHint:
-    'The IPv4 address a steered name resolves to. Leave it empty and foreign answers are returned as they are, instead of being pointed here.',
+    'Steered names resolve to this installation-managed IPv4 address. To change it, run sudo 5gpn configure on the gateway host.',
   fivegpnChinaGroup: 'China group',
   fivegpnTrustGroup: 'Trust group',
   fivegpnUpstreamGrammar:

@@ -283,10 +283,10 @@ export const refreshDns = async () => {
 /**
  * Save the complete document.
  *
- * The whole document is written because these edits are not independent.
- * Changing a gateway address and the upstream that serves it is one operation;
- * two writes would expose an intermediate state in which the resolver matches
- * neither side.
+ * The API exposes one revisioned DNS document. Installation-owned listener,
+ * certificate-path, and gateway fields stay in the payload so clients can
+ * round-trip them unchanged; the core rejects attempts to change them before
+ * persistence.
  *
  * A 409 means someone changed the document after it was read. Fetch the latest
  * state and expose the conflict instead of overwriting it; having this page open

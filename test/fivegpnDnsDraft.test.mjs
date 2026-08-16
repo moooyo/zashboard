@@ -7,7 +7,7 @@ import {
   wholeDocumentChanged,
 } from '../src/helper/wholeDocumentDraft.ts'
 
-test('a multi-field DNS edit remains one isolated draft until explicitly discarded or saved', () => {
+test('editable DNS fields remain isolated while installation coordinates round-trip unchanged', () => {
   const base = {
     gateway: '192.0.2.1',
     upstreams: { china: ['https://china.example/dns-query'], trust: ['tls://1.1.1.1'] },
@@ -15,12 +15,14 @@ test('a multi-field DNS edit remains one isolated draft until explicitly discard
   }
   const draft = cloneWholeDocument(base)
 
-  draft.gateway = '192.0.2.2'
+  draft.upstreams.ecs = '112.96.32.0/24'
   draft.upstreams.trust.push('https://trust.example/dns-query')
   draft.policy.fallback = 'gateway'
 
   assert.equal(wholeDocumentChanged(base, draft), true)
+  assert.equal(draft.gateway, base.gateway)
   assert.equal(base.gateway, '192.0.2.1')
+  assert.equal(base.upstreams.ecs, undefined)
   assert.deepEqual(base.upstreams.trust, ['tls://1.1.1.1'])
 
   const discarded = cloneWholeDocument(base)
@@ -43,4 +45,12 @@ test('DNS settings expose one explicit whole-document save boundary', () => {
   assert.match(source, /const saveStateTitle = computed/u)
   assert.match(source, /sticky top-2/u)
   assert.match(source, /v-if="dnsWriteConflict"[\s\S]*?discardConflict/u)
+
+  const gatewayRow = source.match(
+    /<SettingItem :setting-key="k\.fivegpnDnsGateway">(?<body>[\s\S]*?)<\/SettingItem>/u,
+  )?.groups?.body
+  assert.ok(gatewayRow, 'gateway settings row is missing')
+  assert.match(gatewayRow, /draft\.gateway/u)
+  assert.match(gatewayRow, /fivegpnGatewayHint/u)
+  assert.doesNotMatch(gatewayRow, /<(?:input|select|textarea)\b|v-model=/u)
 })

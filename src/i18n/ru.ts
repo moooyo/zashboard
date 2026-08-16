@@ -734,7 +734,7 @@ const ru: LANG_MESSAGE = {
   fivegpnSubNotFetched: 'ещё не загружено',
   fivegpnGateway: 'Адрес шлюза',
   fivegpnGatewayHint:
-    'IPv4-адрес, в который разрешается направленное имя. Если оставить пустым, зарубежные ответы возвращаются как есть.',
+    'Направленные имена разрешаются в этот IPv4-адрес, которым управляет установщик. Чтобы изменить его, выполните sudo 5gpn configure на шлюзе.',
   fivegpnChinaGroup: 'Китайская группа',
   fivegpnTrustGroup: 'Доверенная группа',
   fivegpnUpstreamGrammar:

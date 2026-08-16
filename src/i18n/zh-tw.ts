@@ -715,7 +715,8 @@ const zhTW: LANG_MESSAGE = {
   fivegpnSubError: '上次抓取失敗,仍在使用 {entries} 筆',
   fivegpnSubNotFetched: '尚未抓取',
   fivegpnGateway: '閘道位址',
-  fivegpnGatewayHint: '被引導的名稱解析到的 IPv4 位址。留空則境外答案原樣回傳,而不是指向這裡。',
+  fivegpnGatewayHint:
+    '被引導的名稱解析到這個由安裝設定管理的 IPv4 位址。如需修改，請在閘道主機上執行 sudo 5gpn configure。',
   fivegpnChinaGroup: '國內組',
   fivegpnTrustGroup: '可信組',
   fivegpnUpstreamGrammar:

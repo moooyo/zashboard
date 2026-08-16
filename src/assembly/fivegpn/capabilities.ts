@@ -33,7 +33,7 @@ export type FeatureState = 'unknown' | 'supported' | 'unsupported' | 'temporaril
  * misleads readers into believing it still exists.
  */
 export const UNDERSTOOD_SCHEMA_VERSIONS: Record<string, number> = {
-  '5gpn-dns': 1,
+  '5gpn-dns': 2,
   '5gpn-interception': 7,
   '5gpn-bot': 1,
 }

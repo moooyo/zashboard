@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 import {
@@ -6,6 +7,11 @@ import {
   classifyCapabilityPayload,
   SUPPORTED_CONTROLLER_API,
 } from '../src/helper/fivegpnCapabilities.ts'
+
+const capabilityAssembly = readFileSync(
+  new URL('../src/assembly/fivegpn/capabilities.ts', import.meta.url),
+  'utf8',
+)
 
 test('capability failures retry only transient statuses', () => {
   assert.equal(classifyCapabilityFailure(0), 'temporary')
@@ -45,4 +51,9 @@ test('capability payload validates feature descriptors before gating routes', ()
     }).status,
     'malformed',
   )
+})
+
+test('DNS configuration renders only for the installation-owned gateway schema', () => {
+  assert.match(capabilityAssembly, /'5gpn-dns': 2/u)
+  assert.doesNotMatch(capabilityAssembly, /'5gpn-dns': 1/u)
 })

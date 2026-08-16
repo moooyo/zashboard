@@ -713,7 +713,8 @@ const zh: LANG_MESSAGE = {
   fivegpnSubError: '上次抓取失败,仍在使用 {entries} 条',
   fivegpnSubNotFetched: '尚未抓取',
   fivegpnGateway: '网关地址',
-  fivegpnGatewayHint: '被引导的名字解析到的 IPv4 地址。留空则境外答案原样返回,而不是指向这里。',
+  fivegpnGatewayHint:
+    '被引导的名字解析到这个由安装配置管理的 IPv4 地址。如需修改，请在网关主机上运行 sudo 5gpn configure。',
   fivegpnChinaGroup: '国内组',
   fivegpnTrustGroup: '可信组',
   fivegpnUpstreamGrammar:
