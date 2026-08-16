@@ -196,6 +196,13 @@
           </div>
         </div>
 
+        <p
+          v-if="detail.egress_group_required"
+          class="bg-base-150 rounded-box px-3 py-2 text-xs leading-5"
+        >
+          {{ $t('fivegpnPublisherEgressMetadata', { group: detail.egress_group }) }}
+        </p>
+
         <section class="flex flex-col gap-1">
           <h3 class="text-sm font-medium">{{ $t('fivegpnExactRoutingRules') }}</h3>
           <p
@@ -233,20 +240,12 @@
           v-if="detail.actions?.length"
           class="flex flex-col gap-1"
         >
-          <h3 class="text-sm font-medium">{{ $t('fivegpnExactActions') }}</h3>
-          <div
+          <h3 class="text-sm font-medium">{{ $t('fivegpnActionReviewSummary') }}</h3>
+          <FiveGPNActionReviewCard
             v-for="action in detail.actions"
             :key="action.id"
-            class="bg-base-150 rounded-md px-2 py-2 text-xs break-all"
-          >
-            <code class="hidden md:inline">{{ JSON.stringify(action) }}</code>
-            <details class="md:hidden">
-              <summary class="cursor-pointer font-mono">
-                {{ action.id }} · {{ action.phase }}
-              </summary>
-              <code class="mt-2 block opacity-70">{{ JSON.stringify(action) }}</code>
-            </details>
-          </div>
+            :action="action"
+          />
         </section>
 
         <section
@@ -377,8 +376,14 @@
 </template>
 
 <script setup lang="ts">
-import type { FiveGPNModuleDetail, FiveGPNModuleSetting, FiveGPNSettingValue } from '@/api/fivegpn'
+import type {
+  FiveGPNActionKind,
+  FiveGPNModuleDetail,
+  FiveGPNModuleSetting,
+  FiveGPNSettingValue,
+} from '@/api/fivegpn'
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
+import FiveGPNActionReviewCard from '@/components/fivegpn/FiveGPNActionReviewCard.vue'
 import { useViewportHeight } from '@/composables/useViewportHeight'
 import { compactReviewRoutingRule, type FiveGPNReviewChange } from '@/helper/fivegpnExtensionReview'
 import { computed } from 'vue'
@@ -445,6 +450,18 @@ const digestLabel = computed(() =>
   t(props.digestKind === 'snapshot' ? 'fivegpnDigest' : 'fivegpnManifestDigest'),
 )
 const newChangeKeys = computed(() => new Set(props.newDifferenceKeys ?? []))
+const actionKindLabel = (kind: FiveGPNActionKind) =>
+  t(
+    {
+      script: 'fivegpnActionKindScript',
+      jq: 'fivegpnActionKindJq',
+      reject: 'fivegpnActionKindReject',
+      mock: 'fivegpnActionKindMock',
+      headers: 'fivegpnActionKindHeaders',
+      rewrite: 'fivegpnActionKindRewrite',
+      replace_body: 'fivegpnActionKindReplaceBody',
+    }[kind],
+  )
 const addedCaptureHostCount = computed(() => {
   const change = props.changes.find((item) => item.id === 'hosts-added')
   return change ? change.hosts.split(',').filter(Boolean).length : 0
@@ -465,8 +482,23 @@ const changeLabel = (change: FiveGPNReviewChange) => {
       return t('fivegpnDiffHostsRemoved', { hosts: change.hosts })
     case 'routing-rules':
       return t('fivegpnDiffRoutingRules', { before: change.before, after: change.after })
-    case 'actions':
-      return t('fivegpnDiffActions', { before: change.before, after: change.after })
+    case 'action-added':
+      return t('fivegpnDiffActionAdded', {
+        id: change.action_id,
+        kind: actionKindLabel(change.kind),
+      })
+    case 'action-removed':
+      return t('fivegpnDiffActionRemoved', {
+        id: change.action_id,
+        kind: actionKindLabel(change.kind),
+      })
+    case 'action-changed':
+      return t('fivegpnDiffActionChanged', {
+        id: change.action_id,
+        kind: actionKindLabel(change.kind),
+      })
+    case 'actions-reordered':
+      return t('fivegpnDiffActionsReordered')
     case 'upstream-mappings':
       return t('fivegpnDiffUpstreamMappings', { before: change.before, after: change.after })
     case 'network-grant':

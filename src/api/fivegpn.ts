@@ -5,6 +5,9 @@ import {
 } from './fivegpnInterceptionSettings'
 import './http'
 
+export const FIVEGPN_REVIEW_CONTRACT = 7 as const
+export type FiveGPNReviewContract = typeof FIVEGPN_REVIEW_CONTRACT
+
 /**
  * Private 5gpn APIs. This module is deliberately separate from api/clash.ts:
  * the latter is the generic Clash-compatible surface, while /capabilities and
@@ -48,12 +51,14 @@ export type FiveGPNModuleSummary = {
   version?: string
   enabled: boolean
   capture_hosts: string[]
-  capture_dns: string
+  capture_dns: FiveGPNCaptureDNS
   egress_group: string
   egress_group_required: boolean
   setting_count: number
   runtime: FiveGPNModuleRuntime
 }
+
+export type FiveGPNCaptureDNS = 'trust' | 'china'
 
 export type FiveGPNModuleRuntimePhase =
   | 'disabled'
@@ -131,16 +136,113 @@ export type FiveGPNModuleSetting = {
   value?: FiveGPNSettingValue
 }
 
-export type FiveGPNActionSummary = {
+export type FiveGPNActionPhase = 'request' | 'response'
+export type FiveGPNActionKind =
+  'script' | 'jq' | 'reject' | 'mock' | 'headers' | 'rewrite' | 'replace_body'
+export type FiveGPNActionBodyMode = 'none' | 'text' | 'binary'
+export type FiveGPNActionEntry = 'native' | 'proxy-compat'
+export type FiveGPNActionSourceKind = 'url' | 'inline'
+
+export type FiveGPNActionGate = {
+  key: string
+  equals: string
+}
+
+export type FiveGPNActionReviewCommon = {
   id: string
-  phase: string
+  phase: FiveGPNActionPhase
   hosts?: string[]
-  schemes?: string[]
+  schemes?: Array<'http' | 'https'>
   methods?: string[]
   path?: string
   statuses?: number[]
-  digest?: string
+  enabled_when?: FiveGPNActionGate
+  body_mode: FiveGPNActionBodyMode
+  review_digest: string
+  timeout_ms: number
+  max_body_bytes: number
 }
+
+export type FiveGPNMockBodyReview = {
+  kind: 'empty' | 'text' | 'base64'
+  bytes: number
+  sha256: string
+}
+
+export type FiveGPNMockReview = {
+  status: number
+  headers?: Record<string, string>
+  body: FiveGPNMockBodyReview
+}
+
+export type FiveGPNHeadersReview = {
+  set?: Record<string, string>
+  remove?: string[]
+}
+
+export type FiveGPNRewriteReview = {
+  pattern: string
+  to: string
+  status: 0 | 302 | 307
+}
+
+export type FiveGPNReplaceBodyReview = {
+  pattern: string
+  to: string
+  value_map?: Record<string, Record<string, string>>
+}
+
+type FiveGPNScriptActionReviewCommon = FiveGPNActionReviewCommon & {
+  kind: 'script'
+  entry: FiveGPNActionEntry
+  code_digest: string
+  code_bytes: number
+}
+
+export type FiveGPNScriptActionReview = FiveGPNScriptActionReviewCommon &
+  ({ source_kind: 'url'; source_url: string } | { source_kind: 'inline'; source_url?: never })
+
+export type FiveGPNJQActionReview = Omit<FiveGPNActionReviewCommon, 'body_mode'> & {
+  kind: 'jq'
+  body_mode: 'text'
+  code_digest: string
+  code_bytes: number
+}
+
+export type FiveGPNRejectActionReview = FiveGPNActionReviewCommon & {
+  kind: 'reject'
+}
+
+export type FiveGPNMockActionReview = FiveGPNActionReviewCommon & {
+  kind: 'mock'
+  mock: FiveGPNMockReview
+}
+
+export type FiveGPNHeadersActionReview = FiveGPNActionReviewCommon & {
+  kind: 'headers'
+  headers: FiveGPNHeadersReview
+}
+
+export type FiveGPNRewriteActionReview = Omit<FiveGPNActionReviewCommon, 'phase'> & {
+  kind: 'rewrite'
+  phase: 'request'
+  rewrite: FiveGPNRewriteReview
+}
+
+export type FiveGPNReplaceBodyActionReview = Omit<FiveGPNActionReviewCommon, 'body_mode'> & {
+  kind: 'replace_body'
+  body_mode: 'text' | 'binary'
+  replace_body: FiveGPNReplaceBodyReview
+}
+
+export type FiveGPNActionReview =
+  | FiveGPNScriptActionReview
+  | FiveGPNJQActionReview
+  | FiveGPNRejectActionReview
+  | FiveGPNMockActionReview
+  | FiveGPNHeadersActionReview
+  | FiveGPNRewriteActionReview
+  | FiveGPNReplaceBodyActionReview
 
 export type FiveGPNMappingSummary = {
   pattern: string
@@ -149,17 +251,18 @@ export type FiveGPNMappingSummary = {
 }
 
 export type FiveGPNRoutingRule = {
-  action: string
+  action: 'reject' | 'direct'
   domain?: string
   domain_suffix?: string
   domain_keywords?: string[]
   all_domain_keywords?: string[]
   ip_cidr?: string
-  network?: string
+  network?: 'tcp' | 'udp'
   destination_port?: number
 }
 
 export type FiveGPNModuleDetail = FiveGPNModuleSummary & {
+  review_contract: FiveGPNReviewContract
   description?: string
   imported_at?: string
   source_url?: string
@@ -168,7 +271,7 @@ export type FiveGPNModuleDetail = FiveGPNModuleSummary & {
   network: boolean
   persistent_storage: boolean
   settings?: FiveGPNModuleSetting[]
-  actions?: FiveGPNActionSummary[]
+  actions?: FiveGPNActionReview[]
   routing_rules?: FiveGPNRoutingRule[]
   upstream_mappings?: FiveGPNMappingSummary[]
 }
@@ -211,8 +314,11 @@ export const putInterceptionSettingsAPI = (body: FiveGPNInterceptionSettingsWrit
     { timeout: 120000 },
   )
 
-export const putInterceptionOrderAPI = (body: { revision: string; order: string[] }) =>
-  axios.put<FiveGPNInterceptionEnvelope>('/5gpn/interception/order', body, { timeout: 120000 })
+export const putInterceptionOrderAPI = (body: {
+  revision: string
+  review_contract: FiveGPNReviewContract
+  order: string[]
+}) => axios.put<FiveGPNInterceptionEnvelope>('/5gpn/interception/order', body, { timeout: 120000 })
 
 export const fetchExtensionAPI = (id: string, signal?: AbortSignal) =>
   axios.get<{ extension: FiveGPNModuleDetail; revision: string }>(
@@ -220,9 +326,13 @@ export const fetchExtensionAPI = (id: string, signal?: AbortSignal) =>
     { signal, timeout: 5000 },
   )
 
+export type FiveGPNExtensionEnabledWrite =
+  | { revision: string; enabled: false; review_contract?: never }
+  | { revision: string; enabled: true; review_contract: FiveGPNReviewContract }
+
 export const putExtensionEnabledAPI = (
   id: string,
-  body: { revision: string; enabled: boolean },
+  body: FiveGPNExtensionEnabledWrite,
   signal?: AbortSignal,
 ) =>
   axios.put<FiveGPNInterceptionEnvelope>(
@@ -240,7 +350,7 @@ export const putExtensionEgressAPI = (id: string, body: { revision: string; grou
 
 export const putExtensionCaptureDNSAPI = (
   id: string,
-  body: { revision: string; resolver: string },
+  body: { revision: string; resolver: FiveGPNCaptureDNS },
 ) =>
   axios.put<FiveGPNInterceptionEnvelope>(
     `/5gpn/interception/extensions/${encodeURIComponent(id)}/capture-dns`,
@@ -289,6 +399,7 @@ export const reviewExtensionAPI = (
 export const installExtensionAPI = (
   body: {
     revision: string
+    review_contract: FiveGPNReviewContract
     digest: string
     url?: string
     content?: string
@@ -444,6 +555,7 @@ export const applyCatalogUpdateAPI = (
   entry: string,
   body: {
     revision: string
+    review_contract: FiveGPNReviewContract
     digest: string
     url: string
     values?: Record<string, FiveGPNSettingValue>

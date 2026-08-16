@@ -294,7 +294,6 @@
             </details>
           </div>
         </template>
-
       </template>
     </div>
   </div>
@@ -303,6 +302,7 @@
 <script setup lang="ts">
 import type {
   FiveGPNCandidate,
+  FiveGPNCaptureDNS,
   FiveGPNModuleDetail,
   FiveGPNModuleSummary,
   FiveGPNSettingValue,
@@ -341,11 +341,7 @@ import {
   mergeReviewDraft,
   type FiveGPNReviewChange,
 } from '@/helper/fivegpnExtensionReview'
-import {
-  activeBackendSession,
-  backendSessionIsCurrent,
-  captureBackendSession,
-} from '@/store/setup'
+import { activeBackendSession, backendSessionIsCurrent, captureBackendSession } from '@/store/setup'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -586,7 +582,12 @@ const setEgress = (module: FiveGPNModuleSummary, event: Event) => {
 }
 
 const setCaptureDNS = (module: FiveGPNModuleSummary, event: Event) =>
-  run(() => setExtensionCaptureDNS(module.id, (event.target as HTMLSelectElement).value))
+  run(() =>
+    setExtensionCaptureDNS(
+      module.id,
+      (event.target as HTMLSelectElement).value as FiveGPNCaptureDNS,
+    ),
+  )
 
 const moveModule = (index: number, delta: number) => {
   const order = orderedModules.value.map((m) => m.id)
@@ -808,13 +809,7 @@ const retryReview = async (reloading = false) => {
 const reloadReview = () => retryReview(true)
 
 const confirmReview = async () => {
-  if (
-    busy.value ||
-    reviewConflict.value ||
-    reviewLoading.value ||
-    reviewSubmitting.value
-  )
-    return
+  if (busy.value || reviewConflict.value || reviewLoading.value || reviewSubmitting.value) return
   reviewError.value = ''
   reviewActionController?.abort()
   const actionController = new AbortController()
@@ -823,9 +818,11 @@ const confirmReview = async () => {
 
   let action: (() => Promise<string>) | undefined
   if (reviewMode.value === 'enable') {
+    const detail = authorizationDetail.value
     if (
       !authorizationModuleId.value ||
       !authorizationRevision.value ||
+      !detail ||
       authorizationBlockingReason.value
     ) {
       reviewSubmitting.value = false
@@ -837,6 +834,7 @@ const confirmReview = async () => {
         authorizationModuleId.value,
         true,
         authorizationRevision.value,
+        detail.review_contract,
         actionController.signal,
       )
   } else {

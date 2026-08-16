@@ -1,14 +1,7 @@
 import { fetchCapabilitiesAPI } from '@/api/fivegpn'
 import { responseMessage, responseStatus } from '@/api/response'
-import {
-  classifyCapabilityFailure,
-  classifyCapabilityPayload,
-} from '@/helper/fivegpnCapabilities'
-import {
-  activeBackendSession,
-  backendSessionIsCurrent,
-  captureBackendSession,
-} from '@/store/setup'
+import { classifyCapabilityFailure, classifyCapabilityPayload } from '@/helper/fivegpnCapabilities'
+import { activeBackendSession, backendSessionIsCurrent, captureBackendSession } from '@/store/setup'
 import { computed, ref, watch } from 'vue'
 
 /**
@@ -41,7 +34,7 @@ export type FeatureState = 'unknown' | 'supported' | 'unsupported' | 'temporaril
  */
 export const UNDERSTOOD_SCHEMA_VERSIONS: Record<string, number> = {
   '5gpn-dns': 1,
-  '5gpn-interception': 6,
+  '5gpn-interception': 7,
   '5gpn-bot': 1,
 }
 

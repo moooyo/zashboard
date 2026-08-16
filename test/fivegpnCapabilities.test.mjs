@@ -24,21 +24,24 @@ test('capability payload accepts only the exact controller API', () => {
     classifyCapabilityPayload({ controllerApi: SUPPORTED_CONTROLLER_API, features: {} }).status,
     'compatible',
   )
-  assert.equal(classifyCapabilityPayload({ controllerApi: '2', features: {} }).status, 'incompatible')
+  assert.equal(
+    classifyCapabilityPayload({ controllerApi: '2', features: {} }).status,
+    'incompatible',
+  )
   assert.equal(classifyCapabilityPayload({ controllerApi: 1, features: {} }).status, 'malformed')
 })
 
 test('capability payload validates feature descriptors before gating routes', () => {
   const valid = classifyCapabilityPayload({
     controllerApi: '1',
-    features: { '5gpn-interception': { version: 6, owner: 'mihomo' } },
+    features: { '5gpn-interception': { version: 7, owner: 'mihomo' } },
   })
   assert.equal(valid.status, 'compatible')
 
   assert.equal(
     classifyCapabilityPayload({
       controllerApi: '1',
-      features: { '5gpn-interception': { version: '6' } },
+      features: { '5gpn-interception': { version: '7' } },
     }).status,
     'malformed',
   )

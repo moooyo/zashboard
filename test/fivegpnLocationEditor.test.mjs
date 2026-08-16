@@ -92,8 +92,8 @@ test('location editor has no legacy silhouette and searches only on Search or En
   assert.match(template, /class="location-map relative z-0 h-72 w-full md:h-80"/u)
 })
 
-test('the interactive review mock negotiates interception v6 and serves location search', () => {
-  assert.match(reviewMock, /'5gpn-interception': \{ version: 6, owner: 'mihomo' \}/u)
+test('the interactive review mock negotiates interception v7 and serves location search', () => {
+  assert.match(reviewMock, /'5gpn-interception': \{ version: 7, owner: 'mihomo' \}/u)
   assert.match(
     reviewMock,
     /request\.method === 'POST'[\s\S]*?\/5gpn\/interception\/location\/search/u,

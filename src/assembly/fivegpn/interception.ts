@@ -1,13 +1,16 @@
 import type {
   FiveGPNCandidate,
+  FiveGPNCaptureDNS,
   FiveGPNCatalogSource,
   FiveGPNCatalogSourceView,
   FiveGPNInterception,
   FiveGPNInterceptionEnvelope,
   FiveGPNModuleDetail,
+  FiveGPNReviewContract,
   FiveGPNSettingValue,
 } from '@/api/fivegpn'
 import {
+  FIVEGPN_REVIEW_CONTRACT,
   applyCatalogUpdateAPI,
   deleteExtensionAPI,
   fetchCatalogAPI,
@@ -27,11 +30,7 @@ import {
 } from '@/api/fivegpn'
 import { responseData, responseMessage, responseStatus } from '@/api/response'
 import { catalogUpdateBody } from '@/helper/catalogReview'
-import {
-  activeBackendSession,
-  backendSessionIsCurrent,
-  captureBackendSession,
-} from '@/store/setup'
+import { activeBackendSession, backendSessionIsCurrent, captureBackendSession } from '@/store/setup'
 import { ref, watch } from 'vue'
 import { featureSupported } from './capabilities'
 
@@ -201,24 +200,62 @@ export const setInterceptionSettings = (settings: { enabled: boolean; http2: boo
   write((revision) => putInterceptionSettingsAPI({ revision, ...settings }))
 
 export const setExecutionOrder = (order: string[], expectedRevision: string) =>
-  write((revision) => putInterceptionOrderAPI({ revision, order }), [200], expectedRevision)
-
-export const setExtensionEnabled = (
-  id: string,
-  enabled: boolean,
-  expectedRevision?: string,
-  signal?: AbortSignal,
-) =>
   write(
-    (revision) => putExtensionEnabledAPI(id, { revision, enabled }, signal),
+    (revision) =>
+      putInterceptionOrderAPI({
+        revision,
+        review_contract: FIVEGPN_REVIEW_CONTRACT,
+        order,
+      }),
     [200],
     expectedRevision,
   )
 
+export function setExtensionEnabled(
+  id: string,
+  enabled: false,
+  expectedRevision?: string,
+  reviewContract?: undefined,
+  signal?: AbortSignal,
+): Promise<string>
+export function setExtensionEnabled(
+  id: string,
+  enabled: true,
+  expectedRevision: string,
+  reviewContract: FiveGPNReviewContract,
+  signal?: AbortSignal,
+): Promise<string>
+export function setExtensionEnabled(
+  id: string,
+  enabled: boolean,
+  expectedRevision?: string,
+  reviewContract?: FiveGPNReviewContract,
+  signal?: AbortSignal,
+) {
+  if (enabled) {
+    if (reviewContract === undefined) return Promise.resolve('missing review contract')
+    return write(
+      (revision) =>
+        putExtensionEnabledAPI(
+          id,
+          { revision, enabled: true, review_contract: reviewContract },
+          signal,
+        ),
+      [200],
+      expectedRevision,
+    )
+  }
+  return write(
+    (revision) => putExtensionEnabledAPI(id, { revision, enabled: false }, signal),
+    [200],
+    expectedRevision,
+  )
+}
+
 export const setExtensionEgress = (id: string, group: string) =>
   write((revision) => putExtensionEgressAPI(id, { revision, group }))
 
-export const setExtensionCaptureDNS = (id: string, resolver: string) =>
+export const setExtensionCaptureDNS = (id: string, resolver: FiveGPNCaptureDNS) =>
   write((revision) => putExtensionCaptureDNSAPI(id, { revision, resolver }))
 
 export const setExtensionSettings = (
@@ -251,7 +288,16 @@ export const installReviewed = (
   signal?: AbortSignal,
 ) =>
   write(
-    (revision) => installExtensionAPI({ revision, digest: candidate.digest, ...source }, signal),
+    (revision) =>
+      installExtensionAPI(
+        {
+          revision,
+          review_contract: FIVEGPN_REVIEW_CONTRACT,
+          digest: candidate.digest,
+          ...source,
+        },
+        signal,
+      ),
     [200],
     expectedRevision,
   )
@@ -460,7 +506,10 @@ export const applyCatalogUpdate = (
       applyCatalogUpdateAPI(
         source,
         entry,
-        catalogUpdateBody(revision, candidate, reviewedURL, values),
+        {
+          ...catalogUpdateBody(revision, candidate, reviewedURL, values),
+          review_contract: FIVEGPN_REVIEW_CONTRACT,
+        },
         signal,
       ),
     [200],

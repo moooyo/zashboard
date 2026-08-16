@@ -1,4 +1,6 @@
 import type {
+  FiveGPNActionKind,
+  FiveGPNActionReview,
   FiveGPNModuleDetail,
   FiveGPNModuleSetting,
   FiveGPNRoutingRule,
@@ -10,7 +12,26 @@ export type FiveGPNReviewChange =
   | { id: 'hosts-added'; hosts: string }
   | { id: 'hosts-removed'; hosts: string }
   | { id: 'routing-rules'; before: number; after: number; fingerprint: string }
-  | { id: 'actions'; before: number; after: number; fingerprint: string }
+  | {
+      id: 'action-added'
+      action_id: string
+      kind: FiveGPNActionKind
+      review_digest: string
+    }
+  | {
+      id: 'action-removed'
+      action_id: string
+      kind: FiveGPNActionKind
+      review_digest: string
+    }
+  | {
+      id: 'action-changed'
+      action_id: string
+      kind: FiveGPNActionKind
+      before_digest: string
+      after_digest: string
+    }
+  | { id: 'actions-reordered'; before: string[]; after: string[]; fingerprint: string }
   | { id: 'upstream-mappings'; before: number; after: number; fingerprint: string }
   | { id: 'network-grant' }
   | { id: 'storage' }
@@ -47,14 +68,7 @@ export const extensionReviewChanges = (
       fingerprint: JSON.stringify(after.routing_rules ?? []),
     })
   }
-  if (!sameJSON(before.actions ?? [], after.actions ?? [])) {
-    changes.push({
-      id: 'actions',
-      before: before.actions?.length ?? 0,
-      after: after.actions?.length ?? 0,
-      fingerprint: JSON.stringify(after.actions ?? []),
-    })
-  }
+  changes.push(...actionReviewChanges(before.actions ?? [], after.actions ?? []))
   if (!sameJSON(before.upstream_mappings ?? [], after.upstream_mappings ?? [])) {
     changes.push({
       id: 'upstream-mappings',
@@ -102,6 +116,59 @@ export const extensionReviewChanges = (
   }
   if (!changes.length && afterDigest && before.snapshot_digest !== afterDigest) {
     changes.push({ id: 'code-only', fingerprint: afterDigest })
+  }
+  return changes
+}
+
+const actionReviewChanges = (
+  before: FiveGPNActionReview[],
+  after: FiveGPNActionReview[],
+): FiveGPNReviewChange[] => {
+  const changes: FiveGPNReviewChange[] = []
+  const beforeByID = new Map(before.map((action) => [action.id, action]))
+  const afterByID = new Map(after.map((action) => [action.id, action]))
+
+  for (const action of before) {
+    if (afterByID.has(action.id)) continue
+    changes.push({
+      id: 'action-removed',
+      action_id: action.id,
+      kind: action.kind,
+      review_digest: action.review_digest,
+    })
+  }
+  for (const action of after) {
+    if (beforeByID.has(action.id)) continue
+    changes.push({
+      id: 'action-added',
+      action_id: action.id,
+      kind: action.kind,
+      review_digest: action.review_digest,
+    })
+  }
+  for (const action of after) {
+    const previous = beforeByID.get(action.id)
+    if (!previous) continue
+    if (previous.review_digest !== action.review_digest) {
+      changes.push({
+        id: 'action-changed',
+        action_id: action.id,
+        kind: action.kind,
+        before_digest: previous.review_digest,
+        after_digest: action.review_digest,
+      })
+    }
+  }
+
+  const commonBefore = before.map((action) => action.id).filter((id) => afterByID.has(id))
+  const commonAfter = after.map((action) => action.id).filter((id) => beforeByID.has(id))
+  if (!sameJSON(commonBefore, commonAfter)) {
+    changes.push({
+      id: 'actions-reordered',
+      before: commonBefore,
+      after: commonAfter,
+      fingerprint: JSON.stringify(commonAfter),
+    })
   }
   return changes
 }
@@ -162,4 +229,15 @@ export const compactReviewRoutingRule = (rule: FiveGPNRoutingRule) => {
   ]
     .filter(Boolean)
     .join(' · ')
+}
+
+export const compactReviewActionMatcher = (action: FiveGPNActionReview) => {
+  const parts = [
+    action.hosts?.length ? `host=${action.hosts.join('|')}` : '',
+    action.schemes?.length ? `scheme=${action.schemes.join('|')}` : '',
+    action.methods?.length ? `method=${action.methods.join('|')}` : '',
+    action.path ? `path=${action.path}` : '',
+    action.statuses?.length ? `status=${action.statuses.join('|')}` : '',
+  ].filter(Boolean)
+  return parts.join(' · ') || '*'
 }

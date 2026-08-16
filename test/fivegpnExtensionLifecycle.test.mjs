@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
+  compactReviewActionMatcher,
   compactReviewRoutingRule,
   extensionReviewChanges,
   mergeReviewDraft,
@@ -59,7 +60,7 @@ test('flat coordinates support an omitted accuracy field with a local default', 
   )
 })
 
-test('interception v6 keeps installed, marketplace, and review responsibilities explicit', () => {
+test('interception v7 keeps installed, marketplace, and review responsibilities explicit', () => {
   const api = readFileSync(new URL('../src/api/fivegpn.ts', import.meta.url), 'utf8')
   const assembly = readFileSync(
     new URL('../src/assembly/fivegpn/interception.ts', import.meta.url),
@@ -85,6 +86,10 @@ test('interception v6 keeps installed, marketplace, and review responsibilities 
     new URL('../src/components/fivegpn/FiveGPNExtensionReviewDialog.vue', import.meta.url),
     'utf8',
   )
+  const actionReviewCard = readFileSync(
+    new URL('../src/components/fivegpn/FiveGPNActionReviewCard.vue', import.meta.url),
+    'utf8',
+  )
   const dialog = readFileSync(
     new URL('../src/components/common/DialogWrapper.vue', import.meta.url),
     'utf8',
@@ -93,10 +98,20 @@ test('interception v6 keeps installed, marketplace, and review responsibilities 
 
   assert.match(api, /runtime:\s*FiveGPNModuleRuntime/u)
   assert.match(api, /snapshot_digest:\s*string/u)
+  assert.match(api, /review_contract:\s*FiveGPNReviewContract/u)
+  assert.match(api, /kind:\s*'script'/u)
+  assert.doesNotMatch(api, /FiveGPNActionSummary/u)
+  assert.match(api, /review_digest:\s*string/u)
+  assert.match(api, /source_kind:\s*'url'/u)
+  assert.match(api, /kind:\s*'empty' \| 'text' \| 'base64'/u)
+  assert.match(api, /value_map\?:\s*Record<string, Record<string, string>>/u)
+  assert.match(api, /status:\s*0 \| 302 \| 307/u)
+  assert.match(api, /action:\s*'reject' \| 'direct'/u)
+  assert.match(api, /network\?:\s*'tcp' \| 'udp'/u)
   assert.match(api, /digest:\s*string\s+url:\s*string/u)
   assert.match(api, /setting_count:\s*number/u)
-  assert.match(api, /encodeURIComponent\(id\).*\/settings/us)
-  assert.doesNotMatch(api, /encodeURIComponent\(key\).*\/settings/us)
+  assert.match(api, /encodeURIComponent\(id\).*\/settings/su)
+  assert.doesNotMatch(api, /encodeURIComponent\(key\).*\/settings/su)
   assert.match(api, /seq:\s*string/u)
   assert.match(api, /stream_id:\s*string/u)
   assert.match(api, /after\?:\s*string/u)
@@ -111,7 +126,24 @@ test('interception v6 keeps installed, marketplace, and review responsibilities 
   assert.match(pendingProjection?.groups?.body ?? '', /certificate_pending/u)
   assert.match(pendingProjection?.groups?.body ?? '', /certificate\.status === 'pending'/u)
   assert.doesNotMatch(pendingProjection?.groups?.body ?? '', /armed/u)
-  assert.match(capabilities, /'5gpn-interception': 6/u)
+  assert.match(capabilities, /'5gpn-interception': 7/u)
+  assert.match(api, /FIVEGPN_REVIEW_CONTRACT = 7 as const/u)
+  assert.match(assembly, /review_contract: FIVEGPN_REVIEW_CONTRACT/u)
+  assert.match(
+    assembly,
+    /putInterceptionOrderAPI\(\{[\s\S]*review_contract: FIVEGPN_REVIEW_CONTRACT/u,
+  )
+  assert.match(assembly, /enabled: true, review_contract: reviewContract/u)
+  assert.match(assembly, /\{ revision, enabled: false \}/u)
+  assert.match(assembly, /installExtensionAPI\([\s\S]*review_contract: FIVEGPN_REVIEW_CONTRACT/u)
+  assert.match(
+    assembly,
+    /applyCatalogUpdateAPI\([\s\S]*catalogUpdateBody\([\s\S]*review_contract: FIVEGPN_REVIEW_CONTRACT/u,
+  )
+  assert.match(
+    installedPage,
+    /authorizationRevision\.value,[\s\S]*detail\.review_contract,[\s\S]*actionController\.signal/u,
+  )
   assert.match(api, /\/5gpn\/interception\/location\/search/u)
 
   assert.match(installedPage, /@change="requestToggle\(module, \$event\)"/u)
@@ -138,7 +170,26 @@ test('interception v6 keeps installed, marketplace, and review responsibilities 
   assert.match(reviewDialog, /<template #footer>/u)
   assert.match(reviewDialog, /fivegpnReloadAndReview/u)
   assert.match(reviewDialog, /reviewedSource \|\| detail\.source_url/u)
-  assert.match(reviewDialog, /fivegpnExactActions/u)
+  assert.match(reviewDialog, /fivegpnActionReviewSummary/u)
+  assert.match(reviewDialog, /FiveGPNActionReviewCard/u)
+  assert.match(reviewDialog, /fivegpnPublisherEgressMetadata/u)
+  assert.doesNotMatch(reviewDialog, /JSON\.stringify\(action\)/u)
+  assert.match(actionReviewCard, /action\.id/u)
+  assert.match(actionReviewCard, /action\.phase/u)
+  assert.match(actionReviewCard, /action\.kind/u)
+  assert.match(actionReviewCard, /compactReviewActionMatcher/u)
+  assert.match(actionReviewCard, /v-if="expanded"/u)
+  assert.match(actionReviewCard, /fivegpnActionBodyMode/u)
+  assert.match(actionReviewCard, /fivegpnActionPhaseRequest/u)
+  assert.match(actionReviewCard, /fivegpnActionKindReplaceBody/u)
+  assert.match(actionReviewCard, /parsed\.protocol === 'https:'/u)
+  assert.match(actionReviewCard, /rel="noopener noreferrer"/u)
+  assert.match(actionReviewCard, /fivegpnActionRewriteInPlace/u)
+  assert.match(actionReviewCard, /\$\{key\}\[\$\{value\}\]=\$\{replacement\}/u)
+  assert.doesNotMatch(actionReviewCard, /class="btn/u)
+  assert.match(actionReviewCard, /code_digest/u)
+  assert.match(actionReviewCard, /review_digest/u)
+  assert.doesNotMatch(actionReviewCard, /JSON\.stringify/u)
   assert.match(reviewDialog, /detail\.upstream_mappings/u)
   assert.match(reviewDialog, /detail\.capture_dns/u)
   assert.match(reviewDialog, /executionPosition/u)
@@ -152,7 +203,6 @@ test('interception v6 keeps installed, marketplace, and review responsibilities 
   assert.match(dialog, /historyEntry/u)
   assert.match(dialog, /restoreFromHistory/u)
 })
-
 
 test('review differences and typed drafts survive a revision reload safely', () => {
   const before = {
@@ -190,11 +240,11 @@ test('review differences and typed drafts survive a revision reload safely', () 
   const sameCountChanges = extensionReviewChanges(
     {
       ...after,
-      routing_rules: [{ action: 'DIRECT', domain_suffix: 'old.example' }],
+      routing_rules: [{ action: 'direct', domain_suffix: 'old.example' }],
     },
     {
       ...after,
-      routing_rules: [{ action: 'REJECT', domain_suffix: 'new.example' }],
+      routing_rules: [{ action: 'reject', domain_suffix: 'new.example' }],
       settings: [
         { key: 'region', type: 'select', required: true, options: ['cn', 'us'], value: 'cn' },
         ...after.settings.slice(1),
@@ -211,7 +261,7 @@ test('review differences and typed drafts survive a revision reload safely', () 
     JSON.stringify(
       extensionReviewChanges(
         { ...after, routing_rules: [] },
-        { ...after, routing_rules: [{ action: 'DIRECT', domain_suffix: 'old.example' }] },
+        { ...after, routing_rules: [{ action: 'direct', domain_suffix: 'old.example' }] },
       )[0],
     ),
   )
@@ -221,7 +271,7 @@ test('review differences and typed drafts survive a revision reload safely', () 
   assert.deepEqual(extensionReviewChanges(after, after, 'candidate-digest-1'), [])
   assert.equal(
     compactReviewRoutingRule({
-      action: 'DIRECT',
+      action: 'direct',
       domain_suffix: 'googlevideo.com',
       network: 'tcp',
     }),
@@ -229,7 +279,7 @@ test('review differences and typed drafts survive a revision reload safely', () 
   )
   assert.equal(
     compactReviewRoutingRule({
-      action: 'REJECT',
+      action: 'reject',
       domain_suffix: 'example.com',
       domain_keywords: ['ads', 'tracking'],
       all_domain_keywords: ['prod', 'video'],
@@ -237,13 +287,67 @@ test('review differences and typed drafts survive a revision reload safely', () 
     }),
     'REJECT · *.example.com & any(ads|tracking) & all(prod&video) · tcp',
   )
+  const actionBase = {
+    phase: 'request',
+    body_mode: 'none',
+    timeout_ms: 1000,
+    max_body_bytes: 1024,
+  }
+  const oldRewrite = {
+    ...actionBase,
+    id: 'rewrite',
+    kind: 'rewrite',
+    review_digest: 'review-old',
+    rewrite: { pattern: '^http:', to: 'https:', status: 0 },
+  }
+  const stableHeaders = {
+    ...actionBase,
+    id: 'headers',
+    kind: 'headers',
+    review_digest: 'review-headers',
+    headers: { remove: ['X-Tracking'] },
+  }
+  const newMock = {
+    ...actionBase,
+    id: 'mock',
+    kind: 'mock',
+    review_digest: 'review-mock',
+    mock: {
+      status: 200,
+      body: { kind: 'empty', bytes: 0, sha256: '0'.repeat(64) },
+    },
+  }
+  const actionChanges = extensionReviewChanges(
+    { ...after, actions: [oldRewrite, stableHeaders] },
+    {
+      ...after,
+      actions: [stableHeaders, { ...oldRewrite, review_digest: 'review-new' }, newMock],
+    },
+    'candidate-digest-3',
+  )
+  assert.deepEqual(
+    actionChanges.map((change) => change.id),
+    ['action-added', 'action-changed', 'actions-reordered'],
+  )
+  assert.equal(actionChanges[1].action_id, 'rewrite')
   assert.deepEqual(
     extensionReviewChanges(
-      { ...after, actions: [{ id: 'rewrite', phase: 'request', digest: 'old' }] },
-      { ...after, actions: [{ id: 'rewrite', phase: 'response', digest: 'new' }] },
-      'candidate-digest-3',
+      { ...after, actions: [oldRewrite, stableHeaders] },
+      { ...after, actions: [stableHeaders] },
+      'candidate-digest-4',
     ).map((change) => change.id),
-    ['actions'],
+    ['action-removed'],
+  )
+  assert.equal(
+    compactReviewActionMatcher({
+      ...oldRewrite,
+      hosts: ['api.example.com'],
+      schemes: ['https'],
+      methods: ['POST'],
+      path: '^/v1/',
+      statuses: [200, 204],
+    }),
+    'host=api.example.com · scheme=https · method=POST · path=^/v1/ · status=200|204',
   )
   assert.deepEqual(
     extensionReviewChanges(

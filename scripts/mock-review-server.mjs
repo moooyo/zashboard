@@ -19,6 +19,7 @@ const summary = {
 }
 const currentDetail = {
   ...summary,
+  review_contract: 7,
   description: 'Removes tracking parameters from YouTube requests.',
   source_url: 'https://old.example.com/youtube.yaml',
   source_digest: 'f'.repeat(64),
@@ -26,11 +27,31 @@ const currentDetail = {
   network: false,
   persistent_storage: false,
   settings: [],
-  actions: [{ id: 'clean', phase: 'request', digest: '1'.repeat(64) }],
-  routing_rules: [{ action: 'DIRECT', domain_suffix: 'googlevideo.com', network: 'tcp' }],
+  actions: [
+    {
+      id: 'clean',
+      phase: 'request',
+      hosts: ['www.youtube.com'],
+      schemes: ['https'],
+      methods: ['GET'],
+      path: '^/watch',
+      kind: 'script',
+      body_mode: 'none',
+      entry: 'native',
+      source_kind: 'url',
+      source_url: 'https://old.example.com/clean.js',
+      code_digest: '1'.repeat(64),
+      code_bytes: 640,
+      review_digest: '2'.repeat(64),
+      timeout_ms: 200,
+      max_body_bytes: 1024,
+    },
+  ],
+  routing_rules: [{ action: 'direct', domain_suffix: 'googlevideo.com', network: 'tcp' }],
 }
 const candidateDetail = {
   ...summary,
+  review_contract: 7,
   version: '1.5.0',
   source_url: 'https://example.com/youtube.yaml',
   snapshot_digest: '8f34'.padEnd(64, '0'),
@@ -49,12 +70,46 @@ const candidateDetail = {
     },
   ],
   actions: [
-    { id: 'clean', phase: 'request', digest: '2'.repeat(64) },
-    { id: 'filter', phase: 'response', digest: '3'.repeat(64) },
+    {
+      id: 'clean',
+      phase: 'request',
+      hosts: ['www.youtube.com'],
+      schemes: ['https'],
+      methods: ['GET'],
+      path: '^/watch',
+      kind: 'script',
+      body_mode: 'none',
+      entry: 'native',
+      source_kind: 'url',
+      source_url: 'https://example.com/clean.js',
+      code_digest: '3'.repeat(64),
+      code_bytes: 712,
+      review_digest: '4'.repeat(64),
+      timeout_ms: 200,
+      max_body_bytes: 1024,
+    },
+    {
+      id: 'filter',
+      phase: 'response',
+      hosts: ['m.youtube.com'],
+      schemes: ['https'],
+      path: '^/youtubei/v1/player',
+      statuses: [200],
+      kind: 'mock',
+      body_mode: 'none',
+      review_digest: '5'.repeat(64),
+      timeout_ms: 100,
+      max_body_bytes: 1024,
+      mock: {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: { kind: 'text', bytes: 2, sha256: '6'.repeat(64) },
+      },
+    },
   ],
   routing_rules: [
-    { action: 'DIRECT', domain_suffix: 'googlevideo.com', network: 'tcp' },
-    { action: 'REJECT', domain_keywords: ['doubleclick'], network: 'tcp' },
+    { action: 'direct', domain_suffix: 'googlevideo.com', network: 'tcp' },
+    { action: 'reject', domain_keywords: ['doubleclick'], network: 'tcp' },
   ],
 }
 const snapshot = () => ({
@@ -117,7 +172,7 @@ const server = http.createServer((request, response) => {
   if (url.pathname === '/capabilities') {
     return send(response, 200, {
       controllerApi: '1',
-      features: { '5gpn-interception': { version: 6, owner: 'mihomo' } },
+      features: { '5gpn-interception': { version: 7, owner: 'mihomo' } },
     })
   }
   if (url.pathname === '/5gpn/interception') {
