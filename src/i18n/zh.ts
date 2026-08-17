@@ -714,7 +714,7 @@ const zh: LANG_MESSAGE = {
   fivegpnSubNotFetched: '尚未抓取',
   fivegpnGateway: '网关地址',
   fivegpnGatewayHint:
-    '被引导的名字解析到这个由安装配置管理的 IPv4 地址。如需修改，请在网关主机上运行 sudo 5gpn configure。',
+    '被引导的名字解析到这个由安装配置管理的 IPv4 地址。如需修改，请使用当前部署支持的配置流程。',
   fivegpnChinaGroup: '国内组',
   fivegpnTrustGroup: '可信组',
   fivegpnUpstreamGrammar:

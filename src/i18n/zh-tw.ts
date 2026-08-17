@@ -716,7 +716,7 @@ const zhTW: LANG_MESSAGE = {
   fivegpnSubNotFetched: '尚未抓取',
   fivegpnGateway: '閘道位址',
   fivegpnGatewayHint:
-    '被引導的名稱解析到這個由安裝設定管理的 IPv4 位址。如需修改，請在閘道主機上執行 sudo 5gpn configure。',
+    '被引導的名稱會解析到這個由安裝設定管理的 IPv4 位址。如需修改，請使用目前部署支援的設定流程。',
   fivegpnChinaGroup: '國內組',
   fivegpnTrustGroup: '可信組',
   fivegpnUpstreamGrammar:

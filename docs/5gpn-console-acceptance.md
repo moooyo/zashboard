@@ -199,7 +199,8 @@ test -n "${BASE_GATEWAY}" && test -n "${BASE_REVISION}"
 - [ ] The DNS settings page renders the gateway as text, not as an `input`,
       `select`, `textarea`, or any element bound with `v-model`.
 - [ ] The adjacent persistent hint says the address is installation-managed
-      and directs the operator to `sudo 5gpn configure` on the gateway host.
+      and directs the operator to the supported configuration workflow for the
+      current deployment without assuming a host-installed management command.
 - [ ] Change only the fallback selector to another value. The sticky saved/live
       surface reports a draft, and one explicit Save publishes the complete
       document.
