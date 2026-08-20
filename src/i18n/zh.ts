@@ -17,7 +17,6 @@ const zh: LANG_MESSAGE = {
   backendType: '后端类型',
   clashApi: 'Clash API',
   singboxApi: 'sing-box API',
-  singboxConnectionFailed: '无法连接 sing-box API',
   skip: '跳过',
   // Tools page
   networkQuality: '网络质量',
@@ -333,7 +332,6 @@ const zh: LANG_MESSAGE = {
   secondaryPathTip: '如果有的话以/开头，没有则留空不填',
   logRetentionLimit: '日志保留条数',
   DNSQuery: 'DNS 查询',
-  currentBackendUnavailable: '当前后端不可用，尝试切换到其他后端?',
   confirm: '确定',
   backendSwitched: '已切换后端',
   backendConnecting: '正在连接...',
@@ -355,7 +353,6 @@ const zh: LANG_MESSAGE = {
   diagnosisMixedContentOrUnreachable:
     '后端连不上 —— 也可能后端是好的，只是浏览器不允许 HTTPS 页面访问 HTTP 后端；可以试着用 HTTP 打开面板',
   diagnosisUnreachable: '后端连不上，请检查地址与端口是否正确、内核是否在运行',
-  backendSwitchTo: '已切换后端为{backend}',
 
   // Backend settings
   ipv6Test: 'IPv6 测试',
@@ -460,7 +457,6 @@ const zh: LANG_MESSAGE = {
   toggleSidebar: '展开/收起侧边栏',
   switchToPreviousBackend: '切换到上一个后端',
   switchToNextBackend: '切换到下一个后端',
-  openBackendSettings: '打开后端设置',
   keyboardShortcutsConflict: '检测到重复快捷键：{keys}。只有第一项会生效。',
   resetKeyboardShortcuts: '重置快捷键',
   pressAnyKey: '按下任意键',
@@ -508,7 +504,6 @@ const zh: LANG_MESSAGE = {
   addBackend: '添加后端',
   manageBackends: '管理后端',
   noBackendYet: '还没有后端',
-  selectBackend: '选择后端',
   setupHostScopeHint:
     '请使用当前页面所在的主机。127.0.0.1 指运行此浏览器的设备，并不代表远端 5gpn 服务器。',
   setupLinkInvalid: '这个一次性连接链接无效或不完整。',
@@ -590,7 +585,6 @@ const zh: LANG_MESSAGE = {
   ruleHitCountCard: '规则命中统计',
   latency: '延迟',
   icon: '图标',
-  settingsVisibility: '设置项显示控制',
   settingsMenuGeneral: '面板',
   settingsMenuBackend: '后端',
   settingsMenuProxies: '代理',
@@ -624,7 +618,6 @@ const zh: LANG_MESSAGE = {
   settingsSectionCurrentBackend: '当前后端',
   settingsSectionCoreOperations: '内核运维',
   settingsSectionNetworkListening: '网络监听',
-  settingsSectionCoreUpdates: '内核更新',
   settingsSectionDiagnostics: '诊断工具',
   settingsSectionProxyDisplay: '分组与显示',
   settingsSectionProxyAdvanced: '图标与高级设置',

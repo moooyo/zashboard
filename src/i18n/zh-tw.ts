@@ -17,7 +17,6 @@ const zhTW: LANG_MESSAGE = {
   backendType: '後端類型',
   clashApi: 'Clash API',
   singboxApi: 'sing-box API',
-  singboxConnectionFailed: '無法連線 sing-box API',
   skip: '跳過',
   // Tools page
   networkQuality: '網路品質',
@@ -333,7 +332,6 @@ const zhTW: LANG_MESSAGE = {
   secondaryPathTip: '如果有的話以/開頭，沒有則留空不填',
   logRetentionLimit: '日誌保留條數',
   DNSQuery: 'DNS 查詢',
-  currentBackendUnavailable: '當前後端不可用，嘗試切換到其他後端?',
   confirm: '確定',
   backendSwitched: '已切換後端',
   backendConnecting: '正在連線...',
@@ -355,7 +353,6 @@ const zhTW: LANG_MESSAGE = {
   diagnosisMixedContentOrUnreachable:
     '後端連不上 —— 也可能後端是好的，只是瀏覽器不允許 HTTPS 頁面存取 HTTP 後端；可以試著用 HTTP 開啟面板',
   diagnosisUnreachable: '後端連不上，請檢查位址與連接埠是否正確、核心是否在執行',
-  backendSwitchTo: '已切換後端為{backend}',
 
   // Backend settings
   ipv6Test: 'IPv6 測試',
@@ -460,7 +457,6 @@ const zhTW: LANG_MESSAGE = {
   toggleSidebar: '展開/收起側邊欄',
   switchToPreviousBackend: '切換到上一個後端',
   switchToNextBackend: '切換到下一個後端',
-  openBackendSettings: '開啟後端設定',
   keyboardShortcutsConflict: '偵測到重複快捷鍵：{keys}。只有第一項會生效。',
   resetKeyboardShortcuts: '重設快捷鍵',
   pressAnyKey: '按下任意鍵',
@@ -508,7 +504,6 @@ const zhTW: LANG_MESSAGE = {
   addBackend: '新增後端',
   manageBackends: '管理後端',
   noBackendYet: '還沒有後端',
-  selectBackend: '選擇後端',
   setupHostScopeHint:
     '請使用目前頁面所在的主機。127.0.0.1 指執行此瀏覽器的裝置，並不代表遠端 5gpn 伺服器。',
   setupLinkInvalid: '這個一次性連線連結無效或不完整。',
@@ -590,7 +585,6 @@ const zhTW: LANG_MESSAGE = {
   ruleHitCountCard: '規則命中統計',
   latency: '延遲',
   icon: '圖示',
-  settingsVisibility: '設置項顯示控制',
   settingsMenuGeneral: '面板',
   settingsMenuBackend: '後端',
   settingsMenuProxies: '代理',
@@ -624,7 +618,6 @@ const zhTW: LANG_MESSAGE = {
   settingsSectionCurrentBackend: '目前後端',
   settingsSectionCoreOperations: '核心維護',
   settingsSectionNetworkListening: '網路監聽',
-  settingsSectionCoreUpdates: '核心更新',
   settingsSectionDiagnostics: '診斷工具',
   settingsSectionProxyDisplay: '群組與顯示',
   settingsSectionProxyAdvanced: '圖示與進階設定',

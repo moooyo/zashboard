@@ -17,7 +17,6 @@ const ru: LANG_MESSAGE = {
   backendType: 'Тип бэкенда',
   clashApi: 'Clash API',
   singboxApi: 'sing-box API',
-  singboxConnectionFailed: 'Не удалось подключиться к API sing-box',
   skip: 'Пропустить',
   // Tools
   networkQuality: 'Качество сети',
@@ -336,8 +335,6 @@ const ru: LANG_MESSAGE = {
   secondaryPathTip: 'Если присутствует, начните с "/", в противном случае оставьте пустым.',
   logRetentionLimit: 'Лимит хранения журнала',
   DNSQuery: 'DNS-запрос',
-  currentBackendUnavailable:
-    'Текущий бэкенд недоступен. Попробуйте переключиться на другой бэкенд?',
   confirm: 'Подтвердить',
   backendSwitched: 'Бэкенд переключён',
   backendConnecting: 'Подключение...',
@@ -360,7 +357,6 @@ const ru: LANG_MESSAGE = {
     'Бэкенд недоступен — либо он работает, но браузер запретил HTTPS-странице обращаться к HTTP-бэкенду; попробуйте открыть панель по HTTP.',
   diagnosisUnreachable:
     'Бэкенд недоступен; проверьте правильность адреса и порта, а также запущено ли ядро.',
-  backendSwitchTo: 'Бэкенд переключен на {backend}',
 
   // Backend settings
   ipv6Test: 'IPv6-тест',
@@ -472,7 +468,6 @@ const ru: LANG_MESSAGE = {
   toggleSidebar: 'Переключить боковую панель',
   switchToPreviousBackend: 'Переключиться на предыдущий бэкенд',
   switchToNextBackend: 'Переключиться на следующий бэкенд',
-  openBackendSettings: 'Открыть настройки бэкенда',
   keyboardShortcutsConflict:
     'Обнаружены повторяющиеся горячие клавиши: {keys}. Сработает только первое совпадение.',
   resetKeyboardShortcuts: 'Сбросить горячие клавиши',
@@ -524,7 +519,6 @@ const ru: LANG_MESSAGE = {
   addBackend: 'Добавить бэкенд',
   manageBackends: 'Управление бэкендами',
   noBackendYet: 'Бэкендов пока нет',
-  selectBackend: 'Выберите бэкенд',
   setupHostScopeHint:
     'Используйте адрес, с которого открыта эта страница. 127.0.0.1 означает устройство с браузером, а не удалённый сервер 5gpn.',
   setupLinkInvalid: 'Эта одноразовая ссылка подключения недействительна или неполна.',
@@ -607,7 +601,6 @@ const ru: LANG_MESSAGE = {
   ruleHitCountCard: 'Статистика попаданий/промахов правил',
   latency: 'Задержка',
   icon: 'Иконка',
-  settingsVisibility: 'Видимость настроек',
   settingsMenuGeneral: 'Общие',
   settingsMenuBackend: 'Бэкенд',
   settingsMenuProxies: 'Прокси',
@@ -642,7 +635,6 @@ const ru: LANG_MESSAGE = {
   settingsSectionCurrentBackend: 'Текущий бэкенд',
   settingsSectionCoreOperations: 'Обслуживание ядра',
   settingsSectionNetworkListening: 'Сетевые порты',
-  settingsSectionCoreUpdates: 'Обновления ядра',
   settingsSectionDiagnostics: 'Диагностика',
   settingsSectionProxyDisplay: 'Группы и отображение',
   settingsSectionProxyAdvanced: 'Иконки и расширенные настройки',

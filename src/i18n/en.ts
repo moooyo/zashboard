@@ -15,7 +15,6 @@ const en = {
   backendType: 'Backend Type',
   clashApi: 'Clash API',
   singboxApi: 'sing-box API',
-  singboxConnectionFailed: 'Failed to connect to the sing-box API',
   skip: 'Skip',
   // Tools page
   networkQuality: 'Network Quality',
@@ -334,8 +333,6 @@ const en = {
   secondaryPathTip: 'If present, start with "/", otherwise leave empty.',
   logRetentionLimit: 'Log retention limit',
   DNSQuery: 'DNS query',
-  currentBackendUnavailable:
-    'The current backend is unavailable. Would you like to switch to another backend?',
   confirm: 'Confirm',
   backendSwitched: 'Backend switched',
   backendConnecting: 'Connecting...',
@@ -358,7 +355,6 @@ const en = {
     'The backend is unreachable — or, if it is running, the browser blocked this HTTPS page from accessing the HTTP backend; try opening the dashboard over HTTP.',
   diagnosisUnreachable:
     'The backend is unreachable; check that the address and port are correct and that the core is running.',
-  backendSwitchTo: 'Switched backend to {backend}',
 
   // Backend settings
   ipv6Test: 'IPv6 test',
@@ -468,7 +464,6 @@ const en = {
   toggleSidebar: 'Toggle sidebar',
   switchToPreviousBackend: 'Switch to previous backend',
   switchToNextBackend: 'Switch to next backend',
-  openBackendSettings: 'Open backend settings',
   keyboardShortcutsConflict:
     'Duplicate shortcuts detected: {keys}. Only the first one will take effect.',
   resetKeyboardShortcuts: 'Reset shortcuts',
@@ -520,7 +515,6 @@ const en = {
   addBackend: 'Add backend',
   manageBackends: 'Manage backends',
   noBackendYet: 'No backend yet',
-  selectBackend: 'Select backend',
   setupHostScopeHint:
     'Use the host serving this page. 127.0.0.1 means the device running this browser, not the remote 5gpn server.',
   setupLinkInvalid: 'This one-time connection link is invalid or incomplete.',
@@ -603,7 +597,6 @@ const en = {
   ruleHitCountCard: 'Rule hit/miss statistics',
   latency: 'Latency',
   icon: 'Icon',
-  settingsVisibility: 'Settings visibility',
   settingsMenuGeneral: 'General',
   settingsMenuBackend: 'Backend',
   settingsMenuProxies: 'Proxies',
@@ -639,7 +632,6 @@ const en = {
   settingsSectionCurrentBackend: 'Current backend',
   settingsSectionCoreOperations: 'Core maintenance',
   settingsSectionNetworkListening: 'Network listeners',
-  settingsSectionCoreUpdates: 'Core updates',
   settingsSectionDiagnostics: 'Diagnostics',
   settingsSectionProxyDisplay: 'Groups and display',
   settingsSectionProxyAdvanced: 'Icons and advanced settings',

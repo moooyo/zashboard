@@ -77,3 +77,28 @@ test('upgrade suppression is a product boundary, not a backend flag', () => {
     assert.doesNotMatch(text, /disableUpgradeCore/u)
   }
 })
+
+test('no locale carries self-upgrade vocabulary', () => {
+  // 文案是自升级入口最容易悄悄溜回来的一条路:组件删干净了,但上游合并把
+  // i18n 键带了回来,下一次谁加个按钮就直接有现成翻译,边界就这么没了。
+  // 反过来说,键不在,任何复活的入口都会渲染出原始 key —— 一眼可见。
+  const removed = [
+    'upgradeDashboard',
+    'upgradeCore',
+    'upgradeCoreConfirm',
+    'upgradeToRelease',
+    'upgradeToAlpha',
+    'checkCoreUpgrade',
+    'autoUpgradeDashboard',
+    'autoUpgradeCore',
+    'upgradeSuccess',
+    'settingsSectionCoreUpdates',
+  ]
+
+  for (const locale of ['en', 'ru', 'zh', 'zh-tw']) {
+    const text = source(`src/i18n/${locale}.ts`)
+    for (const key of removed) {
+      assert.doesNotMatch(text, new RegExp(`^ {2}${key}:`, 'mu'), `${locale}.ts still defines ${key}`)
+    }
+  }
+})
