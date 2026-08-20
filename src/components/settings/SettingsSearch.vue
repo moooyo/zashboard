@@ -109,9 +109,11 @@ import {
   HomeIcon,
   MagnifyingGlassIcon,
   ServerIcon,
+  ShieldCheckIcon,
+  SignalIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
-import { computed, nextTick, ref, useId, watch } from 'vue'
+import { computed, nextTick, ref, useId, watch, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 type SearchResult = {
@@ -132,12 +134,18 @@ const focused = ref(false)
 const activeIndex = ref(-1)
 const listboxId = `settings-search-${useId().replace(/[^\w-]/g, '')}`
 
-const iconMap = {
+// 显式标注成完整的 Record：SETTINGS_MENU_KEY 是 fork 扩展过的枚举，漏掉任何一个
+// 分类都会在这里编译失败，而不是让索引结果悄悄退化成 any、到运行时才渲染出空图标。
+// 图标取值与 views/SettingsPage.vue 的 categoryPresentation 保持一致。
+const iconMap: Record<SETTINGS_MENU_KEY, Component> = {
   [SETTINGS_MENU_KEY.general]: HomeIcon,
   [SETTINGS_MENU_KEY.overview]: CubeTransparentIcon,
   [SETTINGS_MENU_KEY.backend]: ServerIcon,
   [SETTINGS_MENU_KEY.proxies]: GlobeAltIcon,
   [SETTINGS_MENU_KEY.connections]: ArrowsRightLeftIcon,
+  [SETTINGS_MENU_KEY.fivegpnDns]: SignalIcon,
+  [SETTINGS_MENU_KEY.fivegpnInterception]: ShieldCheckIcon,
+  [SETTINGS_MENU_KEY.fivegpnBot]: ShieldCheckIcon,
 }
 
 const matches = computed<SearchResult[]>(() => {
