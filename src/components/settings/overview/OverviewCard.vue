@@ -1,71 +1,65 @@
 <template>
-  <!-- overview -->
-  <div class="mb-3 flex flex-col gap-3">
-    <!--
-      When splitOverviewPage is off (the default), the overview is embedded in
-      Settings. This component renders a fixed card list rather than
-      overviewCardOrder, so the 5gpn DNS card needs an explicit slot alongside
-      chartsCard and networkCard. Keep the order aligned with
-      defaultOverviewCardOrder, with DNS first.
-    -->
-    <div
-      v-if="dnsSupported && isVisibleFiveGPNDnsCard"
-      class="relative"
-    >
-      <SettingVisibilityToggle
-        :setting-key="OVERVIEW_ITEM_KEYS.fivegpnDnsCard"
-        class="absolute top-2 left-2 z-10"
-      />
-      <FiveGPNDnsCard
-        class="shadow-none"
-        :class="
-          settingsEditMode && isSettingHidden(OVERVIEW_ITEM_KEYS.fivegpnDnsCard) ? 'opacity-40' : ''
-        "
-      />
+  <!--
+    总览未拆分成独立页面时内嵌在设置页里，这里是各卡片的显隐开关。
+    5gpn DNS 卡片是 chartsCard / networkCard 的同级项，顺序与 defaultOverviewCardOrder
+    对齐（DNS 在最前）；和 DNS 页面用同一道能力闸，网关没有 DNS 决策层时不出现。
+  -->
+  <SettingItem
+    :setting-key="OVERVIEW_ITEM_KEYS.fivegpnDnsCard"
+    :when="dnsSupported"
+  >
+    <div class="setting-item-label">
+      {{ $t('fivegpnDnsCard') }}
+      <span class="setting-item-summary">{{ $t('overviewCardVisibilityDescription') }}</span>
     </div>
-    <div
-      v-if="isVisibleOverviewCard"
-      class="relative"
-    >
-      <SettingVisibilityToggle
-        :setting-key="OVERVIEW_ITEM_KEYS.chartsCard"
-        class="absolute top-2 left-2 z-10"
-      />
-      <ChartsCard
-        class="shadow-none"
-        :class="
-          settingsEditMode && isSettingHidden(OVERVIEW_ITEM_KEYS.chartsCard) ? 'opacity-40' : ''
-        "
-      />
+    <input
+      v-model="fivegpnDnsCardVisible"
+      type="checkbox"
+      class="toggle"
+    />
+  </SettingItem>
+  <SettingItem :setting-key="OVERVIEW_ITEM_KEYS.chartsCard">
+    <div class="setting-item-label">
+      {{ $t('chartsCard') }}
+      <span class="setting-item-summary">{{ $t('overviewCardVisibilityDescription') }}</span>
     </div>
-    <div
-      v-if="isVisibleNetworkCard"
-      class="relative"
-    >
-      <SettingVisibilityToggle
-        :setting-key="OVERVIEW_ITEM_KEYS.networkCard"
-        class="absolute top-2 left-2 z-10"
-      />
-      <NetworkCard
-        class="shadow-none"
-        :class="
-          settingsEditMode && isSettingHidden(OVERVIEW_ITEM_KEYS.networkCard) ? 'opacity-40' : ''
-        "
-      />
+    <input
+      v-model="chartsCardVisible"
+      type="checkbox"
+      class="toggle"
+    />
+  </SettingItem>
+  <SettingItem :setting-key="OVERVIEW_ITEM_KEYS.networkCard">
+    <div class="setting-item-label">
+      {{ $t('networkCard') }}
+      <span class="setting-item-summary">{{ $t('overviewCardVisibilityDescription') }}</span>
     </div>
-  </div>
+    <input
+      v-model="networkCardVisible"
+      type="checkbox"
+      class="toggle"
+    />
+  </SettingItem>
 </template>
 
 <script setup lang="ts">
-import ChartsCard from '@/components/overview/ChartsCard.vue'
-import FiveGPNDnsCard from '@/components/overview/FiveGPNDnsCard.vue'
-import NetworkCard from '@/components/overview/NetworkCard.vue'
-import SettingVisibilityToggle from '@/components/settings/SettingVisibilityToggle.vue'
 import { dnsSupported } from '@/assembly/fivegpn/dns'
-import { isSettingHidden, settingsEditMode, useIsSettingVisible } from '@/composables/settings'
+import SettingItem from '@/components/settings/SettingItem.vue'
 import { OVERVIEW_ITEM_KEYS } from '@/config/settingsItems'
+import { OVERVIEW_CARD } from '@/constant'
+import { overviewCardOrder } from '@/store/settings'
+import { computed } from 'vue'
 
-const isVisibleFiveGPNDnsCard = useIsSettingVisible(OVERVIEW_ITEM_KEYS.fivegpnDnsCard)
-const isVisibleOverviewCard = useIsSettingVisible(OVERVIEW_ITEM_KEYS.chartsCard)
-const isVisibleNetworkCard = useIsSettingVisible(OVERVIEW_ITEM_KEYS.networkCard)
+const cardVisibility = (card: OVERVIEW_CARD) =>
+  computed({
+    get: () => overviewCardOrder.value.find((item) => item.card === card)?.visible ?? false,
+    set: (visible: boolean) => {
+      const item = overviewCardOrder.value.find((entry) => entry.card === card)
+      if (item) item.visible = visible
+    },
+  })
+
+const fivegpnDnsCardVisible = cardVisibility(OVERVIEW_CARD.FiveGPNDnsCard)
+const chartsCardVisible = cardVisibility(OVERVIEW_CARD.ChartsCard)
+const networkCardVisible = cardVisibility(OVERVIEW_CARD.NetworkCard)
 </script>

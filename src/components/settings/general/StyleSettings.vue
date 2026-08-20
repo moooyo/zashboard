@@ -44,18 +44,11 @@
       <BackgroundSettings />
       <SettingItem :setting-key="k.emoji">
         <div class="setting-item-label">Emoji</div>
-        <select
+        <SelectInput
           class="select select-sm w-48"
           v-model="emoji"
-        >
-          <option
-            v-for="opt in Object.values(EMOJIS)"
-            :key="opt"
-            :value="opt"
-          >
-            {{ opt }}
-          </option>
-        </select>
+          :options="Object.values(EMOJIS).map((value) => ({ value, label: value }))"
+        />
       </SettingItem>
     </div>
   </template>
@@ -63,6 +56,7 @@
 
 <script setup lang="ts">
 import SettingItem from '@/components/settings/SettingItem.vue'
+import SelectInput from '@/components/common/SelectInput.vue'
 import { useIsSettingVisible } from '@/composables/settings'
 import { GENERAL_ITEM_KEYS } from '@/config/settingsItems'
 import { EMOJIS } from '@/constant'

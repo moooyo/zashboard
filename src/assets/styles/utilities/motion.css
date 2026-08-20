@@ -1,3 +1,13 @@
+/*
+ * 全部动画与过渡：@keyframes、Vue <Transition> 的类、以及各处的运动曲线。
+ * 静态外观不要写在这里。每个分节都要给出对应的 prefers-reduced-motion 降级。
+ *
+ * 已知例外：弹窗/底部抽屉的过渡（.modal-enter-* / .modal-leave-*）有意留在
+ * components/common/DialogWrapper.vue 的 <style scoped> 里，不在本文件。
+ */
+
+/* ---------- 入场 / 强调 ---------- */
+
 @keyframes bounceIn {
   0% {
     opacity: 0.5;
@@ -46,6 +56,17 @@
   animation: highlightFlash 0.6s ease-out 2;
 }
 
+/* ---------- 侧栏 / 分段控件 ---------- */
+
+/*
+ * 侧栏不用滑动指示器：那个绝对定位的 .sidebar-tab-indicator 要靠 JS 量出当前项的
+ * 位置，一旦路由列表撑满可视高度就会算错（见 SideBar.vue 的视口高度处理）。这里改成
+ * 由 SideBar.vue 打在 <a> 上的 aria-current='page' 直接出高亮，无需测量。
+ *
+ * 非当前项的 hover/active/focus 背景交给 SideBar.vue 的 hover:bg-base-300!，
+ * 所以要清掉 daisyUI menu 自带的态背景；components/app.css 里同名的上游规则是这条的
+ * 超集，两处都在时以本文件为准（import 顺序更靠后，同权重取后者）。
+ */
 .sidebar-route-menu > li > a[aria-current='page'] {
   background-color: var(--color-neutral);
   color: var(--color-neutral-content);
@@ -76,7 +97,9 @@
   }
 }
 
-/* 代理节点网格:重排 FLIP + 增删淡入淡出 */
+/* ---------- 代理节点网格 ---------- */
+
+/* 重排 FLIP + 增删淡入淡出 */
 .proxy-node-move {
   transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
 }
@@ -140,6 +163,38 @@
   }
 }
 
+/* ---------- 杂项 ---------- */
+
+.app-toast {
+  animation: appToastIn 0.22s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.app-toast.is-leaving {
+  animation: appToastOut 0.16s ease-in both;
+}
+
+@keyframes appToastIn {
+  from {
+    opacity: 0;
+    transform: translateX(0.75rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes appToastOut {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(0.5rem) scale(0.98);
+  }
+}
+
 @keyframes progressBar {
   from {
     width: 100%;
@@ -149,12 +204,26 @@
   }
 }
 
-/* iOS-style slide transitions */
+@media (prefers-reduced-motion: reduce) {
+  .app-toast,
+  .app-toast.is-leaving {
+    animation-duration: 0.01ms;
+  }
+}
+
+/* ---------- 路由切换 ---------- */
+
+:root {
+  --page-transition-duration: 0.35s;
+  --page-transition-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* 顶级页面之间:iOS 风格的整屏横向滑动 */
 .slide-right-enter-active,
 .slide-right-leave-active,
 .slide-left-enter-active,
 .slide-left-leave-active {
-  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform var(--page-transition-duration) var(--page-transition-ease);
   position: absolute;
   left: 0;
   top: 0;
@@ -201,4 +270,52 @@
 .page-enter-from,
 .page-leave-to {
   opacity: 0;
+}
+
+/*
+ * 设置页一级 <-> 二级。两屏共用同一个滚动容器、且二级内容必须常驻挂载(搜索索引),
+ * 没法像顶级页面那样让两屏同时在场做位移,所以只给进场的那一屏做动画。
+ */
+@keyframes settingsPanePush {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes settingsPanePop {
+  from {
+    opacity: 0;
+    transform: translateX(-25%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.settings-pane-push {
+  animation: settingsPanePush var(--page-transition-duration) var(--page-transition-ease);
+}
+
+.settings-pane-pop {
+  animation: settingsPanePop var(--page-transition-duration) var(--page-transition-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-right-enter-active,
+  .slide-right-leave-active,
+  .slide-left-enter-active,
+  .slide-left-leave-active,
+  .page-enter-active,
+  .page-leave-active {
+    transition-duration: 0.01ms;
+  }
+
+  .settings-pane-push,
+  .settings-pane-pop {
+    animation-duration: 0.01ms;
+  }
 }

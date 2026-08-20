@@ -1,8 +1,9 @@
 // Pure REST/WebSocket calls for the Clash-compatible channel. Mihomo,
 // sing-box compatibility mode, and honk expose different subsets; capability
 // decisions belong to assembly/backend.ts rather than this request layer.
-import { getUrlFromBackend } from '@/helper/utils'
+import type { ProbeResult } from '@/helper/connectivity'
 import { createSocketMessageDispatch } from '@/helper/socketMessageDispatch'
+import { getUrlFromBackend } from '@/helper/utils'
 import { activeBackend, captureBackendSession } from '@/store/setup'
 import type {
   Backend,
@@ -180,9 +181,23 @@ export const createClashWebSocket = <T>(url: string, searchParams?: Record<strin
   }
 }
 
-export const probeClashChannel = async (backend: Backend, timeout: number) => {
+// 连通性探测。打的就是面板实际在用的那条 API(/version),所以它通了就是真通了。
+// 失败时区分「密码不对 / 端点不对 / 超时 / 不透明网络错误」四类 —— 浏览器只肯说最后
+// 一种,剩下三种能在这里确知的就别推给诊断去猜(见 helper/connectivity)。
+export const probeClashChannel = async (
+  backend: Backend,
+  timeout: number,
+  signal?: AbortSignal,
+): Promise<ProbeResult> => {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeout)
+  const onAbort = () => controller.abort()
+
+  signal?.addEventListener('abort', onAbort, { once: true })
+
+  const startAt = Date.now()
+  const latency = () => Date.now() - startAt
+
   try {
     const res = await fetch(`${getUrlFromBackend(backend)}/version`, {
       method: 'GET',
@@ -191,11 +206,26 @@ export const probeClashChannel = async (backend: Backend, timeout: number) => {
       },
       signal: controller.signal,
     })
-    return res.ok
-  } catch {
-    return false
+
+    if (res.ok) return { ok: true, latency: latency() }
+
+    return {
+      ok: false,
+      latency: latency(),
+      kind: res.status === 401 ? 'unauthorized' : 'http',
+      message: `HTTP ${res.status}`,
+    }
+  } catch (e) {
+    // 外部取消(切走了 / 组件卸载)不是失败,但调用方已经不看结果了,归入超时即可。
+    return {
+      ok: false,
+      latency: latency(),
+      kind: controller.signal.aborted ? 'timeout' : 'network',
+      message: e instanceof Error ? e.message : String(e),
+    }
   } finally {
     clearTimeout(timeoutId)
+    signal?.removeEventListener('abort', onAbort)
   }
 }
 

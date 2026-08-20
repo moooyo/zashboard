@@ -1,190 +1,94 @@
 <template>
-  <!-- backend -->
   <div
     v-if="hasVisibleItems"
-    class="flex flex-col gap-3 text-sm"
+    class="text-sm"
   >
-    <div class="flex items-center gap-2 px-1">
-      <div class="indicator">
-        <a
-          class="flex cursor-pointer items-center gap-2 text-lg font-semibold"
-          :href="coreBrand.url"
-          target="_blank"
-        >
-          {{ $t('backend') }}
-          <BackendVersion class="text-sm font-normal" />
-        </a>
-      </div>
-    </div>
-
-    <div
-      class="settings-grid"
-      v-if="hasVisibleActions || isVisibleBackendSwitch || showDnsQuery"
-    >
-      <SettingItem
-        :setting-key="k.backend"
-        class="p-4"
-      >
-        <BackendSwitch />
-      </SettingItem>
-
-      <template v-if="can('coreActions')">
-        <SettingItem
-          :setting-key="k.restartCore"
-          :when="can('coreRestart')"
-        >
-          <div class="setting-item-label">
-            {{ $t('restartCore') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="handlerClickRestartCore"
-          >
-            <span
-              v-if="isCoreRestarting"
-              class="loading loading-spinner h-4 w-4"
-            ></span>
-            <ArrowPathRoundedSquareIcon
-              v-else
-              class="h-4 w-4"
-            />
-          </button>
-        </SettingItem>
-        <SettingItem
-          :setting-key="k.reloadConfigs"
-          :when="can('reloadConfigs')"
-        >
-          <div class="setting-item-label">
-            {{ $t('reloadConfigs') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="handlerClickReloadConfigs"
-          >
-            <span
-              v-if="isConfigReloading"
-              class="loading loading-spinner h-4 w-4"
-            ></span>
-            <ArrowPathIcon
-              v-else
-              class="h-4 w-4"
-            />
-          </button>
-        </SettingItem>
-        <SettingItem
-          :setting-key="k.updateConfigs"
-          :when="can('updateConfigs')"
-        >
-          <div class="setting-item-label">
-            {{ $t('updateConfigs') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="showUpdateConfigModal = true"
-          >
-            <PencilSquareIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
-        <SettingItem
-          :setting-key="k.updateGeoDatabase"
-          :when="can('updateGeoDatabase')"
-        >
-          <div class="setting-item-label">
-            {{ $t('updateGeoDatabase') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="handlerClickUpdateGeo"
-          >
-            <span
-              v-if="isGeoUpdating"
-              class="loading loading-spinner h-4 w-4"
-            ></span>
-            <ArrowDownTrayIcon
-              v-else
-              class="h-4 w-4"
-            />
-          </button>
-        </SettingItem>
-        <SettingItem :setting-key="k.flushDNSCache">
-          <div class="setting-item-label">
-            {{ $t('flushDNSCache') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="handleFlushDNSCache"
-          >
-            <TrashIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
-        <SettingItem :setting-key="k.flushFakeIP">
-          <div class="setting-item-label">
-            {{ $t('flushFakeIP') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="handleFlushFakeIP"
-          >
-            <TrashIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
-        <SettingItem
-          :setting-key="k.flushSmartWeights"
-          :when="hasSmartGroup"
-        >
-          <div class="setting-item-label">
-            {{ $t('flushSmartWeights') }}
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="handleFlushSmartWeights"
-          >
-            <TrashIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
-      </template>
-
-      <SettingItem
-        :setting-key="k.DNSQuery"
-        :when="can('dnsQuery')"
-        class="py-3"
-      >
-        <div class="flex w-full flex-col">
-          <div class="settings-section-label">
-            {{ $t('DNSQuery') }}
-          </div>
-          <DnsQuery />
-        </div>
-      </SettingItem>
-    </div>
-
-    <div
-      v-if="can('configPatch') && configs && hasVisibleSettings"
-      class="grid"
-    >
-      <div class="settings-section-label">
-        {{ $t('settings') }}
-      </div>
+    <template v-if="isVisibleBackendSwitch">
+      <div class="settings-section-label">{{ $t('settingsSectionCurrentBackend') }}</div>
       <div class="settings-grid">
         <SettingItem
-          :setting-key="k.ports"
+          :setting-key="k.backend"
           class="py-3"
         >
-          <div class="flex w-full flex-col">
-            <BackendPortsGrid />
+          <div class="flex w-full flex-col gap-3">
+            <div class="flex items-center gap-2 px-1">
+              <div class="indicator">
+                <!--
+                  上游在这里挂了一颗「有新版内核」的红点。5gpn 不做内核更新检查,
+                  也就没有这颗点 —— 升级由安装与发布链路负责。
+                  见 test/disabledUpgradePaths.test.mjs。
+                -->
+                <a
+                  class="flex cursor-pointer items-center gap-2 font-semibold"
+                  :href="coreBrand.url"
+                  target="_blank"
+                >
+                  {{ $t('backend') }}
+                  <BackendVersion class="text-sm font-normal" />
+                </a>
+              </div>
+            </div>
+            <BackendSwitch :show-actions="false" />
           </div>
+        </SettingItem>
+      </div>
+    </template>
+
+    <template v-if="hasVisibleActions">
+      <div class="settings-section-label">{{ $t('settingsSectionCoreOperations') }}</div>
+      <div class="settings-grid">
+        <SettingItem
+          v-for="action in backendActions"
+          :key="action.key"
+          :setting-key="action.key"
+        >
+          <div class="setting-item-label">{{ $t(action.label) }}</div>
+          <button
+            class="btn btn-sm min-w-11"
+            :disabled="action.running"
+            :aria-label="$t(action.label)"
+            @click="action.run()"
+          >
+            <span
+              v-if="action.running"
+              class="loading loading-spinner h-4 w-4"
+            ></span>
+            <component
+              :is="action.icon"
+              v-else
+              class="h-4 w-4"
+            />
+          </button>
+        </SettingItem>
+      </div>
+    </template>
+
+    <template v-if="hasVisibleNetworkSettings">
+      <div class="settings-section-label">{{ $t('settingsSectionNetworkListening') }}</div>
+      <div class="settings-grid">
+        <SettingItem :setting-key="k.ports">
+          <div class="setting-item-label">
+            {{ $t('ports') }}
+            <span class="setting-item-summary">{{ $t('configurePorts') }}</span>
+          </div>
+          <button
+            type="button"
+            class="btn btn-sm min-w-11"
+            :aria-label="$t('configurePorts')"
+            @click="portsDialogOpen = true"
+          >
+            <ChevronRightIcon class="h-4 w-4" />
+          </button>
         </SettingItem>
         <SettingItem
           :setting-key="k.tunMode"
           :when="!!configs?.tun && !activeBackend?.disableTunMode"
         >
-          <div class="setting-item-label">
-            {{ $t('tunMode') }}
-          </div>
+          <div class="setting-item-label">{{ $t('tunMode') }}</div>
           <input
+            v-model="configs!.tun.enable"
             class="toggle"
             type="checkbox"
-            v-model="configs!.tun.enable"
             @change="hanlderTunModeChange"
           />
         </SettingItem>
@@ -192,56 +96,84 @@
           :setting-key="k.allowLan"
           :when="!!configs"
         >
-          <div class="setting-item-label">
-            {{ $t('allowLan') }}
-          </div>
+          <div class="setting-item-label">{{ $t('allowLan') }}</div>
           <input
+            v-model="configs!['allow-lan']"
             class="toggle"
             type="checkbox"
-            v-model="configs!['allow-lan']"
             @change="handlerAllowLanChange"
           />
         </SettingItem>
       </div>
-    </div>
+    </template>
 
-    <UpdateConfigModal v-model="showUpdateConfigModal" />
+    <!--
+      上游在这里还有一节「内核更新」(检查更新 / 自动升级)。5gpn 没有这一节:
+      面板不提供内核自升级与更新检查,升级走安装与发布链路。
+      这条产品边界由 test/disabledUpgradePaths.test.mjs 守着,不要从上游合回来。
+    -->
+
+    <template v-if="showDnsQuery">
+      <div class="settings-section-label">{{ $t('settingsSectionDiagnostics') }}</div>
+      <div class="settings-grid">
+        <SettingItem :setting-key="k.DNSQuery">
+          <div class="setting-item-label">
+            {{ $t('DNSQuery') }}
+            <span class="setting-item-summary">{{ $t('dnsQueryDescription') }}</span>
+          </div>
+          <button
+            type="button"
+            class="btn btn-sm min-w-11"
+            :aria-label="$t('DNSQuery')"
+            @click="dnsDialogOpen = true"
+          >
+            <MagnifyingGlassIcon class="h-4 w-4" />
+          </button>
+        </SettingItem>
+      </div>
+    </template>
+
+    <DialogWrapper
+      v-model="portsDialogOpen"
+      :title="$t('ports')"
+      box-class="w-full max-w-2xl"
+    >
+      <BackendPortsGrid />
+    </DialogWrapper>
+    <DialogWrapper
+      v-model="dnsDialogOpen"
+      :title="$t('DNSQuery')"
+      box-class="w-full max-w-2xl"
+    >
+      <DnsQuery />
+    </DialogWrapper>
   </div>
 </template>
 
 <script setup lang="ts">
-import {
-  flushDNSCacheAPI,
-  flushFakeIPAPI,
-  reloadConfigsAPI,
-  updateGeoDataAPI,
-} from '@/assembly/config'
-import { coreBrand, restartCoreAPI } from '@/assembly/version'
+import { can } from '@/assembly/backend'
+import { configs, updateConfigs } from '@/assembly/config'
+import { coreBrand } from '@/assembly/version'
 import BackendVersion from '@/components/common/BackendVersion.vue'
+import DialogWrapper from '@/components/common/DialogWrapper.vue'
 import BackendPortsGrid from '@/components/settings/backend/BackendPortsGrid.vue'
 import BackendSwitch from '@/components/settings/backend/BackendSwitch.vue'
 import DnsQuery from '@/components/settings/backend/DnsQuery.vue'
-import { can } from '@/assembly/backend'
 import SettingItem from '@/components/settings/SettingItem.vue'
+import { backendActions } from '@/composables/backendActions'
 import { isSettingVisible, useIsSettingVisible } from '@/composables/settings'
 import { BACKEND_ITEM_KEYS } from '@/config/settingsItems'
-import { showNotification } from '@/helper/notification'
-import { fetchProxies, flushSmartGroupWeightsAPI } from '@/assembly/proxies'
-import { configs, fetchConfigs, updateConfigs } from '@/assembly/config'
-import { hasSmartGroup } from '@/assembly/proxies'
-import { fetchRules } from '@/assembly/rules'
+// 上游那两个内核自升级开关有意不从 store/settings 引入 ——
+// 它们在 5gpn 里根本不存在(见 test/disabledUpgradePaths.test.mjs)。
+import { notifyRequestError } from '@/helper/requestError'
 import { activeBackend } from '@/store/setup'
-import {
-  ArrowDownTrayIcon,
-  ArrowPathIcon,
-  ArrowPathRoundedSquareIcon,
-  PencilSquareIcon,
-  TrashIcon,
-} from '@heroicons/vue/24/outline'
+import { ChevronRightIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { computed, ref } from 'vue'
-import UpdateConfigModal from './UpdateConfigModal.vue'
 
 const k = BACKEND_ITEM_KEYS
+const portsDialogOpen = ref(false)
+const dnsDialogOpen = ref(false)
+
 const isVisibleBackendSwitch = useIsSettingVisible(k.backend)
 const isVisiblePorts = useIsSettingVisible(k.ports)
 const isVisibleTunMode = useIsSettingVisible(k.tunMode)
@@ -251,135 +183,41 @@ const canShowTunMode = computed(
   () => isVisibleTunMode.value && !activeBackend.value?.disableTunMode,
 )
 
-/** sing-box 内核下只保留 flush 类操作，除非用户开启了「显示全部功能」 */
-/** 当前后端/内核下实际可渲染的操作项 */
-const renderableActionKeys = computed(() => {
-  if (!can('coreActions')) return []
-
-  const keys: string[] = []
-
-  if (can('coreRestart')) keys.push(k.restartCore)
-  if (can('reloadConfigs')) keys.push(k.reloadConfigs)
-  if (can('updateConfigs')) keys.push(k.updateConfigs)
-  if (can('updateGeoDatabase')) keys.push(k.updateGeoDatabase)
-  if (can('dnsFlush')) keys.push(k.flushDNSCache)
-  if (can('fakeIPFlush')) keys.push(k.flushFakeIP)
-  if (hasSmartGroup.value) keys.push(k.flushSmartWeights)
-
-  return keys
-})
-
-const hasVisibleActions = computed(() => renderableActionKeys.value.some(isSettingVisible))
-
 // 派生的「有没有东西可显示」必须和条目自身的门控一致,否则会渲染出空容器。
+const hasVisibleActions = computed(() =>
+  backendActions.value.some((action) => isSettingVisible(action.key)),
+)
 const showDnsQuery = computed(() => isVisibleDnsQuery.value && can('dnsQuery'))
-
-const hasVisibleItems = computed(() => {
-  return (
-    isVisibleBackendSwitch.value ||
-    hasVisibleSettings.value ||
-    hasVisibleActions.value ||
-    showDnsQuery.value
-  )
-})
-
-const hasVisibleSettings = computed(() => {
-  return (
+const hasVisibleNetworkSettings = computed(
+  () =>
     can('configPatch') &&
     !!configs.value &&
-    (isVisiblePorts.value || (configs.value.tun && canShowTunMode.value) || isVisibleAllowLan.value)
-  )
-})
-
-const reloadAll = () => {
-  fetchConfigs()
-  fetchRules()
-  fetchProxies()
-}
-
-const showUpdateConfigModal = ref(false)
-
-const isCoreRestarting = ref(false)
-const handlerClickRestartCore = async () => {
-  if (isCoreRestarting.value) return
-  isCoreRestarting.value = true
-  try {
-    await restartCoreAPI()
-    setTimeout(() => {
-      reloadAll()
-    }, 500)
-    isCoreRestarting.value = false
-    showNotification({
-      content: 'restartCoreSuccess',
-      type: 'alert-success',
-    })
-  } catch {
-    isCoreRestarting.value = false
-  }
-}
-
-const isConfigReloading = ref(false)
-const handlerClickReloadConfigs = async () => {
-  if (isConfigReloading.value) return
-  isConfigReloading.value = true
-  try {
-    await reloadConfigsAPI()
-    reloadAll()
-    isConfigReloading.value = false
-    showNotification({
-      content: 'reloadConfigsSuccess',
-      type: 'alert-success',
-    })
-  } catch {
-    isConfigReloading.value = false
-  }
-}
-
-const isGeoUpdating = ref(false)
-const handlerClickUpdateGeo = async () => {
-  if (isGeoUpdating.value) return
-  isGeoUpdating.value = true
-  try {
-    await updateGeoDataAPI()
-    reloadAll()
-    isGeoUpdating.value = false
-    showNotification({
-      content: 'updateGeoSuccess',
-      type: 'alert-success',
-    })
-  } catch {
-    isGeoUpdating.value = false
-  }
-}
+    (isVisiblePorts.value ||
+      (!!configs.value.tun && canShowTunMode.value) ||
+      isVisibleAllowLan.value),
+)
+// 上游这里还有一个 hasVisibleUpgradeSettings。5gpn 没有内核更新那一节,
+// 所以也没有这个派生量 —— 见 test/disabledUpgradePaths.test.mjs。
+const hasVisibleItems = computed(
+  () =>
+    isVisibleBackendSwitch.value ||
+    hasVisibleActions.value ||
+    hasVisibleNetworkSettings.value ||
+    showDnsQuery.value,
+)
 
 const hanlderTunModeChange = async () => {
-  await updateConfigs({ tun: { enable: configs.value?.tun.enable } })
+  try {
+    await updateConfigs({ tun: { enable: configs.value?.tun.enable } })
+  } catch (error) {
+    notifyRequestError(error)
+  }
 }
 const handlerAllowLanChange = async () => {
-  await updateConfigs({ ['allow-lan']: configs.value?.['allow-lan'] })
-}
-
-const handleFlushDNSCache = async () => {
-  await flushDNSCacheAPI()
-  showNotification({
-    content: 'flushDNSCacheSuccess',
-    type: 'alert-success',
-  })
-}
-
-const handleFlushFakeIP = async () => {
-  await flushFakeIPAPI()
-  showNotification({
-    content: 'flushFakeIPSuccess',
-    type: 'alert-success',
-  })
-}
-
-const handleFlushSmartWeights = async () => {
-  await flushSmartGroupWeightsAPI()
-  showNotification({
-    content: 'flushSmartWeightsSuccess',
-    type: 'alert-success',
-  })
+  try {
+    await updateConfigs({ ['allow-lan']: configs.value?.['allow-lan'] })
+  } catch (error) {
+    notifyRequestError(error)
+  }
 }
 </script>

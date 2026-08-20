@@ -24,7 +24,7 @@
 // 字符串可靠,不该被降级成全局猜测。
 
 import { probeClashChannel } from '@/api/clash'
-import { getSingboxUrlFromBackend } from '@/helper/utils'
+import type { ProbeResult } from '@/helper/connectivity'
 import { displayAllFeatures } from '@/store/settings'
 import { activeBackend } from '@/store/setup'
 import type { Backend } from '@/types'
@@ -34,6 +34,8 @@ import { computed, ref } from 'vue'
 const USBIP_MIN_API_VERSION = 2
 // OpenVPN 需要 sing-box gRPC API v3(SubscribeOpenVPNStatus 流)
 const OPENVPN_MIN_API_VERSION = 3
+// Taildrop 需要 sing-box gRPC API v4(SubscribeTaildropInbox / SendTaildropFiles 等)
+const TAILDROP_MIN_API_VERSION = 4
 
 export enum Channel {
   Clash = 'clash',
@@ -94,6 +96,7 @@ const hard = computed(() => {
     startedAt: singbox,
     usbip: singbox && apiVersion.value >= USBIP_MIN_API_VERSION,
     openvpn: singbox && apiVersion.value >= OPENVPN_MIN_API_VERSION,
+    taildrop: singbox && apiVersion.value >= TAILDROP_MIN_API_VERSION,
   }
 })
 
@@ -112,6 +115,8 @@ const soft = computed(() => {
     // /storage/zashboard 设置同步,mihomo 扩展
     syncSettings: mihomoOrForkCore,
     independentLatency: mihomoOrForkCore,
+    // coreUpgrade / coreUpdateCheck 不在此表:5gpn 不提供内核自升级与更新检查,
+    // 升级由 5gpn 的安装/发布链路负责(见 test/disabledUpgradePaths.test.mjs)。
     // ports / tun / allow-lan 等 PATCH /configs 配置块。
     configPatch: mihomo,
 
@@ -132,6 +137,8 @@ const soft = computed(() => {
     traceLogLevel: singbox || honk,
     // fatal / panic:仅 sing-box
     extraLogLevels: singbox,
+    // silent:mihomo 与 sing-box 有,honk 没有
+    silentLogLevel: mihomo || singbox,
   }
 })
 
@@ -153,13 +160,20 @@ export const can = (cap: Cap): boolean => {
   return soft.value[cap as SoftCap]
 }
 
-// 后端连通性探测(供 Setup / EditBackend 测试连接使用)。
-export const isSingboxChannelAvailable = (backend: Backend, timeout: number = 10000) => {
-  if (!getSingboxUrlFromBackend(backend)) return Promise.resolve(false)
-  return import('@/api/singbox/client').then((m) => m.probeSingboxChannel(backend, timeout))
+// 后端连通性探测(供 Setup / EditBackend / 连接失败页使用)。
+// 按通道选对应的探测,结果形状统一成 ProbeResult:成功带耗时,失败带可诊断的分类,
+// 由 helper/connectivity 的 describeProbeFailure 翻译成给用户看的一句话。
+export const probeBackend = async (
+  backend: Backend,
+  timeout: number = 10000,
+  signal?: AbortSignal,
+): Promise<ProbeResult> => {
+  if (backend.type === 'singbox') {
+    const { probeSingboxChannel } = await import('@/api/singbox/client')
+    return probeSingboxChannel(backend, timeout, signal)
+  }
+  return probeClashChannel(backend, timeout, signal)
 }
 
 export const isBackendAvailable = (backend: Backend, timeout: number = 10000) =>
-  backend.type === 'singbox'
-    ? isSingboxChannelAvailable(backend, timeout)
-    : probeClashChannel(backend, timeout)
+  probeBackend(backend, timeout).then((result) => result.ok)

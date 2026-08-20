@@ -32,7 +32,11 @@ const outputFiles = readdirSync(assets).map((file) => ({
 
 const budget = {
   initialJavaScript: mib(2.25),
-  largestLazyJavaScript: kib(700),
+  // 920 KiB 是为了容纳上游的地球仪:earthRenderer 拉的是 three/webgpu,实测 881 KiB,
+  // 是目前最大的一块懒加载产物。留的余量只够 three 的小版本自然增长 —— 数字调到刚好
+  // 放行、而不是调到宽松,下一次再顶穿仍然要有人做一次决定,而不是默默长上去。
+  // 该卡片默认开启,所以这部分体积实际上每个用户都会下载。
+  largestLazyJavaScript: kib(920),
   stylesheets: mib(1.25),
   fonts: mib(3.5),
 }

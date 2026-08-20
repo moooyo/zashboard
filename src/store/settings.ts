@@ -1,7 +1,7 @@
-import { SETTINGS_CATEGORIES } from '@/config/settingsItems'
+import { DEFAULT_SETTINGS_MENU_ORDER, SETTINGS_CATEGORIES } from '@/config/settingsItems'
 import {
-  CONNECTIONS_TABLE_ACCESSOR_KEY,
   CONNECTION_DISPLAY_STYLE,
+  CONNECTIONS_TABLE_ACCESSOR_KEY,
   DETAILED_CARD_STYLE,
   EMOJIS,
   FOLDER_MODE,
@@ -11,6 +11,7 @@ import {
   IP_INFO_API,
   IS_APPLE_DEVICE,
   LANG,
+  LIST_DISPLAY_STYLE,
   OVERVIEW_CARD,
   PROXY_CARD_SIZE,
   PROXY_CHAIN_DIRECTION,
@@ -24,10 +25,10 @@ import {
   TEST_URL,
   type THEME,
 } from '@/constant'
-import { getMinCardWidth, isMiddleScreen, isPreferredDark } from '@/helper/utils'
+import { useStorage } from '@/helper/storage'
 import { normalizeSavedTheme } from '@/helper/themeCatalog'
+import { getMinCardWidth, isMiddleScreen, isPreferredDark } from '@/helper/utils'
 import type { SourceIPLabel } from '@/types'
-import { useStorage } from '@vueuse/core'
 import { computed } from 'vue'
 
 const migrateLegacyStorageKey = (legacyKey: string, nextKey: string) => {
@@ -78,6 +79,39 @@ const migrateLegacyConnectionDisplayStyle = () => {
 
 migrateLegacyConnectionDisplayStyle()
 
+const migrateIPAPISettings = () => {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const globalAPI = localStorage.getItem('config/geoip-info-api')
+  const secondaryKey = 'config/ip-check-secondary-api'
+
+  if (
+    localStorage.getItem(secondaryKey) === null &&
+    globalAPI !== IP_INFO_API.IPIP &&
+    Object.values(IP_INFO_API).includes(globalAPI as IP_INFO_API)
+  ) {
+    localStorage.setItem(secondaryKey, globalAPI as string)
+  }
+
+  const legacyEarthKey = 'config/earth-origin-source'
+  const earthKey = 'config/earth-ip-info-api'
+  const legacyEarthSource = localStorage.getItem(legacyEarthKey)
+
+  if (localStorage.getItem(earthKey) === null) {
+    if (legacyEarthSource === 'china') {
+      localStorage.setItem(earthKey, IP_INFO_API.IPIP)
+    } else if (legacyEarthSource === 'global') {
+      localStorage.setItem(earthKey, IP_INFO_API.IPSB)
+    }
+  }
+
+  localStorage.removeItem(legacyEarthKey)
+}
+
+migrateIPAPISettings()
+
 // global
 export const defaultTheme = useStorage<string>('config/default-theme', 'light')
 export const darkTheme = useStorage<string>('config/dark-theme', 'dark')
@@ -90,9 +124,30 @@ export const theme = computed(() => {
 })
 export const customThemes = useStorage<THEME[]>('config/custom-themes', [])
 
+// 上游把已下线的旧主题映射到相近的替代值,而不是一律回落到默认值;5gpn 把可选主题
+// 收窄到 THEME_CATALOG,所以映射之后仍要过一遍 normalizeSavedTheme 做兜底。
+const LEGACY_THEME_REPLACEMENTS: Record<string, string> = {
+  'dark-apple': 'dark',
+  lofi: 'light',
+  wireframe: 'light',
+  black: 'dark-neutral',
+  business: 'dark-neutral',
+}
+
 const customThemeNames = customThemes.value.map((theme) => theme.name)
-defaultTheme.value = normalizeSavedTheme(defaultTheme.value, 'light', customThemeNames)
-darkTheme.value = normalizeSavedTheme(darkTheme.value, 'dark', customThemeNames)
+
+const replaceLegacyTheme = (theme: string, defaultTheme: string) =>
+  normalizeSavedTheme(LEGACY_THEME_REPLACEMENTS[theme] ?? theme, defaultTheme, customThemeNames)
+
+// 仅在确实需要迁移时才写回,避免用户从未改过主题也被写入 storage
+const migratedDefaultTheme = replaceLegacyTheme(defaultTheme.value, 'light')
+if (migratedDefaultTheme !== defaultTheme.value) {
+  defaultTheme.value = migratedDefaultTheme
+}
+const migratedDarkTheme = replaceLegacyTheme(darkTheme.value, 'dark')
+if (migratedDarkTheme !== darkTheme.value) {
+  darkTheme.value = migratedDarkTheme
+}
 
 export const language = useStorage<LANG>(
   'config/language',
@@ -125,7 +180,10 @@ export const disablePullToRefresh = useStorage('config/disable-pull-to-refresh',
 export const displayAllFeatures = useStorage('config/display-all-features', false)
 export const blurIntensity = useStorage('config/blur-intensity', 10)
 export const scrollAnimationEffect = useStorage('config/scroll-animation-effect', true)
-export const IPInfoAPI = useStorage('config/geoip-info-api', IP_INFO_API.IPSB)
+export const IPInfoAPI = useStorage<IP_INFO_API>('config/geoip-info-api', IP_INFO_API.IPSB)
+if (IPInfoAPI.value === IP_INFO_API.IPIP) {
+  IPInfoAPI.value = IP_INFO_API.IPSB
+}
 export const geoipCountryDatabaseURL = useStorage(
   'config/geoip-country-database-url',
   GEOIP_COUNTRY_DATABASE_URL,
@@ -141,6 +199,14 @@ export const keyboardShortcuts = useStorage<Record<string, string>>('config/keyb
 // overview
 export const splitOverviewPage = useStorage('config/split-overview-page', false)
 export const autoIPCheck = useStorage('config/auto-ip-check', true)
+export const ipCheckPrimaryAPI = useStorage<IP_INFO_API>(
+  'config/ip-check-primary-api',
+  IP_INFO_API.IPIP,
+)
+export const ipCheckSecondaryAPI = useStorage<IP_INFO_API>(
+  'config/ip-check-secondary-api',
+  IP_INFO_API.IPSB,
+)
 export const autoConnectionCheck = useStorage('config/auto-connection-check', true)
 export const showStatisticsWhenSidebarCollapsed = useStorage(
   'config/show-statistics-when-sidebar-collapsed',
@@ -161,6 +227,10 @@ const defaultOverviewCardOrder: { card: OVERVIEW_CARD; visible: boolean }[] = [
   },
   {
     card: OVERVIEW_CARD.NetworkCard,
+    visible: true,
+  },
+  {
+    card: OVERVIEW_CARD.EarthGlobeCard,
     visible: true,
   },
   {
@@ -186,18 +256,35 @@ export const overviewCardOrder = useStorage<{ card: OVERVIEW_CARD; visible: bool
   defaultOverviewCardOrder,
 )
 
-// Append any cards missing from the configured order.
+// 确保所有卡片都在配置中。存量配置首次补入全球连接时放在连接拓扑前；
+// 其他缺失卡片仍追加到末尾，已有全球连接的自定义顺序不改。
 const allCardTypes = Object.values(OVERVIEW_CARD)
 const existingCardTypes = new Set(overviewCardOrder.value.map((item) => item.card))
 const missingCards = allCardTypes.filter((card) => !existingCardTypes.has(card))
 
 if (missingCards.length > 0) {
-  const newCards = missingCards.map((card) => ({
-    card,
-    visible: true,
-  }))
-  overviewCardOrder.value = [...overviewCardOrder.value, ...newCards]
+  const nextOrder = [...overviewCardOrder.value]
+
+  for (const card of missingCards) {
+    const item = { card, visible: true }
+
+    if (card === OVERVIEW_CARD.EarthGlobeCard) {
+      const topologyIndex = nextOrder.findIndex(({ card }) => card === OVERVIEW_CARD.TopologyCharts)
+      nextOrder.splice(topologyIndex === -1 ? nextOrder.length : topologyIndex, 0, item)
+    } else {
+      nextOrder.push(item)
+    }
+  }
+
+  overviewCardOrder.value = nextOrder
 }
+
+export const earthIPInfoAPI = useStorage<IP_INFO_API>('config/earth-ip-info-api', IP_INFO_API.IPIP)
+export const earthVisualMode = useStorage<'flat' | 'space'>('config/earth-visual-mode', 'flat')
+export const topologyApplyConnectionFilter = useStorage(
+  'config/topology-apply-connection-filter',
+  true,
+)
 
 // proxies
 export const collapseGroupMap = useStorage<Record<string, boolean>>('cache/collapse-group-map', {})
@@ -316,14 +403,23 @@ export const connectionCardLines = useStorage<CONNECTIONS_TABLE_ACCESSOR_KEY[][]
 )
 
 export const sourceIPLabelList = useStorage<SourceIPLabel[]>('config/source-ip-label-list', [])
+export const resolveClientHostname = useStorage('config/resolve-client-hostname', false)
 
 // rules
 export const displayNowNodeInRule = useStorage('config/display-now-node-in-rule', true)
 export const displayLatencyInRule = useStorage('config/display-latency-in-rule', true)
 export const disconnectOnRuleDisable = useStorage('config/disconnect-on-rule-disable', true)
+export const ruleDisplayStyle = useStorage<LIST_DISPLAY_STYLE>(
+  'config/rule-display-style',
+  LIST_DISPLAY_STYLE.CARD,
+)
 
 // logs
 export const logRetentionLimit = useStorage<number>('config/log-retention-limit', 1000)
+export const logDisplayStyle = useStorage<LIST_DISPLAY_STYLE>(
+  'config/log-display-style',
+  LIST_DISPLAY_STYLE.CARD,
+)
 export const logSearchHistory = useStorage<string[]>('cache/log-search-history', [])
 
 // settings visibility
@@ -336,10 +432,25 @@ export const hiddenSettingsItems = useStorage<Record<string, boolean>>(
 
 // settings menu order
 // Store the settings menu item order.
+// Upstream curates DEFAULT_SETTINGS_MENU_ORDER independently of SETTINGS_CATEGORIES'
+// declaration order, so a category that exists but is absent from that list would
+// never reach the menu. Append whatever it omits — that is what keeps the 5gpn
+// sections reachable on a fresh install if the curated list ever falls behind.
+const upstreamMenuOrder = DEFAULT_SETTINGS_MENU_ORDER as SETTINGS_MENU_KEY[]
+const defaultSettingsMenuOrder: SETTINGS_MENU_KEY[] = [
+  ...upstreamMenuOrder,
+  ...SETTINGS_CATEGORIES.map((category) => category.key).filter(
+    (key) => !upstreamMenuOrder.includes(key),
+  ),
+]
+
 export const settingsMenuOrder = useStorage<SETTINGS_MENU_KEY[]>(
   'config/settings-menu-order',
-  SETTINGS_CATEGORIES.map((category) => category.key),
+  defaultSettingsMenuOrder,
 )
 
 // settings page two columns mode
+// 上游在这一轮把两栏开关连同 SettingsPage 里的控件一起删掉了,合并后的 SettingsPage 也已
+// 不再读它。这里仍保留导出:键本身是持久化的,且删掉它只会在别处重新引用时炸掉编译。
+// 确认没人再用之后可以连同 i18n 的 settingsPageTwoColumns 一起清掉。
 export const settingsPageTwoColumns = useStorage<boolean>('config/settings-page-two-columns', true)
