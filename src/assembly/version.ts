@@ -7,18 +7,26 @@ import HonkLogo from '@/assets/images/honk.svg'
 import MetacubexLogo from '@/assets/images/metacubex.jpg'
 import SingBoxLogo from '@/assets/images/sing-box.svg'
 import { MIHOMO, MIHOMO_CHANNEL } from '@/constant'
-import {
-  activeBackend,
-  activeBackendSession,
-  backendSessionIsCurrent,
-  captureBackendSession,
-} from '@/store/setup'
+import { getRequestErrorMessage } from '@/helper/requestError'
+import { activeBackend, backendSessionIsCurrent, captureBackendSession } from '@/store/setup'
 import type { Backend } from '@/types'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { apiVersion, can, Channel, channel, core, Core, resetCore } from './backend'
 
 export const version = ref()
 export const zashboardVersion = ref(__APP_VERSION__)
+
+// 切后端时本来就要打一次 /version,顺手把它的结果暴露成连通性状态,
+// 给切换提示用 —— 不额外发探测请求,量的也正是实际在用的那条 API。
+export type BackendProbe = {
+  uuid: string
+  status: 'probing' | 'connected' | 'failed'
+  // 拿到 /version 响应的耗时(ms),failed 时无意义。
+  latency: number
+  message: string
+}
+
+export const backendProbe = ref<BackendProbe | undefined>()
 
 // sing-box start time (milliseconds since epoch); zero means unavailable.
 export const startedAt = ref(0)
@@ -88,13 +96,36 @@ const fetchSingboxStartedAt = async (): Promise<number> => {
 }
 
 const probeBackend = async (backend: Backend, session: ReturnType<typeof captureBackendSession>) => {
-  const { data } = await fetchVersionAPI()
+  const startAt = Date.now()
+  let data
+
+  try {
+    ;({ data } = await fetchVersionAPI())
+  } catch (e) {
+    // Only report a failure that still belongs to the live session; a stale
+    // probe must not paint the new backend as unreachable.
+    if (backendSessionIsCurrent(session)) {
+      backendProbe.value = {
+        uuid: backend.uuid,
+        status: 'failed',
+        latency: 0,
+        message: getRequestErrorMessage(e),
+      }
+    }
+    throw e
+  }
 
   // Discard a result if the operator switched or edited the backend while probing.
   if (!backendSessionIsCurrent(session)) return
 
   version.value = data?.version || ''
   core.value = detectCore(version.value)
+  backendProbe.value = {
+    uuid: backend.uuid,
+    status: 'connected',
+    latency: Date.now() - startAt,
+    message: '',
+  }
   const nextStartedAt = can('startedAt') ? await fetchSingboxStartedAt() : 0
   if (!backendSessionIsCurrent(session)) return
   startedAt.value = nextStartedAt
@@ -104,22 +135,29 @@ const probeBackend = async (backend: Backend, session: ReturnType<typeof capture
 let probe: Promise<void> = Promise.resolve()
 
 export const coreReady = async () => {
-  // Let the backend watcher install the new probe before awaiting it.
+  // Let the session watcher install the new probe before awaiting it.
   await nextTick()
   await probe
 }
 
-watch(
-  activeBackendSession,
-  (val) => {
-    resetCore()
-    version.value = ''
-    startedAt.value = 0
+// Called by assembly/session at the start of every backend session: clear the
+// previous backend's conclusions first, then re-probe the current one. The
+// returned promise is only there for coreReady; callers need not await it.
+export const probeActiveBackend = () => {
+  const backend = activeBackend.value
+  // store/setup republishes the session synchronously (flush: 'sync'), so the
+  // epoch captured here is already the one this session belongs to.
+  const session = captureBackendSession()
 
-    const backend = activeBackend.value
-    probe = val && backend ? probeBackend(backend, val).catch(() => {}) : Promise.resolve()
-  },
-  { immediate: true },
-)
+  resetCore()
+  version.value = ''
+  startedAt.value = 0
+  backendProbe.value = backend
+    ? { uuid: backend.uuid, status: 'probing', latency: 0, message: '' }
+    : undefined
+
+  probe = backend && session ? probeBackend(backend, session).catch(() => {}) : Promise.resolve()
+  return probe
+}
 
 export { restartCoreAPI }

@@ -1,6 +1,14 @@
 <script setup lang="ts">
+// 后端会话(内核探测 + 首屏数据 + 常驻流)自己跟着 activeBackend 走,
+// 这里只需保证模块被加载,不依赖任何页面挂载。
+import './assembly/session'
 import { computed, onMounted, ref, type Ref, watch } from 'vue'
 import { RouterView } from 'vue-router'
+import BackendConnectionError from './components/common/BackendConnectionError.vue'
+import BackendSwitchToast from './components/common/BackendSwitchToast.vue'
+import BackendManager from './components/settings/backend/BackendManager.vue'
+import UpdateConfigModal from './components/settings/backend/UpdateConfigModal.vue'
+import { showUpdateConfigModal } from './composables/backendActions'
 import ConfirmDialogHost from './components/common/ConfirmDialogHost.vue'
 import { useKeyboard } from './composables/keyboard'
 import { EMOJIS } from './constant'
@@ -166,10 +174,19 @@ useKeyboard()
     :style="[backgroundImage, { height: 'var(--app-height, 100dvh)' }]"
   >
     <RouterView />
+    <BackendSwitchToast />
+    <BackendConnectionError />
+    <BackendManager />
+    <!-- 后端维护动作的弹窗:侧边栏菜单和设置页都会拉起,挂在这里两处入口才都有效。 -->
+    <UpdateConfigModal v-model="showUpdateConfigModal" />
+    <!--
+      确认弹窗排在所有弹窗之后:它们都 teleport 到 #app-content 且同一层 z-index,
+      谁后插进 DOM 谁在上面。弹窗里拉起的确认排前面就会被压在底下。
+    -->
     <ConfirmDialogHost />
     <div
       ref="toast"
-      class="toast-sm toast toast-end toast-top z-[100000] max-w-80 text-sm md:max-w-96 md:translate-y-8"
+      class="app-toast-region"
     />
   </div>
 </template>

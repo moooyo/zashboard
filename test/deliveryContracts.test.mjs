@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { allStylesheets } from './stylesheets.mjs'
 
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
@@ -16,7 +17,7 @@ test('DOMPurify is pinned to the patched direct dependency', () => {
 test('release delivery has one local MiSans text-font variant', () => {
   const packageJSON = JSON.parse(source('package.json'))
   const loader = source('src/assets/load-fonts.ts')
-  const framework = source('src/assets/styles/framework.css')
+  const styles = allStylesheets()
   const deploy = source('.github/workflows/deploy.yml')
   const release = source('.github/workflows/5gpn-release.yml')
 
@@ -24,7 +25,7 @@ test('release delivery has one local MiSans text-font variant', () => {
   assert.equal(packageJSON.dependencies.misans, undefined)
   assert.match(loader, /subsetted-fonts\/MiSans-VF\/MiSans-VF\.css/u)
   assert.doesNotMatch(loader, /unpkg|Fira|PingFang|Sarasa/u)
-  assert.doesNotMatch(framework, /Fira|PingFang|Sarasa/u)
+  assert.doesNotMatch(styles, /Fira|PingFang|Sarasa/u)
   assert.doesNotMatch(deploy, /matrix\.font|cdn-fonts|firasans|pingfang|sarasa|FONT:/iu)
   assert.doesNotMatch(release, /FONT:/u)
   assert.match(deploy, /if:\s*github\.repository == 'Zephyruso\/zashboard'/u)

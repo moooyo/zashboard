@@ -58,7 +58,7 @@ export type Proxy = {
     }
   >
   all?: string[]
-  udp: boolean
+  udp?: boolean
   xudp?: boolean
   now: string
   fixed?: string

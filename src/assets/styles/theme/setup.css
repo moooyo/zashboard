@@ -1,0 +1,18 @@
+/*
+ * 框架挂载点：Tailwind 的 JS 配置与 daisyUI 插件。
+ * 只放"接入框架"的声明，具体的主题值在 presets.css / tokens.css。
+ */
+
+@config '../../../../tailwind.config.ts';
+
+@plugin 'daisyui' {
+  /*
+   * 5gpn 只发布固定的五个主题：nord 取自 daisyUI，其余四个是 presets.css 里
+   * 自己定义的。上游这里开的是「全部内置主题」—— 那会把 daisyUI 的整套调色板都
+   * 编进产物，既撑大样式体积，也让主题选择器出现产品里并不支持的条目。
+   * 这条边界由 test/themeCatalog.test.mjs 守着（它同时禁止这几个名字出现在
+   * 样式树里，所以连注释都不要把它们抄进来），不要从上游合回来。
+   */
+  themes: nord;
+  exclude: rootscrollgutter;
+}

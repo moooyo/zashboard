@@ -11,7 +11,9 @@ export const isPWA = (() => {
 })()
 
 export const prettyBytesHelper = (bytes: number, opts?: Options) => {
-  return prettyBytes(bytes, {
+  // prettyBytes 对 NaN / Infinity 是抛错的。格式化函数几乎全在渲染函数里调用,
+  // 一个脏字段抛出去就会毁掉整棵 vnode 树(而不只是这一格),故就地兜住。
+  return prettyBytes(Number.isFinite(bytes) ? bytes : 0, {
     binary: false,
     ...opts,
   })
@@ -81,6 +83,10 @@ export const getSingboxUrlFromBackend = (
 export const getSingboxSecret = (end: Pick<Backend, 'type' | 'password'>) =>
   end.type === 'singbox' ? end.password || '' : ''
 
+// 探测 / 诊断打的那个地址:sing-box 走 gRPC baseUrl,其余走 Clash REST 根路径。
+export const getBackendProbeUrl = (end: Omit<Backend, 'uuid'>) =>
+  end.type === 'singbox' ? getSingboxUrlFromBackend(end) : getUrlFromBackend(end)
+
 export const getLabelFromBackend = (end: Omit<Backend, 'uuid'>) => {
   return end.label || `${end.host}:${end.port}`
 }
@@ -127,3 +133,8 @@ export const findScrollableParent = (el: HTMLElement | null): HTMLElement | null
 
   return parent ? findScrollableParent(parent) : null
 }
+
+// getBackendFromUrl() 及其 getProtocolFromQuery() 辅助函数已被移除,不要从上游合回来。
+// 它把任意 query 里的 hostname/secret 直接当作后端凭据接受(含明文 http 与跨源目标),
+// 正是 5gpn 要关掉的那条路径。凭据只从 `/setup` hash 片段进入,并由
+// src/helper/setupHandoff.ts 强制 HTTPS、同源与一次性擦除。

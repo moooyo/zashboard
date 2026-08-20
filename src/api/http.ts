@@ -2,10 +2,9 @@
 // This is the only API-layer module allowed to depend on store/setup: requests
 // obtain the current target (baseURL and authentication) from activeBackend.
 // All other API modules must remain independent of higher layers.
-import { ROUTE_NAME } from '@/constant'
 import { showNotification } from '@/helper/notification'
 import { getUrlFromBackend } from '@/helper/utils'
-import { activeBackend, activeBackendSession, activeUuid } from '@/store/setup'
+import { activeBackend, activeBackendSession, activeUuid, openBackendManager } from '@/store/setup'
 import axios, { AxiosError, type GenericAbortSignal } from 'axios'
 import { nextTick } from 'vue'
 
@@ -36,24 +35,16 @@ axios.interceptors.request.use((config) => {
   return config
 })
 
-const ignoreNotificationUrls = [
-  '/delay',
-  '/healthcheck',
-  '/weights',
-  '/storage/zashboard',
-  // Capability discovery probes endpoints a stock core does not have. A 404 is
-  // the expected answer there, not something to raise a toast about.
-  '/capabilities',
-  '/5gpn',
-]
-
-// endsWith alone never matched the entries that name a path *prefix*:
-// '/5gpn' is listed, but the request is '/5gpn/<subsystem>', so every probe
-// against a stock core raised a toast the list existed to suppress. Sub-paths
-// have to be matched as sub-paths.
-const ignoresNotification = (url?: string) =>
-  !!url && ignoreNotificationUrls.some((u) => url.endsWith(u) || url.includes(u + '/'))
-
+// 响应拦截器只做两件事:作废上一个后端会话的回包,以及「401 → 把这个后端的编辑框
+// 摆到用户面前」。后者任何请求打到 401 都必须如此,不是「要不要提示用户」的问题。
+// 密码过期要改的就是密码,所以直接打开编辑态 —— 以前是清空 activeUuid 再跳 setup
+// 页带 query 把弹窗绕回来,一次密码失效就把人整个登出了,而他要做的只是改一个字段。
+//
+// 其余错误一律原样抛出,不在这里弹提示 —— 提示该由发起请求的业务层用 try-catch
+// 决定(见 helper/requestError.ts):只有用户手动触发的动作才打扰用户,后台
+// 自动拉取失败保持静默。以前靠 url 黑名单区分二者,加一个端点就得改一次名单,
+// 而且拦截器根本不知道这次请求是谁发的、为什么发 —— 5gpn 的 /5gpn/* 能力探测
+// 正是被这份名单漏掉的那类请求。
 axios.interceptors.response.use(
   (response) => {
     const epoch = requestSessionEpochs.get(response.config)
@@ -70,7 +61,7 @@ axios.interceptors.response.use(
     }
     return response
   },
-  async (
+  (
     error: AxiosError<{
       message: string
     }>,
@@ -80,26 +71,9 @@ axios.interceptors.response.use(
     if (stale) return Promise.reject(error)
 
     if ((error.status === 401 || error.response?.status === 401) && activeUuid.value) {
-      const { default: router } = await import('@/router')
-      const currentBackendUuid = activeUuid.value
-      activeUuid.value = ''
-      router.push({
-        name: ROUTE_NAME.setup,
-        query: { editBackend: currentBackendUuid },
-      })
+      openBackendManager({ mode: 'edit', uuid: activeUuid.value })
       nextTick(() => {
         showNotification({ content: 'unauthorizedTip' })
-      })
-    } else if (!ignoresNotification(error.config?.url)) {
-      const errorMessage = error.response?.data?.message || error.message
-
-      showNotification({
-        key: errorMessage,
-        // `raw`, not `content`: both halves are server-controlled — the URL is
-        // echoed back and errorMessage is the response body's message field —
-        // so neither may reach the translator or a markup sink.
-        raw: `${decodeURIComponent(error.config?.url || '')} \n${errorMessage}`,
-        type: 'alert-error',
       })
     }
 

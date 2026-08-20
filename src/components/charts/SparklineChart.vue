@@ -1,5 +1,8 @@
 <template>
-  <div class="relative h-full w-full overflow-hidden">
+  <div
+    class="relative h-full w-full overflow-hidden"
+    data-page-swipe-ignore
+  >
     <div
       ref="chartRef"
       class="h-full w-full"
@@ -17,7 +20,9 @@ const props = withDefaults(
   defineProps<{
     data: ChartPoint[]
     yAxisFloor?: number
-    color?: 'primary' | 'info'
+    // `info` is the pre-rename spelling of `secondary`; the 5gpn DNS card still
+    // labels its two curves that way, so keep it as an alias.
+    color?: 'primary' | 'secondary' | 'info'
     name?: string
     windowSeconds?: number
     labelFormatter?: (value: number) => string
@@ -36,8 +41,9 @@ const { colors, fontFamily } = useChartTheme(chartRef)
 const options = computed<EChartOption>(() => {
   const latestPoint = props.data.at(-1)
   const latest = latestPoint ? getChartPointValue(latestPoint)[0] : Date.now()
-  const lineColor = props.color === 'info' ? colors.info60 : colors.primary60
-  const areaColor = props.color === 'info' ? colors.info30 : colors.primary30
+  const isSecondary = props.color === 'secondary' || props.color === 'info'
+  const lineColor = isSecondary ? colors.seriesSecondary : colors.seriesPrimary
+  const areaColor = isSecondary ? colors.seriesSecondaryMuted : colors.seriesPrimaryMuted
 
   return {
     animationDurationUpdate: 1000,
@@ -47,12 +53,12 @@ const options = computed<EChartOption>(() => {
       ? {
           show: true,
           trigger: 'axis',
-          backgroundColor: colors.base70,
-          borderColor: colors.base70,
+          backgroundColor: colors.surface,
+          borderColor: colors.surface,
           confine: true,
           padding: [0, 5],
           textStyle: {
-            color: colors.baseContent,
+            color: colors.text,
             fontFamily: fontFamily.value,
             fontSize: 11,
           },
@@ -80,7 +86,7 @@ const options = computed<EChartOption>(() => {
             show: true,
             inside: false,
             fontSize: 11,
-            color: colors.baseContent60,
+            color: colors.textMuted,
             fontFamily: fontFamily.value,
             margin: 4,
             formatter: (value: number) => (value === 0 ? '' : props.labelFormatter!(value)),

@@ -1,0 +1,28 @@
+/*
+ * 字体族令牌与内置 emoji 字体。
+ * 每个正文字体都要和一套 emoji 字体配对，具体加载策略见 src/assets/load-fonts.ts。
+ *
+ * 5gpn 只发布 MiSans 一种正文字体：上游另有四组正文字体令牌，对应的字体包已经
+ * 从 package.json 里去掉了，留着令牌只会让样式表指向永远加载不到的字体族。
+ * 这条边界由 test/deliveryContracts.test.mjs 守着（它同时禁止那几个字体名出现在
+ * 样式树里，所以连注释都不要把它们抄进来），不要从上游合回来。
+ */
+
+@theme {
+  --font-MiSans-NotoEmoji: 'MiSans-VF', 'NotoEmoji', system-ui;
+  --font-MiSans-Twemoji: 'MiSans-VF', 'Twemoji', system-ui;
+}
+
+@layer utilities {
+  @font-face {
+    font-family: 'NotoEmoji';
+    src: url('/src/assets/fonts/NotoColorEmoji-flagsonly.ttf') format('truetype');
+  }
+}
+
+@layer utilities {
+  @font-face {
+    font-family: 'Twemoji';
+    src: url('/src/assets/fonts/TwemojiMozilla-flags.woff2') format('woff2');
+  }
+}

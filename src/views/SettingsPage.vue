@@ -1,407 +1,472 @@
 <template>
   <div
-    class="relative h-full overflow-y-auto"
-    @scroll.passive="handleScroll"
     ref="scrollContainerRef"
+    class="relative h-full overflow-y-scroll"
+    :class="settingsPaneTransition && 'overflow-x-hidden'"
     :style="padding"
   >
-    <SettingsCtrl
-      :menu-items="menuItems"
-      :active-menu-key="activeMenuKey"
-      @menu-click="handleMenuClick"
-    />
-
-    <button
-      v-if="isPWA"
-      class="btn btn-ghost btn-sm absolute top-14 right-2 z-10"
-      @click="refreshPages"
-    >
-      <ArrowPathIcon class="h-4 w-4" />
-      {{ $t('refresh') }}
-    </button>
-
-    <!-- Edit mode toolbar -->
-    <div
-      v-if="settingsEditMode"
-      class="bg-base-100 mx-auto flex w-full max-w-7xl flex-wrap items-center gap-2 p-3 md:px-8"
-    >
-      <button
-        class="btn btn-sm"
-        @click="applyShowAllPreset"
-      >
-        {{ $t('showAllPreset') }}
-      </button>
-      <button
-        class="btn btn-sm"
-        @click="applyMinimalPreset"
-      >
-        {{ $t('minimalPreset') }}
-      </button>
-      <label
-        v-if="twoColumnsAvailable"
-        class="ml-auto flex items-center gap-2 text-sm"
-      >
-        {{ $t('settingsPageTwoColumns') }}
-        <input
-          v-model="settingsPageTwoColumns"
-          type="checkbox"
-          class="toggle"
-        />
-      </label>
-    </div>
-
-    <!-- Content Area -->
-    <template v-if="isTwoColumns">
-      <div class="mx-auto grid w-full max-w-7xl grid-cols-2 gap-12 p-3">
-        <div
-          v-for="col in [0, 1]"
-          :key="col"
-          class="flex flex-col gap-3"
+    <!-- 移动端与窄内容区共用顶部控制栏；宽屏改用页内左侧导航。 -->
+    <CtrlsBar v-if="!showSideNavigation">
+      <div class="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-2 p-2">
+        <button
+          v-if="showMobileIndex === false && isMiddleScreen"
+          type="button"
+          class="btn btn-circle btn-ghost btn-sm shrink-0"
+          :aria-label="$t('back')"
+          @click="backToCategories"
         >
-          <div
-            v-for="item in menuItems.filter((_, i) => columnAssignment[i] === col)"
-            :key="item.key"
-            :id="`item-${item.key}`"
-            :data-key="item.key"
-            class="settings-category mb-4 rounded-lg p-2 md:mb-6"
-            :class="
-              settingsEditMode && isSettingHidden(item.key) ? 'settings-category--hidden' : ''
-            "
-          >
-            <SettingsCategoryHeader :item="item" />
-            <div class="settings-category-body">
-              <component :is="item.component" />
-            </div>
+          <ChevronLeftIcon class="h-5 w-5" />
+        </button>
+
+        <div
+          v-if="isMiddleScreen"
+          class="min-w-0 flex-1"
+        >
+          <div class="truncate text-base font-semibold">
+            {{
+              showMobileIndex || !activeCategory
+                ? $t('settings')
+                : $t(SETTINGS_MENU_LABELS[activeCategory.key])
+            }}
           </div>
         </div>
+
+        <SelectInput
+          v-else
+          v-model="narrowCategoryKey"
+          class="select-sm max-w-56 min-w-40"
+          :aria-label="$t('settingsCategory')"
+          :options="categorySelectOptions"
+        />
+
+        <SettingsSearch
+          v-if="!isMiddleScreen || showMobileIndex || mobileSearchOpen"
+          :class="[
+            'min-w-0 flex-1',
+            isMiddleScreen && showMobileIndex && 'order-last w-full flex-none',
+            isMiddleScreen && !showMobileIndex && 'absolute top-full right-2 left-2 mt-1',
+          ]"
+          @select="openSetting"
+          @customize="customizationOpen = true"
+        />
+
+        <button
+          v-if="isMiddleScreen && !showMobileIndex"
+          type="button"
+          class="btn btn-circle btn-ghost btn-sm shrink-0"
+          :class="mobileSearchOpen && 'btn-active'"
+          :aria-label="$t('searchSettings')"
+          @click="mobileSearchOpen = !mobileSearchOpen"
+        >
+          <MagnifyingGlassIcon class="h-4 w-4" />
+        </button>
+        <button
+          v-if="isPWA"
+          type="button"
+          class="btn btn-circle btn-ghost btn-sm shrink-0"
+          :title="$t('refresh')"
+          @click="refreshPages"
+        >
+          <ArrowPathIcon class="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          class="btn btn-circle btn-ghost btn-sm shrink-0"
+          :title="$t('customizeSettingsPage')"
+          @click="customizationOpen = true"
+        >
+          <AdjustmentsHorizontalIcon class="h-4 w-4" />
+        </button>
       </div>
-    </template>
-    <div
-      v-else
-      class="mx-auto w-full max-w-3xl space-y-1 p-3 md:space-y-2 md:px-8 md:py-6"
+    </CtrlsBar>
+
+    <!-- 移动端先展示分类首页，组件仍在下方挂载以维护准确的可搜索项目索引。 -->
+    <main
+      v-if="showMobileIndex"
+      class="mx-auto w-full max-w-2xl p-3 pb-6"
+      :class="settingsPaneTransition === 'pop' && 'settings-pane-pop'"
+      @animationend.self="clearPaneAnimation"
     >
-      <div
-        v-for="item in menuItems"
-        :key="item.key"
-        :id="`item-${item.key}`"
-        :data-key="item.key"
-        class="settings-category mb-4 md:mb-6"
-        :class="settingsEditMode && isSettingHidden(item.key) ? 'settings-category--hidden' : ''"
-      >
-        <SettingsCategoryHeader :item="item" />
-        <div class="settings-category-body">
-          <component :is="item.component" />
-        </div>
+      <div class="mb-4 px-1 pt-2">
+        <h1 class="text-xl font-semibold tracking-tight">{{ $t('settings') }}</h1>
+        <p class="text-base-content/55 mt-1 text-sm">{{ $t('settingsPageDescription') }}</p>
       </div>
+
+      <div class="settings-grid">
+        <button
+          v-for="category in menuItems"
+          :key="category.key"
+          type="button"
+          class="setting-item hover:bg-base-200/60 w-full text-left transition-colors"
+          @click="selectSection(category.key)"
+        >
+          <span class="bg-base-200 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+            <component
+              :is="category.icon"
+              class="h-5 w-5"
+            />
+          </span>
+          <span class="min-w-0 flex-1 py-2">
+            <span class="block text-sm font-medium">
+              {{ $t(SETTINGS_MENU_LABELS[category.key]) }}
+            </span>
+            <span class="text-base-content/50 mt-0.5 block text-xs leading-5">
+              {{ $t(category.description) }}
+            </span>
+          </span>
+          <ChevronRightIcon class="h-4 w-4 shrink-0 opacity-35" />
+        </button>
+      </div>
+
+      <div
+        v-if="!menuItems.length"
+        class="text-base-content/50 p-8 text-center text-sm"
+      >
+        {{ $t('noVisibleSettingsCategories') }}
+      </div>
+    </main>
+
+    <div
+      v-show="!showMobileIndex"
+      class="mx-auto w-full"
+      :class="[
+        showSideNavigation
+          ? 'grid max-w-5xl grid-cols-[14rem_minmax(0,48rem)] gap-8 p-6'
+          : 'max-w-3xl p-3 md:p-6',
+        settingsPaneTransition === 'push' && 'settings-pane-push',
+      ]"
+      @animationend.self="clearPaneAnimation"
+    >
+      <aside
+        v-if="showSideNavigation"
+        class="sticky top-6 flex h-[calc(100dvh-3rem)] min-h-0 flex-col"
+      >
+        <div class="mb-4 px-2">
+          <h1 class="text-xl font-semibold tracking-tight">{{ $t('settings') }}</h1>
+        </div>
+
+        <SettingsSearch
+          class="mb-3"
+          @select="openSetting"
+          @customize="customizationOpen = true"
+        />
+
+        <nav
+          class="min-h-0 flex-1 space-y-1 overflow-y-auto"
+          :aria-label="$t('settingsCategory')"
+        >
+          <button
+            v-for="category in menuItems"
+            :key="category.key"
+            type="button"
+            class="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm transition-colors"
+            :class="
+              category.key === activeCategory?.key
+                ? 'bg-primary text-primary-content shadow-sm'
+                : 'hover:bg-base-100 text-base-content/65 hover:text-base-content'
+            "
+            :aria-current="category.key === activeCategory?.key ? 'page' : undefined"
+            @click="selectSection(category.key)"
+          >
+            <component
+              :is="category.icon"
+              class="h-5 w-5 shrink-0"
+            />
+            <span class="min-w-0 flex-1 truncate">
+              {{ $t(SETTINGS_MENU_LABELS[category.key]) }}
+            </span>
+            <ChevronRightIcon class="h-4 w-4 shrink-0 opacity-35" />
+          </button>
+        </nav>
+
+        <div class="mt-3 flex gap-2">
+          <button
+            type="button"
+            class="btn btn-sm flex-1"
+            @click="customizationOpen = true"
+          >
+            <AdjustmentsHorizontalIcon class="h-4 w-4" />
+            {{ $t('customize') }}
+          </button>
+          <button
+            v-if="isPWA"
+            type="button"
+            class="btn btn-circle btn-sm"
+            :title="$t('refresh')"
+            @click="refreshPages"
+          >
+            <ArrowPathIcon class="h-4 w-4" />
+          </button>
+        </div>
+      </aside>
+
+      <main class="min-w-0">
+        <header
+          v-if="activeCategory"
+          class="mb-5 px-1"
+        >
+          <div class="flex items-center gap-3">
+            <span
+              class="bg-base-100 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-xs"
+            >
+              <component
+                :is="activeCategory.icon"
+                class="h-6 w-6"
+              />
+            </span>
+            <div class="min-w-0">
+              <h2 class="text-xl font-semibold tracking-tight">
+                {{ $t(SETTINGS_MENU_LABELS[activeCategory.key]) }}
+              </h2>
+              <p class="text-base-content/50 mt-0.5 text-sm">
+                {{ $t(activeCategory.description) }}
+              </p>
+            </div>
+          </div>
+        </header>
+
+        <div
+          v-if="!activeCategory"
+          class="text-base-content/50 p-8 text-center text-sm"
+        >
+          {{ $t('noVisibleSettingsCategories') }}
+        </div>
+
+        <div
+          v-for="category in allCategoryComponents"
+          v-show="activeCategory?.key === category.key"
+          :key="category.key"
+          :data-category-key="category.key"
+        >
+          <component :is="category.component" />
+        </div>
+      </main>
     </div>
+
+    <SettingsCustomizationDialog v-model="customizationOpen" />
   </div>
 </template>
 
 <script setup lang="ts">
-import SettingsCtrl from '@/components/controls/SettingsCtrl.vue'
-import BackendSettings from '@/components/settings/backend/BackendSettings.vue'
-import ConnectionsSettings from '@/components/settings/connections/ConnectionsSettings.vue'
-import ZashboardSettings from '@/components/settings/general/ZashboardSettings.vue'
-import FiveGPNBotSettings from '@/components/settings/fivegpn/FiveGPNBotSettings.vue'
-import FiveGPNDnsSettings from '@/components/settings/fivegpn/FiveGPNDnsSettings.vue'
-import FiveGPNInterceptionSettings from '@/components/settings/fivegpn/FiveGPNInterceptionSettings.vue'
-import OverviewSettings from '@/components/settings/overview/OverviewSettings.vue'
-import ProxiesSettings from '@/components/settings/proxies/ProxiesSettings.vue'
-import SettingsCategoryHeader from '@/components/settings/SettingsCategoryHeader.vue'
 import { botSupported } from '@/assembly/fivegpn/bot'
 import { dnsSupported } from '@/assembly/fivegpn/dns'
 import { interceptionSupported } from '@/assembly/fivegpn/interception'
+import CtrlsBar from '@/components/common/CtrlsBar.vue'
+import SelectInput from '@/components/common/SelectInput.vue'
+import BackendSettings from '@/components/settings/backend/BackendSettings.vue'
+import ConnectionsSettings from '@/components/settings/connections/ConnectionsSettings.vue'
+import FiveGPNBotSettings from '@/components/settings/fivegpn/FiveGPNBotSettings.vue'
+import FiveGPNDnsSettings from '@/components/settings/fivegpn/FiveGPNDnsSettings.vue'
+import FiveGPNInterceptionSettings from '@/components/settings/fivegpn/FiveGPNInterceptionSettings.vue'
+import ZashboardSettings from '@/components/settings/general/ZashboardSettings.vue'
+import OverviewSettings from '@/components/settings/overview/OverviewSettings.vue'
+import ProxiesSettings from '@/components/settings/proxies/ProxiesSettings.vue'
+import SettingsCustomizationDialog from '@/components/settings/SettingsCustomizationDialog.vue'
+import SettingsSearch from '@/components/settings/SettingsSearch.vue'
 import { usePaddingForViews } from '@/composables/paddingViews'
-import {
-  applyMinimalPreset,
-  applyShowAllPreset,
-  isSettingHidden,
-  isSettingVisible,
-  settingsEditMode,
-} from '@/composables/settings'
+import { settingsPaneTransition } from '@/composables/pageTransition'
+import { useSettingsSection, visibleSectionKeys } from '@/composables/settingsSection'
+import { SETTINGS_CATEGORIES, SETTINGS_MENU_LABELS } from '@/config/settingsItems'
 import { SETTINGS_MENU_KEY } from '@/constant'
-import { isPWA } from '@/helper/utils'
-import { settingsMenuOrder, settingsPageTwoColumns } from '@/store/settings'
+import { isMiddleScreen, isPWA } from '@/helper/utils'
 import {
+  AdjustmentsHorizontalIcon,
   ArrowPathIcon,
   ArrowsRightLeftIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CubeTransparentIcon,
   GlobeAltIcon,
   HomeIcon,
+  MagnifyingGlassIcon,
   ServerIcon,
   ShieldCheckIcon,
   SignalIcon,
 } from '@heroicons/vue/24/outline'
 import { useElementSize } from '@vueuse/core'
-import { throttle } from 'lodash'
 import type { Component } from 'vue'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 
-type MenuItem = {
+type CategoryView = {
   key: SETTINGS_MENU_KEY
   label: string
+  description: string
   icon: Component
   component: Component
 }
 
-const { padding } = usePaddingForViews({
-  offsetTop: 0,
-  offsetBottom: 8,
-})
-
+const { t } = useI18n()
 const route = useRoute()
-
+const router = useRouter()
 const scrollContainerRef = ref<HTMLDivElement>()
 const { width } = useElementSize(scrollContainerRef)
-const twoColumnsAvailable = computed(() => width.value >= 1000)
-const isTwoColumns = computed(() => settingsPageTwoColumns.value && twoColumnsAvailable.value)
-const menuItems = computed<MenuItem[]>(() => {
-  const itemsMap = new Map<SETTINGS_MENU_KEY, MenuItem>([
-    [
-      SETTINGS_MENU_KEY.general,
-      {
-        key: SETTINGS_MENU_KEY.general,
-        label: 'zashboardSettings',
-        icon: HomeIcon,
-        component: ZashboardSettings,
-      },
-    ],
-    [
-      SETTINGS_MENU_KEY.overview,
-      {
-        key: SETTINGS_MENU_KEY.overview,
-        label: 'overviewSettings',
-        icon: CubeTransparentIcon,
-        component: OverviewSettings,
-      },
-    ],
-    [
-      SETTINGS_MENU_KEY.backend,
-      {
-        key: SETTINGS_MENU_KEY.backend,
-        label: 'backendSettings',
-        icon: ServerIcon,
-        component: BackendSettings,
-      },
-    ],
-    [
-      SETTINGS_MENU_KEY.proxies,
-      {
-        key: SETTINGS_MENU_KEY.proxies,
-        label: 'proxySettings',
-        icon: GlobeAltIcon,
-        component: ProxiesSettings,
-      },
-    ],
-    [
-      SETTINGS_MENU_KEY.connections,
-      {
-        key: SETTINGS_MENU_KEY.connections,
-        label: 'connectionSettings',
-        icon: ArrowsRightLeftIcon,
-        component: ConnectionsSettings,
-      },
-    ],
-  ])
+const { padding } = usePaddingForViews({ offsetTop: 0, offsetBottom: 8 })
 
-  // Likewise, show this only after capability discovery returns a positive result. This panel also
-  // requires the engine to be installed. A 5gpn core may fail to load the interception document;
-  // then it returns 503 and the panel explains why instead of rendering interception as disabled.
-  // Same gate as the pages: only once capability discovery has said yes. The
-  // panel edits the resolver's document, so offering it against a core that
-  // does not serve one would be a form that cannot save.
-  if (dnsSupported.value) {
-    itemsMap.set(SETTINGS_MENU_KEY.fivegpnDns, {
-      key: SETTINGS_MENU_KEY.fivegpnDns,
-      label: 'fivegpnDnsSettings',
-      icon: SignalIcon,
-      component: FiveGPNDnsSettings,
-    })
-  }
+const customizationOpen = ref(false)
+const mobileSearchOpen = ref(false)
+const showSideNavigation = computed(() => !isMiddleScreen.value && width.value >= 900)
+const {
+  sectionKey: routeSection,
+  enterSection,
+  exitSection,
+  enteredFromMobileIndex,
+} = useSettingsSection()
 
-  if (interceptionSupported.value) {
-    itemsMap.set(SETTINGS_MENU_KEY.fivegpnInterception, {
-      key: SETTINGS_MENU_KEY.fivegpnInterception,
-      label: 'fivegpnInterceptionSettings',
-      icon: ShieldCheckIcon,
-      component: FiveGPNInterceptionSettings,
-    })
-  }
-
-  // Likewise, show the bot only after capability discovery returns a positive result. The bot and
-  // interception are independent subsystems: a gateway may have either one without the other.
-  if (botSupported.value) {
-    itemsMap.set(SETTINGS_MENU_KEY.fivegpnBot, {
-      key: SETTINGS_MENU_KEY.fivegpnBot,
-      label: 'fivegpnBotSettings',
-      icon: ShieldCheckIcon,
-      component: FiveGPNBotSettings,
-    })
-  }
-
-  // Sort by settingsMenuOrder and filter hidden items.
-  // settingsMenuOrder is persisted, so older records do not contain newly added categories. Append
-  // entries present in itemsMap but absent from the order, or new categories would never appear.
-  const order = [...settingsMenuOrder.value]
-  for (const key of itemsMap.keys()) {
-    if (!order.includes(key)) order.push(key)
-  }
-  return order
-    .map((key) => itemsMap.get(key))
-    .filter((item): item is MenuItem => item !== undefined && isSettingVisible(item.key))
-})
-const activeMenuKey = ref<SETTINGS_MENU_KEY>(menuItems.value[0]?.key || SETTINGS_MENU_KEY.general)
-
-const columnAssignment = ref<number[]>(menuItems.value.map((_, i) => i % 2))
-
-const rebalanceColumns = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 0)) // Wait for the DOM update.
-  const colHeights = [0, 0]
-  columnAssignment.value = menuItems.value.map((item) => {
-    const el = document.getElementById(`item-${item.key}`)
-    const h = el?.offsetHeight ?? 0
-    const col = colHeights[0] <= colHeights[1] ? 0 : 1
-    colHeights[col] += h
-    return col
-  })
+const clearPaneAnimation = () => {
+  settingsPaneTransition.value = ''
 }
 
-watch(menuItems, () => {
-  columnAssignment.value = menuItems.value.map((_, i) => i % 2)
-  rebalanceColumns()
-})
-
-watch(isTwoColumns, rebalanceColumns)
-
-// If menuItems changes and hides the active item, switch to the first visible item.
-watch(
-  menuItems,
-  (newItems) => {
-    if (newItems.length > 0) {
-      if (!newItems.find((item) => item.key === activeMenuKey.value)) {
-        activeMenuKey.value = newItems[0].key
-      }
-    }
+const categoryPresentation: Record<SETTINGS_MENU_KEY, { icon: Component; component: Component }> = {
+  [SETTINGS_MENU_KEY.general]: { icon: HomeIcon, component: ZashboardSettings },
+  [SETTINGS_MENU_KEY.overview]: { icon: CubeTransparentIcon, component: OverviewSettings },
+  [SETTINGS_MENU_KEY.backend]: { icon: ServerIcon, component: BackendSettings },
+  [SETTINGS_MENU_KEY.proxies]: { icon: GlobeAltIcon, component: ProxiesSettings },
+  [SETTINGS_MENU_KEY.connections]: {
+    icon: ArrowsRightLeftIcon,
+    component: ConnectionsSettings,
   },
-  { immediate: true },
+  [SETTINGS_MENU_KEY.fivegpnDns]: { icon: SignalIcon, component: FiveGPNDnsSettings },
+  [SETTINGS_MENU_KEY.fivegpnInterception]: {
+    icon: ShieldCheckIcon,
+    component: FiveGPNInterceptionSettings,
+  },
+  [SETTINGS_MENU_KEY.fivegpnBot]: { icon: ShieldCheckIcon, component: FiveGPNBotSettings },
+}
+
+// 5gpn 的三个分类只在能力发现返回肯定结果后才出现，和对应页面用的是同一道闸：
+// DNS 面板改的是解析器文档，对着不提供文档的内核开表单等于打开一个存不了的表；
+// 拦截面板还要求引擎装好；Bot 与拦截是彼此独立的子系统，一台网关可能只有其中一个。
+// 这里连挂载一起挡掉（而不只是挡导航），否则组件仍会随分类列表挂载并去拉状态。
+const isCategorySupported = (key: SETTINGS_MENU_KEY) => {
+  switch (key) {
+    case SETTINGS_MENU_KEY.fivegpnDns:
+      return dnsSupported.value
+    case SETTINGS_MENU_KEY.fivegpnInterception:
+      return interceptionSupported.value
+    case SETTINGS_MENU_KEY.fivegpnBot:
+      return botSupported.value
+    default:
+      return true
+  }
+}
+
+const allCategoryComponents = computed<CategoryView[]>(() =>
+  SETTINGS_CATEGORIES.filter((category) => isCategorySupported(category.key)).map((category) => ({
+    ...category,
+    ...categoryPresentation[category.key],
+  })),
 )
-const getItemRef = (key: SETTINGS_MENU_KEY) => {
-  return document.getElementById(`item-${key}`)
-}
 
-const isTriggerByClick = ref(false)
-const timeoutId = ref<number>()
-
-const flashElement = (el: HTMLElement) => {
-  el.classList.remove('highlight-flash')
-  el.classList.add('highlight-flash')
-  el.addEventListener('animationend', () => el.classList.remove('highlight-flash'), { once: true })
-}
-
-const handleMenuClick = (key: SETTINGS_MENU_KEY) => {
-  activeMenuKey.value = key
-
-  const index = menuItems.value.findIndex((item) => item.key === key)
-  if (index !== -1) {
-    isTriggerByClick.value = true
-    clearTimeout(timeoutId.value)
-    timeoutId.value = setTimeout(() => {
-      isTriggerByClick.value = false
-    }, 1000)
-    const element = getItemRef(key)
-    if (element && scrollContainerRef.value) {
-      const containerRect = scrollContainerRef.value.getBoundingClientRect()
-      const elementRect = element.getBoundingClientRect()
-      const scrollTop = scrollContainerRef.value.scrollTop
-      const targetScrollTop = scrollTop + elementRect.top - containerRect.top - 54
-
-      scrollContainerRef.value.scrollTo({
-        top: targetScrollTop,
-        behavior: 'smooth',
-      })
-
-      if (isTwoColumns.value) {
-        setTimeout(() => flashElement(element), 300)
-      }
-    }
-  }
-}
-
-const scrollTop = ref(0)
-const updateActiveMenuByScroll = () => {
-  if (!scrollContainerRef.value || isTriggerByClick.value || isTwoColumns.value) return
-
-  const containerRect = scrollContainerRef.value.getBoundingClientRect()
-  const newScrollTop = scrollContainerRef.value.scrollTop
-  const scrollingDown = newScrollTop > scrollTop.value
-  const containerTop = containerRect.top
-  const containerBottom = containerRect.bottom
-  const containerHeight = containerRect.height
-
-  let bestKey: SETTINGS_MENU_KEY | null = null
-  let bestScore = -Infinity
-
-  menuItems.value.forEach((item) => {
-    const element = getItemRef(item.key)
-    if (!element) return
-
-    const elementRect = element.getBoundingClientRect()
-    const visibleTop = Math.max(elementRect.top, containerTop)
-    const visibleBottom = Math.min(elementRect.bottom, containerBottom)
-    const visibleHeight = Math.max(0, visibleBottom - visibleTop)
-
-    if (visibleHeight <= 0) return
-
-    // Visible fraction of the element itself, which favors smaller elements.
-    const selfRatio = visibleHeight / elementRect.height
-    // Fraction of the container's visible area occupied by the element.
-    const containerRatio = visibleHeight / containerHeight
-    // Combined score: prioritize the element's own visible fraction, then its container share.
-    // A fully visible small element has selfRatio=1 and therefore receives a high score.
-    let score = selfRatio + containerRatio * 0.4
-
-    // Directional preference: favor the element about to enter the viewport.
-    const elementCenter = (visibleTop + visibleBottom) / 2
-    const referencePoint = containerTop + containerHeight * (scrollingDown ? 0.6 : 0.4)
-    const normalizedDistance = Math.abs(elementCenter - referencePoint) / containerHeight
-    score -= normalizedDistance * 0.2
-
-    if (score > bestScore) {
-      bestScore = score
-      bestKey = item.key
-    }
+const menuItems = computed(() => {
+  return visibleSectionKeys.value.flatMap((key) => {
+    const category = allCategoryComponents.value.find((item) => item.key === key)
+    return category ? [category] : []
   })
+})
 
-  if (bestKey && bestKey !== activeMenuKey.value) {
-    activeMenuKey.value = bestKey
+const activeCategory = computed(() => {
+  const key = routeSection.value ?? (!isMiddleScreen.value ? menuItems.value[0]?.key : undefined)
+  return menuItems.value.find((item) => item.key === key)
+})
+
+const showMobileIndex = computed(() => isMiddleScreen.value && !routeSection.value)
+const categorySelectOptions = computed(() =>
+  menuItems.value.map((item) => ({
+    value: item.key,
+    label: t(SETTINGS_MENU_LABELS[item.key]),
+  })),
+)
+const narrowCategoryKey = computed({
+  get: () => activeCategory.value?.key ?? menuItems.value[0]?.key ?? SETTINGS_MENU_KEY.general,
+  set: (key: SETTINGS_MENU_KEY) => selectSection(key),
+})
+
+const normalizeQuery = async () => {
+  const legacy = route.query.scrollTo
+  if (typeof legacy !== 'string') return
+  if (!SETTINGS_CATEGORIES.some((category) => category.key === legacy)) return
+
+  const query: Record<string, string | string[] | null | undefined> = {
+    ...route.query,
+    section: legacy,
   }
-
-  scrollTop.value = newScrollTop
+  delete query.scrollTo
+  await router.replace({ query })
 }
 
-const handleScroll = throttle(updateActiveMenuByScroll, 100)
+const selectSection = async (key: SETTINGS_MENU_KEY, settingKey?: string) => {
+  await enterSection(key, settingKey)
+  if (!settingKey) scrollContainerRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const backToCategories = async () => {
+  mobileSearchOpen.value = false
+  await exitSection()
+  scrollContainerRef.value?.scrollTo({ top: 0 })
+}
+
+const revealSetting = async (settingKey: string) => {
+  await nextTick()
+  requestAnimationFrame(() => {
+    const element = document.getElementById(`setting-${settingKey}`)
+    if (!element || !scrollContainerRef.value) return
+
+    const containerRect = scrollContainerRef.value.getBoundingClientRect()
+    const elementRect = element.getBoundingClientRect()
+    const top = scrollContainerRef.value.scrollTop + elementRect.top - containerRect.top - 20
+    scrollContainerRef.value.scrollTo({ top, behavior: 'smooth' })
+    element.classList.remove('highlight-flash')
+    element.classList.add('highlight-flash')
+    element.addEventListener('animationend', () => element.classList.remove('highlight-flash'), {
+      once: true,
+    })
+    element.focus({ preventScroll: true })
+  })
+}
+
+const openSetting = async (category: SETTINGS_MENU_KEY, settingKey: string) => {
+  await selectSection(category, settingKey)
+  await revealSetting(settingKey)
+}
 
 const refreshPages = async () => {
   const registrations = await navigator.serviceWorker.getRegistrations()
-
-  for (const registration of registrations) {
-    registration.unregister()
-  }
+  for (const registration of registrations) registration.unregister()
   window.location.reload()
 }
 
-onUnmounted(() => {
-  settingsEditMode.value = false
+watch(
+  () => [route.query.section, route.query.setting, route.query.scrollTo, menuItems.value],
+  async () => {
+    if (route.query.scrollTo) {
+      await normalizeQuery()
+      return
+    }
+    const settingKey = route.query.setting
+    if (typeof settingKey === 'string' && routeSection.value) await revealSetting(settingKey)
+  },
+  { deep: true },
+)
+
+watch(routeSection, () => {
+  mobileSearchOpen.value = false
+  if (!routeSection.value) enteredFromMobileIndex.value = false
 })
 
-onMounted(() => {
-  rebalanceColumns()
-  requestAnimationFrame(async () => {
-    const scrollTo = route.query.scrollTo as SETTINGS_MENU_KEY
-    if (scrollTo) {
-      handleMenuClick(scrollTo)
-    }
-  })
-})
+watch(
+  () => [isMiddleScreen.value, routeSection.value, route.query.scrollTo, menuItems.value],
+  async () => {
+    if (isMiddleScreen.value || routeSection.value || route.query.scrollTo) return
+    const firstCategory = menuItems.value[0]
+    if (!firstCategory) return
+    await router.replace({
+      query: { ...route.query, section: firstCategory.key },
+    })
+  },
+  { deep: true, immediate: true },
+)
+
+onMounted(normalizeQuery)
 </script>

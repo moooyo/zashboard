@@ -3,9 +3,9 @@
 // store 直接引用这里导出的 logs / initLogs,不再参与组装。
 import { can, Channel, channel, core, Core } from '@/assembly/backend'
 import { LOG_LEVEL } from '@/constant'
+import { useStorage } from '@/helper/storage'
 import { activeBackend } from '@/store/setup'
 import type { LogWithSeq } from '@/types'
-import { useStorage } from '@vueuse/core'
 import { computed, ref, shallowRef, watch } from 'vue'
 import { createLogsAccumulator } from './accumulator'
 import * as clash from './clash'
@@ -16,13 +16,14 @@ export const isPaused = ref(false)
 export const bufferedLogCount = ref(0)
 export const logLevel = useStorage<string>('config/log-level', LOG_LEVEL.Info)
 
-// 各内核认的 /logs?level= 取值不同(mihomo 无 trace,honk 无 fatal/panic),
+// 各内核认的 /logs?level= 取值不同(mihomo 无 trace,honk 无 fatal/panic/silent),
 // 传了不认的级别会被直接 400,WS 随后陷入无限重连,所以逐档按能力表拼。
 export const supportedLogLevels = computed(() => {
   const levels = [LOG_LEVEL.Debug, LOG_LEVEL.Info, LOG_LEVEL.Warning, LOG_LEVEL.Error]
 
   if (can('traceLogLevel')) levels.unshift(LOG_LEVEL.Trace)
   if (can('extraLogLevels')) levels.push(LOG_LEVEL.Fatal, LOG_LEVEL.Panic)
+  if (can('silentLogLevel')) levels.push(LOG_LEVEL.Silent)
 
   return levels
 })
@@ -53,9 +54,7 @@ watch(
 )
 
 export const initLogs = () => {
-  cancel?.()
-  logs.value = []
-  bufferedLogCount.value = 0
+  stopLogs()
 
   const accumulator = createLogsAccumulator(
     logs,
@@ -74,10 +73,14 @@ export const initLogs = () => {
   }
 }
 
+// 结束流时一并丢掉日志与暂停缓冲计数。日志形态在累加器里已经归一化,不会像连接那样把渲染
+// 打崩(见 store/connections),但把上一个后端的日志留在屏幕上同样是错的 —— 新后端连不上时,
+// 它们会一直冒充新后端的日志。
 export const stopLogs = () => {
   cancel?.()
   cancel = undefined
   pauseAccumulator = undefined
   resumeAccumulator = undefined
   bufferedLogCount.value = 0
+  logs.value = []
 }

@@ -18,9 +18,11 @@ export type FiveGPNReviewContract = typeof FIVEGPN_REVIEW_CONTRACT
  * bearer, one-time ticket, handoff session, and dual-origin model have all been
  * removed, so there is no second credential here.
  *
- * These paths are listed in ignoreNotificationUrls in api/http.ts, which only
- * suppresses expected toasts. HTTP failures still reject consistently and
- * callers classify the AxiosError where a status has product meaning.
+ * The response interceptor in api/http.ts no longer toasts failures at all —
+ * whether to bother the user is decided by the calling layer (see
+ * helper/requestError.ts), so probing these paths against a stock core is
+ * silent by construction. HTTP failures still reject consistently and callers
+ * classify the AxiosError where a status has product meaning.
  */
 
 export type FeatureDescriptor = {
