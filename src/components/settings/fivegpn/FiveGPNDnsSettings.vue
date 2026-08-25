@@ -15,7 +15,7 @@
          from status would briefly blank the entire section while the draft may contain unsaved edits. -->
     <template v-if="draft">
       <div
-        class="border-base-content/10 bg-base-100/95 sticky top-2 z-20 mb-3 rounded-box border p-3 shadow-lg backdrop-blur"
+        class="border-base-content/10 bg-base-100/95 rounded-box sticky top-2 z-20 mb-3 border p-3 shadow-lg backdrop-blur"
       >
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div
@@ -31,7 +31,7 @@
             </div>
             <div
               v-if="saveStateDetail"
-              class="mt-1 break-words text-xs opacity-70"
+              class="mt-1 text-xs break-words opacity-70"
             >
               {{ saveStateDetail }}
             </div>
@@ -73,27 +73,27 @@
         class="contents"
         :disabled="saving"
       >
-      <div class="settings-section-label">{{ $t('fivegpnDnsPolicy') }}</div>
-      <div class="settings-grid">
-        <SettingItem :setting-key="k.fivegpnDnsFallback">
-          <div class="setting-item-label">
-            {{ $t('fivegpnFallback') }}
-            <QuestionMarkCircleIcon
-              class="h-4 w-4 cursor-pointer"
-              @mouseenter="showTip($event, $t(FALLBACK_HINT[draft.policy.fallback]))"
-            />
-          </div>
-          <select
-            v-model="draft.policy.fallback"
-            class="select select-sm w-32"
-          >
-            <option value="auto">{{ $t('fivegpnFallbackAuto') }}</option>
-            <option value="direct">{{ $t('fivegpnFallbackDirect') }}</option>
-            <option value="gateway">{{ $t('fivegpnFallbackGateway') }}</option>
-          </select>
-        </SettingItem>
+        <div class="settings-section-label">{{ $t('fivegpnDnsPolicy') }}</div>
+        <div class="settings-grid">
+          <SettingItem :setting-key="k.fivegpnDnsFallback">
+            <div class="setting-item-label">
+              {{ $t('fivegpnFallback') }}
+              <QuestionMarkCircleIcon
+                class="h-4 w-4 cursor-pointer"
+                @mouseenter="showTip($event, $t(FALLBACK_HINT[draft.policy.fallback]))"
+              />
+            </div>
+            <select
+              v-model="draft.policy.fallback"
+              class="select select-sm w-32"
+            >
+              <option value="auto">{{ $t('fivegpnFallbackAuto') }}</option>
+              <option value="direct">{{ $t('fivegpnFallbackDirect') }}</option>
+              <option value="gateway">{{ $t('fivegpnFallbackGateway') }}</option>
+            </select>
+          </SettingItem>
 
-        <!-- Rules form one ordered list, not one control per row. The full list is evaluated once,
+          <!-- Rules form one ordered list, not one control per row. The full list is evaluated once,
              first match wins across intents, so relative order is part of the semantics. Separate
              setting rows would erase that ordering. Follow zashboard's list-valued setting pattern:
              show a count in one row and edit it in a dialog, just like source IP labels.
@@ -101,131 +101,133 @@
              This dialog contains only manually entered rules. A subscription is also a rule in the
              data model, but the row below owns it. Two entry points editing the same rule was the
              hardest behavior to explain in the previous version. -->
-        <SettingItem :setting-key="k.fivegpnDnsRules">
-          <div class="setting-item-label">
-            {{ $t('fivegpnDnsRules') }}
-            <template v-if="handRules.length"> ({{ handRules.length }}) </template>
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="rulesDialog = true"
-          >
-            <PencilSquareIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
+          <SettingItem :setting-key="k.fivegpnDnsRules">
+            <div class="setting-item-label">
+              {{ $t('fivegpnDnsRules') }}
+              <template v-if="handRules.length"> ({{ handRules.length }}) </template>
+            </div>
+            <button
+              class="btn btn-sm"
+              @click="rulesDialog = true"
+            >
+              <PencilSquareIcon class="h-4 w-4" />
+            </button>
+          </SettingItem>
 
-        <!-- A subscription is a kind=subscription rule in the data model, but it has its own row and
+          <!-- A subscription is a kind=subscription rule in the data model, but it has its own row and
              dialog. Which lists are subscribed, how many entries were fetched, and whether fetching
              failed is a separate concern, not incidental information while editing another rule.
              The core evaluates all manual rules before subscriptions, so each list needs only its
              own ordering rather than a shared index across both lists. -->
-        <SettingItem :setting-key="k.fivegpnDnsSubscriptions">
-          <div class="setting-item-label">
-            {{ $t('fivegpnDnsSubscriptions') }}
-            <template v-if="subscriptionRules.length"> ({{ subscriptionRules.length }}) </template>
-            <span
-              v-if="failedSubscriptions > 0"
-              class="badge badge-error badge-xs"
-              >{{ failedSubscriptions }}</span
+          <SettingItem :setting-key="k.fivegpnDnsSubscriptions">
+            <div class="setting-item-label">
+              {{ $t('fivegpnDnsSubscriptions') }}
+              <template v-if="subscriptionRules.length">
+                ({{ subscriptionRules.length }})
+              </template>
+              <span
+                v-if="failedSubscriptions > 0"
+                class="badge badge-error badge-xs"
+                >{{ failedSubscriptions }}</span
+              >
+            </div>
+            <button
+              class="btn btn-sm"
+              @click="subsDialog = true"
             >
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="subsDialog = true"
-          >
-            <PencilSquareIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
-      </div>
+              <PencilSquareIcon class="h-4 w-4" />
+            </button>
+          </SettingItem>
+        </div>
 
-      <div class="settings-section-label">{{ $t('fivegpnDnsUpstreams') }}</div>
-      <div class="settings-grid">
-        <SettingItem :setting-key="k.fivegpnDnsGateway">
-          <div class="setting-item-label">{{ $t('fivegpnGateway') }}</div>
-          <div class="min-w-0 text-right">
-            <span class="block break-all font-mono text-sm">{{ draft.gateway || '—' }}</span>
-            <span class="block text-xs opacity-70">{{ $t('fivegpnGatewayHint') }}</span>
-          </div>
-        </SettingItem>
+        <div class="settings-section-label">{{ $t('fivegpnDnsUpstreams') }}</div>
+        <div class="settings-grid">
+          <SettingItem :setting-key="k.fivegpnDnsGateway">
+            <div class="setting-item-label">{{ $t('fivegpnGateway') }}</div>
+            <div class="min-w-0 text-right">
+              <span class="block font-mono text-sm break-all">{{ draft.gateway || '—' }}</span>
+              <span class="block text-xs opacity-70">{{ $t('fivegpnGatewayHint') }}</span>
+            </div>
+          </SettingItem>
 
-        <SettingItem :setting-key="k.fivegpnDnsChina">
-          <div class="setting-item-label">
-            {{ $t('fivegpnChinaGroup') }}
-            <template v-if="draft.upstreams.china?.length">
-              ({{ draft.upstreams.china.length }})
-            </template>
-            <QuestionMarkCircleIcon
-              class="h-4 w-4 cursor-pointer"
-              @mouseenter="showTip($event, $t('fivegpnUpstreamGrammar'))"
+          <SettingItem :setting-key="k.fivegpnDnsChina">
+            <div class="setting-item-label">
+              {{ $t('fivegpnChinaGroup') }}
+              <template v-if="draft.upstreams.china?.length">
+                ({{ draft.upstreams.china.length }})
+              </template>
+              <QuestionMarkCircleIcon
+                class="h-4 w-4 cursor-pointer"
+                @mouseenter="showTip($event, $t('fivegpnUpstreamGrammar'))"
+              />
+            </div>
+            <button
+              class="btn btn-sm"
+              @click="chinaDialog = true"
+            >
+              <PencilSquareIcon class="h-4 w-4" />
+            </button>
+          </SettingItem>
+
+          <SettingItem :setting-key="k.fivegpnDnsTrust">
+            <div class="setting-item-label">
+              {{ $t('fivegpnTrustGroup') }}
+              <template v-if="draft.upstreams.trust?.length">
+                ({{ draft.upstreams.trust.length }})
+              </template>
+              <QuestionMarkCircleIcon
+                class="h-4 w-4 cursor-pointer"
+                @mouseenter="showTip($event, $t('fivegpnUpstreamGrammar'))"
+              />
+            </div>
+            <button
+              class="btn btn-sm"
+              @click="trustDialog = true"
+            >
+              <PencilSquareIcon class="h-4 w-4" />
+            </button>
+          </SettingItem>
+
+          <SettingItem :setting-key="k.fivegpnDnsEcs">
+            <div class="setting-item-label">
+              {{ $t('fivegpnEcs') }}
+              <QuestionMarkCircleIcon
+                class="h-4 w-4 cursor-pointer"
+                @mouseenter="showTip($event, $t('fivegpnEcsHint'))"
+              />
+            </div>
+            <input
+              v-model="draft.upstreams.ecs"
+              class="input input-sm w-44"
+              placeholder="112.96.32.0/24"
             />
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="chinaDialog = true"
-          >
-            <PencilSquareIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
+          </SettingItem>
+        </div>
 
-        <SettingItem :setting-key="k.fivegpnDnsTrust">
-          <div class="setting-item-label">
-            {{ $t('fivegpnTrustGroup') }}
-            <template v-if="draft.upstreams.trust?.length">
-              ({{ draft.upstreams.trust.length }})
-            </template>
-            <QuestionMarkCircleIcon
-              class="h-4 w-4 cursor-pointer"
-              @mouseenter="showTip($event, $t('fivegpnUpstreamGrammar'))"
-            />
-          </div>
-          <button
-            class="btn btn-sm"
-            @click="trustDialog = true"
-          >
-            <PencilSquareIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
+        <div class="settings-section-label">{{ $t('fivegpnDnsDiagnose') }}</div>
+        <div class="settings-grid">
+          <SettingItem :setting-key="k.fivegpnDnsResolve">
+            <div class="setting-item-label">{{ $t('fivegpnResolveTest') }}</div>
+            <button
+              class="btn btn-sm"
+              @click="probeDialog = true"
+            >
+              <MagnifyingGlassIcon class="h-4 w-4" />
+            </button>
+          </SettingItem>
 
-        <SettingItem :setting-key="k.fivegpnDnsEcs">
-          <div class="setting-item-label">
-            {{ $t('fivegpnEcs') }}
-            <QuestionMarkCircleIcon
-              class="h-4 w-4 cursor-pointer"
-              @mouseenter="showTip($event, $t('fivegpnEcsHint'))"
-            />
-          </div>
-          <input
-            v-model="draft.upstreams.ecs"
-            class="input input-sm w-44"
-            placeholder="112.96.32.0/24"
-          />
-        </SettingItem>
-      </div>
+          <SettingItem :setting-key="k.fivegpnDnsFlush">
+            <div class="setting-item-label">{{ $t('fivegpnDnsFlush') }}</div>
+            <button
+              class="btn btn-sm"
+              @click="flushCache"
+            >
+              {{ $t('fivegpnFlushCache') }}
+            </button>
+          </SettingItem>
+        </div>
 
-      <div class="settings-section-label">{{ $t('fivegpnDnsDiagnose') }}</div>
-      <div class="settings-grid">
-        <SettingItem :setting-key="k.fivegpnDnsResolve">
-          <div class="setting-item-label">{{ $t('fivegpnResolveTest') }}</div>
-          <button
-            class="btn btn-sm"
-            @click="probeDialog = true"
-          >
-            <MagnifyingGlassIcon class="h-4 w-4" />
-          </button>
-        </SettingItem>
-
-        <SettingItem :setting-key="k.fivegpnDnsFlush">
-          <div class="setting-item-label">{{ $t('fivegpnDnsFlush') }}</div>
-          <button
-            class="btn btn-sm"
-            @click="flushCache"
-          >
-            {{ $t('fivegpnFlushCache') }}
-          </button>
-        </SettingItem>
-      </div>
-
-      <!--
+        <!--
         The statistics section was removed because it was a textual copy of the overview charts:
         the same numbers appeared twice, and this version showed no trend. Query totals, cache
         hits/lookups/entries, and both upstream groups are already on the card. "Routed to gateway"
@@ -233,9 +235,7 @@
         chart already separates the two causes. "Loaded CN ranges" was the only non-statistic: it is
         the foundation of arbitration, and zero would classify the entire Chinese internet as foreign.
         It therefore moved to the persistent card instead of sitting beside duplicated numbers here.
-      -->
-      </fieldset>
-
+      --></fieldset>
     </template>
   </CardState>
 
@@ -411,8 +411,8 @@
           {{ $t('fivegpnSubAdd') }}
         </button>
         <!-- The core seeds these two entries on a fresh gateway, but not when a document already
-             exists. Defaults apply only to a missing document, which is why the extension catalog
-             originally went blank immediately after release on every existing host. Provide an
+             exists. Defaults apply only to a missing document, so an upgraded host silently keeps
+             an empty subscription list while a fresh one looks fully configured. Provide an
              explicit button instead of silently rewriting operator policy during an upgrade. -->
         <button
           class="btn btn-sm w-fit"

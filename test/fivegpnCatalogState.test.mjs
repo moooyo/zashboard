@@ -17,10 +17,7 @@ test('marketplace renders current entries as a disabled up-to-date action', () =
   )
 
   assert.match(source, /catalogInstallState\(entry\) === 'current'/u)
-  assert.match(
-    source,
-    /reviewing \|\| sourceBusy \|\| catalogInstallState\(entry\) === 'current'/u,
-  )
+  assert.match(source, /reviewing \|\| catalogInstallState\(entry\) === 'current'/u)
   assert.match(source, /\$t\('fivegpnUpToDate'\)/u)
   assert.match(source, /\$t\('fivegpnUpdateAvailable'\)/u)
 

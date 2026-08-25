@@ -5,7 +5,7 @@ import {
 } from './fivegpnInterceptionSettings'
 import './http'
 
-export const FIVEGPN_REVIEW_CONTRACT = 7 as const
+export const FIVEGPN_REVIEW_CONTRACT = 8 as const
 export type FiveGPNReviewContract = typeof FIVEGPN_REVIEW_CONTRACT
 
 /**
@@ -421,8 +421,9 @@ export const installExtensionAPI = (
  * The catalog is only a list of manifests and grants no permissions. Installing
  * an entry still follows review -> confirm digest -> install, and the digest is
  * computed from a freshly fetched manifest rather than trusted from the catalog.
- * The catalog itself is never persisted, so it has no revision. Only the source
- * list is written, because that is operator-controlled state.
+ * The catalog itself is never persisted, so it has no revision. There is exactly
+ * one marketplace and its address is compiled into the core, so no part of this
+ * listing is operator-controlled state and nothing here is ever written back.
  */
 export type FiveGPNCatalogCapabilities = {
   captureHostCount: number
@@ -451,14 +452,15 @@ export type FiveGPNCatalogEntry = {
   installed_current?: boolean
 }
 
-export type FiveGPNCatalogSource = {
-  id: string
-  name?: string
+/**
+ * The one compiled-in marketplace, as the core reports it. There is no source
+ * list: no `id`, no operator alias, and no enabled flag, because the operator
+ * cannot add, rename, or disable a marketplace. `entries` is always an array —
+ * the Console reads `.length` off it — and `metadata` carries the index
+ * document's own self-description, which is publisher-supplied, not local.
+ */
+export type FiveGPNCatalogView = {
   url: string
-  enabled: boolean
-}
-
-export type FiveGPNCatalogSourceView = FiveGPNCatalogSource & {
   /** Fetch failure reason. A last complete snapshot may remain visible beside this error. */
   error?: string
   fetched_at?: string
@@ -467,7 +469,7 @@ export type FiveGPNCatalogSourceView = FiveGPNCatalogSource & {
 }
 
 export type FiveGPNCatalogEnvelope = {
-  catalog: { sources: FiveGPNCatalogSourceView[] }
+  catalog: FiveGPNCatalogView
   revision: string
 }
 
@@ -527,11 +529,6 @@ export const fetchEngineLogsAPI = (
     timeout: 5000,
   })
 
-export const putCatalogSourcesAPI = (body: { revision: string; sources: FiveGPNCatalogSource[] }) =>
-  axios.put<FiveGPNInterceptionEnvelope>('/5gpn/interception/catalog/sources', body, {
-    timeout: 120000,
-  })
-
 /**
  * Review a catalog entry. The result is identical to reviewing a pasted URL,
  * and installation uses the same call. This path additionally verifies that
@@ -539,9 +536,9 @@ export const putCatalogSourcesAPI = (body: { revision: string; sources: FiveGPNC
  * match its labels. A mismatch is rejected here because the review page is
  * where the operator makes the decision.
  */
-export const reviewCatalogEntryAPI = (source: string, entry: string, signal?: AbortSignal) =>
+export const reviewCatalogEntryAPI = (entry: string, signal?: AbortSignal) =>
   axios.post<{ candidate: FiveGPNCandidate; url: string; revision: string }>(
-    `/5gpn/interception/catalog/${encodeURIComponent(source)}/entries/${encodeURIComponent(entry)}/review`,
+    `/5gpn/interception/catalog/entries/${encodeURIComponent(entry)}/review`,
     {},
     { signal, timeout: 120000 },
   )
@@ -553,7 +550,6 @@ export const reviewCatalogEntryAPI = (source: string, entry: string, signal?: Ab
  * the only update flow.
  */
 export const applyCatalogUpdateAPI = (
-  source: string,
   entry: string,
   body: {
     revision: string
@@ -565,7 +561,7 @@ export const applyCatalogUpdateAPI = (
   signal?: AbortSignal,
 ) =>
   axios.post<FiveGPNInterceptionEnvelope>(
-    `/5gpn/interception/catalog/${encodeURIComponent(source)}/entries/${encodeURIComponent(entry)}/update`,
+    `/5gpn/interception/catalog/entries/${encodeURIComponent(entry)}/update`,
     body,
     { signal, timeout: 120000 },
   )

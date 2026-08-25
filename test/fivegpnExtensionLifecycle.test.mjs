@@ -63,15 +63,15 @@ test('flat coordinates support an omitted accuracy field with a local default', 
 })
 
 test('review confirmation accepts only the locally understood contract', () => {
-  assert.equal(reviewContractMatches(7, 7), true)
-  for (const value of [undefined, null, 6, 8, '7']) {
-    assert.equal(reviewContractMatches(value, 7), false)
+  assert.equal(reviewContractMatches(8, 8), true)
+  for (const value of [undefined, null, 7, 9, '8']) {
+    assert.equal(reviewContractMatches(value, 8), false)
   }
 
   let writes = 0
-  for (const value of [undefined, null, 6, 8, '7']) {
+  for (const value of [undefined, null, 7, 9, '8']) {
     assert.equal(
-      withReviewContract(value, 7, () => {
+      withReviewContract(value, 8, () => {
         writes += 1
         return 'written'
       }),
@@ -80,7 +80,7 @@ test('review confirmation accepts only the locally understood contract', () => {
   }
   assert.equal(writes, 0)
   assert.equal(
-    withReviewContract(7, 7, () => {
+    withReviewContract(8, 8, () => {
       writes += 1
       return 'written'
     }),
@@ -89,7 +89,7 @@ test('review confirmation accepts only the locally understood contract', () => {
   assert.equal(writes, 1)
 })
 
-test('interception v7 keeps installed, marketplace, and review responsibilities explicit', () => {
+test('interception v8 keeps installed, marketplace, and review responsibilities explicit', () => {
   const api = readFileSync(new URL('../src/api/fivegpn.ts', import.meta.url), 'utf8')
   const assembly = readFileSync(
     new URL('../src/assembly/fivegpn/interception.ts', import.meta.url),
@@ -156,9 +156,17 @@ test('interception v7 keeps installed, marketplace, and review responsibilities 
   assert.match(pendingProjection?.groups?.body ?? '', /certificate_pending/u)
   assert.match(pendingProjection?.groups?.body ?? '', /certificate\.status === 'pending'/u)
   assert.doesNotMatch(pendingProjection?.groups?.body ?? '', /armed/u)
-  assert.match(capabilities, /'5gpn-interception': 7/u)
-  assert.match(api, /FIVEGPN_REVIEW_CONTRACT = 7 as const/u)
+  assert.match(capabilities, /'5gpn-interception': 8/u)
+  assert.match(api, /FIVEGPN_REVIEW_CONTRACT = 8 as const/u)
   assert.match(assembly, /review_contract: FIVEGPN_REVIEW_CONTRACT/u)
+  // Nothing in the build compares these two numbers, so a Console that gates its
+  // routes on one version while sending the other builds and ships cleanly. Tie
+  // them together here: they are the same capability version.
+  const gatedVersion = capabilities.match(/'5gpn-interception': (?<version>\d+)/u)?.groups?.version
+  const sentVersion = api.match(
+    /FIVEGPN_REVIEW_CONTRACT = (?<version>\d+) as const/u,
+  )?.groups?.version
+  assert.equal(gatedVersion, sentVersion)
   assert.match(
     assembly,
     /putInterceptionOrderAPI\(\{[\s\S]*review_contract: FIVEGPN_REVIEW_CONTRACT/u,
@@ -206,7 +214,13 @@ test('interception v7 keeps installed, marketplace, and review responsibilities 
   assert.match(installedPage, /editingRevision/u)
   assert.match(installedPage, /candidateRevision/u)
 
-  assert.match(marketplacePage, /setCatalogSources\(sources, revision\)/u)
+  // There is one compiled-in marketplace. The Console cannot add, rename, alias,
+  // enable, or disable a source, so no source-writing surface may return here,
+  // and the index's own metadata is the only provenance the operator gets.
+  assert.doesNotMatch(
+    marketplacePage,
+    /setCatalogSources|putCatalogSources|catalogRevision|sourceFilter|addCatalogSource|removeCatalogSource|toggleCatalogSource/u,
+  )
   assert.match(marketplacePage, /catalogInstallState\(entry\) === 'current'/u)
   assert.match(marketplacePage, /reviewedURL\.value = result\.url/u)
   assert.match(marketplacePage, /applyCatalogUpdate[\s\S]*reviewedURL\.value/u)
@@ -220,7 +234,9 @@ test('interception v7 keeps installed, marketplace, and review responsibilities 
   )
   assert.match(marketplacePage, /:detail="reviewDetail"/u)
   assert.match(marketplacePage, /fivegpnReviewContractChanged/u)
-  assert.match(marketplacePage, /source\.name \|\| source\.id/u)
+  assert.match(marketplacePage, /catalog\.url/u)
+  assert.match(marketplacePage, /catalog\.metadata\?\.name \|\| catalog\.url/u)
+  assert.match(marketplacePage, /fivegpnCatalogFetchedAt/u)
 
   assert.match(editor, /conflictMessage/u)
   assert.match(editor, /location\.accuracy\.type === 'text' \? '25' : 25/u)

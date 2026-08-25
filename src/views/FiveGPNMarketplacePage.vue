@@ -6,8 +6,7 @@
     <div class="flex flex-col gap-3 p-3">
       <div
         v-if="notice"
-        class="alert"
-        :class="noticeIsError ? 'alert-error' : 'alert-success'"
+        class="alert alert-success"
       >
         {{ notice }}
       </div>
@@ -31,30 +30,6 @@
           />
         </div>
 
-        <div class="flex flex-wrap items-center gap-2">
-          <button
-            class="btn btn-xs"
-            :class="!sourceFilter ? 'btn-neutral' : 'btn-ghost'"
-            @click="sourceFilter = ''"
-          >
-            {{ $t('fivegpnMarketplaceAllSources') }}
-          </button>
-          <button
-            v-for="source in catalogSources"
-            :key="source.id"
-            class="btn btn-xs"
-            :class="sourceFilter === source.id ? 'btn-neutral' : 'btn-ghost'"
-            @click="sourceFilter = source.id"
-          >
-            {{ source.name || source.id }}
-            <span
-              v-if="source.name"
-              class="opacity-60"
-              >· {{ source.id }}</span
-            >
-          </button>
-        </div>
-
         <div class="flex flex-col gap-2 md:flex-row">
           <input
             v-model="marketplaceSearchInput"
@@ -72,47 +47,6 @@
             <option value="version">{{ $t('fivegpnMarketplaceSortVersion') }}</option>
           </select>
         </div>
-
-        <div class="border-base-300 flex flex-col gap-2 border-t pt-3">
-          <div class="flex flex-wrap items-end gap-2">
-            <label class="flex flex-col gap-1">
-              <span class="text-caption opacity-70">{{ $t('fivegpnCatalogSourceId') }}</span>
-              <input
-                v-model="newSourceId"
-                class="input input-sm input-bordered w-48"
-                placeholder="io.example.catalog"
-              />
-            </label>
-            <label class="flex min-w-64 flex-1 flex-col gap-1">
-              <span class="text-caption opacity-70">{{ $t('fivegpnCatalogSourceUrl') }}</span>
-              <input
-                v-model="newSourceUrl"
-                class="input input-sm input-bordered w-full"
-                placeholder="https://example.com/index.json"
-              />
-            </label>
-            <label class="flex flex-col gap-1">
-              <span class="text-caption opacity-70">{{ $t('fivegpnCatalogSourceName') }}</span>
-              <input
-                v-model="newSourceName"
-                class="input input-sm input-bordered w-48"
-              />
-            </label>
-            <button
-              class="btn btn-sm btn-primary"
-              :disabled="!canAddSource || sourceBusy"
-              @click="addCatalogSource"
-            >
-              {{ $t('fivegpnCatalogSourceAdd') }}
-            </button>
-          </div>
-          <div
-            v-if="sourceError"
-            class="alert alert-error py-2"
-          >
-            {{ sourceError }}
-          </div>
-        </div>
       </section>
 
       <div
@@ -122,66 +56,53 @@
         {{ catalogError }}
       </div>
 
+      <!-- One index, compiled into the core. Its own metadata and fetched time are the
+           only provenance an operator gets, because there is no local alias to name it
+           by, so they are rendered rather than merely typed. A failed refresh keeps the
+           last complete snapshot below and reports the failure beside it. -->
       <section
-        v-for="source in filteredSources"
-        :key="source.id"
+        v-if="catalog"
         class="base-container flex flex-col gap-3 p-3"
       >
-        <div class="flex flex-wrap items-center gap-2">
-          <div>
-            <h2 class="font-medium">{{ source.name || source.id }}</h2>
+        <div class="flex flex-wrap items-start gap-2">
+          <div class="min-w-0">
+            <h2 class="font-medium">{{ catalog.metadata?.name || catalog.url }}</h2>
+            <p class="text-caption break-all opacity-60">{{ catalog.url }}</p>
             <p
-              v-if="source.name"
-              class="text-caption opacity-60"
+              v-if="catalog.metadata?.description"
+              class="text-caption opacity-70"
             >
-              {{ source.id }}
+              {{ catalog.metadata.description }}
             </p>
+            <a
+              v-if="catalogHomepage"
+              :href="catalogHomepage"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="link text-caption block break-all opacity-70"
+              >{{ catalogHomepage }}</a
+            >
             <p
-              v-if="source.metadata?.name && source.metadata.name !== source.name"
+              v-if="catalogFetchedAt"
               class="text-caption opacity-60"
             >
-              {{ $t('fivegpnCatalogReportedName') }}: {{ source.metadata.name }}
+              {{ $t('fivegpnCatalogFetchedAt', { time: catalogFetchedAt }) }}
             </p>
           </div>
           <span
-            v-if="!source.enabled"
-            class="badge badge-ghost"
-            >{{ $t('fivegpnDisabled') }}</span
-          >
-          <span
-            v-else-if="source.error"
-            class="badge badge-error"
-            >{{ source.error }}</span
+            v-if="catalog.error"
+            class="badge badge-error ml-auto h-auto text-left whitespace-normal"
+            >{{ catalog.error }}</span
           >
           <span
             v-else
-            class="badge badge-ghost"
-            >{{ (source.entries ?? []).length }}</span
+            class="badge badge-ghost ml-auto"
+            >{{ catalogEntryCount }}</span
           >
-          <div class="ml-auto flex gap-2">
-            <button
-              class="btn btn-ghost btn-xs"
-              :disabled="sourceBusy"
-              @click="toggleCatalogSource(source.id)"
-            >
-              {{
-                source.enabled
-                  ? $t('fivegpnCatalogSourceDisable')
-                  : $t('fivegpnCatalogSourceEnable')
-              }}
-            </button>
-            <button
-              class="btn btn-ghost btn-xs text-error"
-              :disabled="sourceBusy"
-              @click="removeCatalogSource(source.id)"
-            >
-              {{ $t('fivegpnCatalogSourceRemove') }}
-            </button>
-          </div>
         </div>
 
         <article
-          v-for="entry in source.entries"
+          v-for="entry in filteredEntries"
           :key="entry.id"
           class="border-base-300 flex flex-col gap-2 border-t pt-3 md:flex-row md:items-center"
         >
@@ -209,8 +130,8 @@
           </div>
           <button
             class="btn btn-sm"
-            :disabled="reviewing || sourceBusy || catalogInstallState(entry) === 'current'"
-            @click="openReview(source.id, entry.id, Boolean(entry.installed_version))"
+            :disabled="reviewing || catalogInstallState(entry) === 'current'"
+            @click="openReview(entry.id, Boolean(entry.installed_version))"
           >
             {{
               catalogInstallState(entry) === 'current'
@@ -224,7 +145,7 @@
       </section>
 
       <p
-        v-if="catalogStatus === 'ready' && filteredEntryCount === 0"
+        v-if="catalogStatus === 'ready' && filteredEntries.length === 0"
         class="base-container p-4 text-center text-sm opacity-60"
       >
         {{ $t('fivegpnMarketplaceNoResults') }}
@@ -269,16 +190,14 @@ import { catalogInstallState } from '@/assembly/fivegpn/catalog'
 import {
   applyCatalogUpdate,
   cancelInterceptionInspection,
+  catalog,
   catalogError,
-  catalogRevision,
-  catalogSources,
   catalogStatus,
   installReviewed,
   interception,
   refreshCatalog,
   refreshInterception,
   reviewCatalogEntry,
-  setCatalogSources,
 } from '@/assembly/fivegpn/interception'
 import FiveGPNExtensionReviewDialog from '@/components/fivegpn/FiveGPNExtensionReviewDialog.vue'
 import { usePaddingForViews } from '@/composables/paddingViews'
@@ -289,29 +208,15 @@ import {
   type FiveGPNReviewChange,
 } from '@/helper/fivegpnExtensionReview'
 import { projectMarketplace, type MarketplaceSort } from '@/helper/marketplaceView'
-import {
-  activeBackendSession,
-  backendSessionIsCurrent,
-  captureBackendSession,
-} from '@/store/setup'
+import { activeBackendSession, backendSessionIsCurrent, captureBackendSession } from '@/store/setup'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { debounce } from 'lodash'
 
 const { t } = useI18n()
 const { padding } = usePaddingForViews({ offsetTop: 12, offsetBottom: 8 })
-const CATALOG_SOURCE_LIMIT = 16
-const SOURCE_ID_PATTERN = /^[a-z0-9](?:[a-z0-9.-]{1,126}[a-z0-9])$/
 
 const notice = ref('')
-const noticeIsError = ref(false)
-const newSourceId = ref('')
-const newSourceUrl = ref('')
-const newSourceName = ref('')
-const sourceError = ref('')
-const sourceBusy = ref(false)
-let sourceActionEpoch = 0
-const sourceFilter = ref('')
 const marketplaceSearchInput = ref('')
 const marketplaceSearch = ref('')
 const marketplaceSort = ref<MarketplaceSort>('catalog')
@@ -320,122 +225,48 @@ const commitMarketplaceSearch = debounce((value: string) => {
 }, 200)
 
 watch(marketplaceSearchInput, (value) => commitMarketplaceSearch(value))
-watch(catalogSources, (sources) => {
-  if (sourceFilter.value && !sources.some((source) => source.id === sourceFilter.value)) {
-    sourceFilter.value = ''
-  }
-})
 
-const filteredSources = computed(() =>
-  projectMarketplace(catalogSources.value, {
-    sourceID: sourceFilter.value,
+const filteredEntries = computed(() =>
+  projectMarketplace(catalog.value, {
     query: marketplaceSearch.value,
     sort: marketplaceSort.value,
   }),
 )
-const filteredEntryCount = computed(() =>
-  filteredSources.value.reduce((count, source) => count + source.entries.length, 0),
-)
-
-const validSourceId = (id: string) =>
-  id.length >= 3 && id.length <= 40 && SOURCE_ID_PATTERN.test(id)
-const validSourceUrl = (raw: string) => {
+const catalogEntryCount = computed(() => (catalog.value?.entries ?? []).length)
+/**
+ * The index document is fetched from the network, so its self-reported homepage
+ * is publisher-supplied text. Only an https URL is ever placed in an href.
+ */
+const catalogHomepage = computed(() => {
+  const raw = catalog.value?.metadata?.homepage
+  if (!raw) return ''
   try {
-    const url = new URL(raw)
-    return (
-      url.protocol === 'https:' &&
-      Boolean(url.hostname) &&
-      !url.username &&
-      !url.password &&
-      !url.hash
-    )
+    return new URL(raw).protocol === 'https:' ? raw : ''
   } catch {
-    return false
+    return ''
   }
+})
+const catalogFetchedAt = computed(() => {
+  const raw = catalog.value?.fetched_at
+  if (!raw) return ''
+  const parsed = new Date(raw)
+  return Number.isNaN(parsed.getTime()) ? raw : parsed.toLocaleString()
+})
+
+/**
+ * The page no longer writes marketplace state, so the only notice it raises is
+ * the success of a reviewed install or update. Review failures and conflicts
+ * are reported inside the dialog, where the decision was made.
+ */
+const reportSaved = () => {
+  notice.value = t('fivegpnSaved')
 }
-const canAddSource = computed(
-  () =>
-    catalogSources.value.length < CATALOG_SOURCE_LIMIT &&
-    validSourceId(newSourceId.value.trim()) &&
-    validSourceUrl(newSourceUrl.value.trim()),
-)
-const currentSources = () =>
-  catalogSources.value.map((source) => ({
-    id: source.id,
-    name: source.name ?? '',
-    url: source.url,
-    enabled: source.enabled,
-  }))
-const report = (error: string) => {
-  noticeIsError.value = Boolean(error)
-  notice.value = error === 'conflict' ? t('fivegpnConflict') : error || t('fivegpnSaved')
-}
-const writeSources = async (sources: ReturnType<typeof currentSources>) => {
-  const action = ++sourceActionEpoch
-  const session = captureBackendSession()
-  if (!session) {
-    sourceError.value = 'no backend'
-    return false
-  }
-  const stale = () => action !== sourceActionEpoch || !backendSessionIsCurrent(session)
-  const revision = catalogRevision.value
-  if (!revision) {
-    sourceError.value = t('fivegpnCatalogUnavailable')
-    return false
-  }
-  sourceBusy.value = true
-  sourceError.value = ''
-  const error = await setCatalogSources(sources, revision)
-  if (stale()) return false
-  report(error)
-  if (error) {
-    sourceError.value = error === 'conflict' ? t('fivegpnConflict') : error
-    if (error === 'conflict') {
-      await refreshCatalog()
-      if (stale()) return false
-    }
-    sourceBusy.value = false
-    return false
-  }
-  await refreshCatalog(true)
-  if (stale()) return false
-  sourceBusy.value = false
-  return true
-}
-const addCatalogSource = async () => {
-  const id = newSourceId.value.trim()
-  const url = newSourceUrl.value.trim()
-  const name = newSourceName.value.trim()
-  const sources = currentSources()
-  if (sources.some((source) => source.id === id)) {
-    sourceError.value = t('fivegpnCatalogSourceDuplicateId', { id })
-    return
-  }
-  if (sources.some((source) => source.url === url)) {
-    sourceError.value = t('fivegpnCatalogSourceDuplicateUrl', { url })
-    return
-  }
-  sources.push({ id, name, url, enabled: true })
-  if (await writeSources(sources)) {
-    newSourceId.value = ''
-    newSourceUrl.value = ''
-    newSourceName.value = ''
-  }
-}
-const removeCatalogSource = (id: string) =>
-  writeSources(currentSources().filter((source) => source.id !== id))
-const toggleCatalogSource = (id: string) =>
-  writeSources(
-    currentSources().map((source) =>
-      source.id === id ? { ...source, enabled: !source.enabled } : source,
-    ),
-  )
 
 const candidate = ref<FiveGPNCandidate | null>(null)
 const previousDetail = ref<FiveGPNModuleDetail | null>(null)
 const candidateRevision = ref('')
 const reviewedURL = ref('')
-const selection = ref<{ source: string; entry: string } | null>(null)
+const selection = ref('')
 const reviewOpen = ref(false)
 const reviewHistoryRestorable = ref(true)
 const reviewMode = ref<'install' | 'update'>('install')
@@ -458,7 +289,11 @@ const reviewDetail = computed(() => {
     : null
 })
 const candidateChanges = computed(() =>
-  extensionReviewChanges(previousDetail.value, candidate.value?.detail ?? null, candidate.value?.digest),
+  extensionReviewChanges(
+    previousDetail.value,
+    candidate.value?.detail ?? null,
+    candidate.value?.digest,
+  ),
 )
 const reviewExecutionPosition = computed(() => {
   const id = candidate.value?.detail.id
@@ -492,7 +327,7 @@ const resetReview = () => {
   previousDetail.value = null
   candidateRevision.value = ''
   reviewedURL.value = ''
-  selection.value = null
+  selection.value = ''
   reviewDraft.value = {}
   reviewError.value = ''
   reviewConflict.value = ''
@@ -524,7 +359,7 @@ const loadReview = async (reloading = false) => {
   const oldDraft = { ...reviewDraft.value }
   reviewLoading.value = true
   reviewError.value = ''
-  const result = await reviewCatalogEntry(target.source, target.entry)
+  const result = await reviewCatalogEntry(target)
   if (epoch !== inspectionEpoch || !backendSessionIsCurrent(session) || !reviewOpen.value) return
   reviewLoading.value = false
   if (result.error || !result.candidate || !result.revision || !result.url) {
@@ -560,12 +395,12 @@ const loadReview = async (reloading = false) => {
     reviewConflict.value = ''
   }
 }
-const openReview = async (source: string, entry: string, updating: boolean) => {
+const openReview = async (entry: string, updating: boolean) => {
   resetReview()
   reviewMode.value = updating ? 'update' : 'install'
   reviewHistoryRestorable.value = true
   reviewOpen.value = true
-  selection.value = { source, entry }
+  selection.value = entry
   await loadReview()
 }
 const retryReview = () => loadReview(false)
@@ -582,7 +417,10 @@ const confirmReview = async (values: Record<string, FiveGPNSettingValue>) => {
     reviewSubmitting.value ||
     !reviewContractMatches(reviewed.detail.review_contract, FIVEGPN_REVIEW_CONTRACT)
   ) {
-    if (reviewed && !reviewContractMatches(reviewed.detail.review_contract, FIVEGPN_REVIEW_CONTRACT)) {
+    if (
+      reviewed &&
+      !reviewContractMatches(reviewed.detail.review_contract, FIVEGPN_REVIEW_CONTRACT)
+    ) {
       candidate.value = null
       previousDetail.value = null
       candidateRevision.value = ''
@@ -597,8 +435,7 @@ const confirmReview = async (values: Record<string, FiveGPNSettingValue>) => {
   reviewSubmitting.value = true
   const error = previousDetail.value
     ? await applyCatalogUpdate(
-        target.source,
-        target.entry,
+        target,
         reviewed,
         reviewedURL.value,
         revision,
@@ -617,7 +454,7 @@ const confirmReview = async (values: Record<string, FiveGPNSettingValue>) => {
     reviewError.value = error
     return
   }
-  report('')
+  reportSaved()
   reviewResolvedMessage.value = t('fivegpnSaved')
   reviewOpen.value = false
   await refreshCatalog()
@@ -630,15 +467,8 @@ const loadPage = async () => {
 onMounted(() => void loadPage())
 watch(activeBackendSession, (session, previous) => {
   if (session?.epoch === previous?.epoch) return
-  sourceActionEpoch += 1
-  sourceBusy.value = false
-  sourceError.value = ''
   notice.value = ''
-  newSourceId.value = ''
-  newSourceUrl.value = ''
-  newSourceName.value = ''
   commitMarketplaceSearch.cancel()
-  sourceFilter.value = ''
   marketplaceSearchInput.value = ''
   marketplaceSearch.value = ''
   marketplaceSort.value = 'catalog'
@@ -650,8 +480,6 @@ watch(activeBackendSession, (session, previous) => {
   }
 })
 onUnmounted(() => {
-  sourceActionEpoch += 1
-  sourceBusy.value = false
   commitMarketplaceSearch.cancel()
   clearReview()
 })

@@ -1,8 +1,7 @@
 import type {
   FiveGPNCandidate,
   FiveGPNCaptureDNS,
-  FiveGPNCatalogSource,
-  FiveGPNCatalogSourceView,
+  FiveGPNCatalogView,
   FiveGPNInterception,
   FiveGPNInterceptionEnvelope,
   FiveGPNModuleDetail,
@@ -16,7 +15,6 @@ import {
   fetchExtensionAPI,
   fetchInterceptionAPI,
   installExtensionAPI,
-  putCatalogSourcesAPI,
   putExtensionCaptureDNSAPI,
   putExtensionEgressAPI,
   putExtensionEnabledAPI,
@@ -443,10 +441,14 @@ export const reviewExtension = async (source: {
  * extensions page from describing what is already installed. When the listing
  * is unavailable, installed extensions must still be readable, toggleable, and
  * removable.
+ *
+ * There is exactly one marketplace and its URL is compiled into the core, so
+ * this is a single view rather than an operator-owned list. Nothing here is
+ * written back, which is why the catalog carries no revision of its own; the
+ * revision returned beside it only cross-checks interception state.
  */
 export const catalogStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
-export const catalogSources = ref<FiveGPNCatalogSourceView[]>([])
-export const catalogRevision = ref('')
+export const catalog = ref<FiveGPNCatalogView | null>(null)
 export const catalogError = ref('')
 
 let catalogGeneration = 0
@@ -461,7 +463,6 @@ export const refreshCatalog = async (refresh = false) => {
 
   if (!session) {
     catalogStatus.value = 'idle'
-    catalogRevision.value = ''
     return
   }
   catalogStatus.value = 'loading'
@@ -470,17 +471,13 @@ export const refreshCatalog = async (refresh = false) => {
     const res = await fetchCatalogAPI(refresh, catalogController.signal)
     if (stale()) return
     const status = responseStatus(res)
-    const data = responseData<{
-      catalog: { sources: FiveGPNCatalogSourceView[] }
-      revision: string
-    }>(res)
+    const data = responseData<{ catalog: FiveGPNCatalogView; revision: string }>(res)
     if (status !== 200 || !data?.catalog) {
       catalogStatus.value = 'error'
       catalogError.value = messageOf(res) || `catalog returned ${status}`
       return
     }
-    catalogSources.value = data.catalog.sources ?? []
-    catalogRevision.value = data.revision
+    catalog.value = data.catalog
     catalogStatus.value = 'ready'
     if (data.revision !== interceptionRevision.value) await refreshInterception(true)
   } catch (e) {
@@ -489,9 +486,6 @@ export const refreshCatalog = async (refresh = false) => {
     catalogError.value = responseMessage(e) || (e instanceof Error ? e.message : String(e))
   }
 }
-
-export const setCatalogSources = (sources: FiveGPNCatalogSource[], expectedRevision: string) =>
-  write((revision) => putCatalogSourcesAPI({ revision, sources }), [200], expectedRevision)
 
 /**
  * Updating from a catalog entry changes the extension source to that entry's
@@ -502,7 +496,6 @@ export const setCatalogSources = (sources: FiveGPNCatalogSource[], expectedRevis
  * path is exposed by the Console.
  */
 export const applyCatalogUpdate = (
-  source: string,
   entry: string,
   candidate: FiveGPNCandidate,
   reviewedURL: string,
@@ -517,7 +510,6 @@ export const applyCatalogUpdate = (
       write(
         (revision) =>
           applyCatalogUpdateAPI(
-            source,
             entry,
             {
               ...catalogUpdateBody(revision, candidate, reviewedURL, values),
@@ -538,7 +530,6 @@ export const applyCatalogUpdate = (
  * the listing by the client, ensuring installation reads exactly what was reviewed.
  */
 export const reviewCatalogEntry = async (
-  source: string,
   entry: string,
 ): Promise<{
   candidate?: FiveGPNCandidate
@@ -550,7 +541,7 @@ export const reviewCatalogEntry = async (
   const context = inspectionContext()
   if (!context.session) return { error: 'no backend' }
   try {
-    const res = await reviewCatalogEntryAPI(source, entry, context.signal)
+    const res = await reviewCatalogEntryAPI(entry, context.signal)
     if (inspectionStale(context)) return { error: 'backend changed' }
     const status = responseStatus(res)
     const data = responseData<{ candidate: FiveGPNCandidate; url: string; revision: string }>(res)
@@ -660,8 +651,7 @@ export const stopInterception = () => {
   catalogController?.abort()
   catalogController = undefined
   catalogGeneration++
-  catalogSources.value = []
-  catalogRevision.value = ''
+  catalog.value = null
   catalogStatus.value = 'idle'
   catalogError.value = ''
 

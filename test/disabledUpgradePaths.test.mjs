@@ -102,3 +102,40 @@ test('no locale carries self-upgrade vocabulary', () => {
     }
   }
 })
+
+test('no locale carries operator-configured marketplace vocabulary', () => {
+  // 只有一个市场,地址编译进 Core,运营者不能增删改名或停用来源。
+  // check-i18n-keys-exist 只抓"用了但没有"的键,遗留在 zh/zh-tw/ru 里的孤儿键
+  // 会永远静默通过 —— 于是上游合并把这些键带回来时没人发现,下一次谁加个表单
+  // 就直接有现成翻译,边界就这么没了。键不在,任何复活的入口都会渲染出原始 key。
+  const removed = [
+    'fivegpnCatalog',
+    'fivegpnCatalogSourceId',
+    'fivegpnCatalogSourceUrl',
+    'fivegpnCatalogSourceName',
+    'fivegpnCatalogSourceAdd',
+    'fivegpnCatalogSourceRemove',
+    'fivegpnCatalogSourceEnable',
+    'fivegpnCatalogSourceDisable',
+    'fivegpnCatalogSourceDuplicateId',
+    'fivegpnCatalogSourceDuplicateUrl',
+    'fivegpnCatalogUnavailable',
+    'fivegpnCatalogReportedName',
+    'fivegpnMarketplaceAllSources',
+  ]
+
+  for (const locale of ['en', 'ru', 'zh', 'zh-tw']) {
+    const text = source(`src/i18n/${locale}.ts`)
+    for (const key of removed) {
+      assert.doesNotMatch(text, new RegExp(`^ {2}${key}:`, 'mu'), `${locale}.ts still defines ${key}`)
+    }
+  }
+
+  // 同样地,写入面被删掉之后不能从任何一层悄悄回来。
+  assert.doesNotMatch(source('src/api/fivegpn.ts'), /putCatalogSourcesAPI|FiveGPNCatalogSource\b/u)
+  assert.doesNotMatch(
+    source('src/assembly/fivegpn/interception.ts'),
+    /setCatalogSources|catalogSources|catalogRevision/u,
+  )
+  assert.doesNotMatch(source('src/api/fivegpn.ts'), /catalog\/sources/u)
+})

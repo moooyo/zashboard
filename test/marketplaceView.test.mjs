@@ -19,26 +19,55 @@ const entry = (id, overrides = {}) => ({
   capabilities: {},
   ...overrides,
 })
-const sources = [
-  { id: 'one', name: 'Local one', url: 'https://one.example', enabled: true, metadata: {}, entries: [entry('zulu'), entry('alpha', { tags: ['weather'] })] },
-  { id: 'two', name: 'Local two', url: 'https://two.example', enabled: true, metadata: {}, entries: [entry('beta', { description: 'Maps helper', version: '2.0.0' })] },
-]
+const catalog = {
+  url: 'https://moooyo.github.io/5gpn-extensions/marketplace/v2/index.json',
+  fetched_at: '2026-01-01T00:00:00Z',
+  metadata: { name: 'Official extensions' },
+  entries: [
+    entry('zulu'),
+    entry('alpha', { tags: ['weather'] }),
+    entry('beta', { description: 'Maps helper', version: '2.0.0' }),
+  ],
+}
 
-test('marketplace search covers truthful entry fields and source chips', () => {
-  const weather = projectMarketplace(sources, { sourceID: '', query: 'weather', sort: 'catalog' })
-  assert.deepEqual(weather.flatMap((source) => source.entries.map((item) => item.id)), ['alpha'])
-
-  const source = projectMarketplace(sources, { sourceID: 'two', query: '', sort: 'catalog' })
-  assert.deepEqual(source.map((item) => item.id), ['two'])
+test('marketplace search covers truthful entry fields', () => {
+  assert.deepEqual(
+    projectMarketplace(catalog, { query: 'weather', sort: 'catalog' }).map((item) => item.id),
+    ['alpha'],
+  )
+  assert.deepEqual(
+    projectMarketplace(catalog, { query: 'maps', sort: 'catalog' }).map((item) => item.id),
+    ['beta'],
+  )
+  assert.deepEqual(
+    projectMarketplace(catalog, { query: '', sort: 'catalog' }).map((item) => item.id),
+    ['zulu', 'alpha', 'beta'],
+  )
 })
 
 test('marketplace sort uses only catalog fields', () => {
-  const byName = projectMarketplace(sources, { sourceID: 'one', query: '', sort: 'name' })
-  assert.deepEqual(byName[0].entries.map((item) => item.id), ['alpha', 'zulu'])
+  assert.deepEqual(
+    projectMarketplace(catalog, { query: '', sort: 'name' }).map((item) => item.id),
+    ['alpha', 'beta', 'zulu'],
+  )
+  assert.deepEqual(
+    projectMarketplace(catalog, { query: '', sort: 'id' }).map((item) => item.id),
+    ['alpha', 'beta', 'zulu'],
+  )
 
-  const byVersion = projectMarketplace(sources, { sourceID: '', query: '', sort: 'version' })
-  assert.equal(byVersion[1].entries[0].version, '2.0.0')
-  assert.equal('popularity' in byVersion[1].entries[0], false)
+  const byVersion = projectMarketplace(catalog, { query: '', sort: 'version' })
+  assert.equal(byVersion.at(-1).version, '2.0.0')
+  assert.equal('popularity' in byVersion[0], false)
+})
+
+// One index means one unguarded dereference is enough to blank the page with no
+// error to explain it. A response without entries must project to nothing.
+test('an index that reports no entries projects empty instead of throwing', () => {
+  assert.deepEqual(projectMarketplace(null, { query: '', sort: 'catalog' }), [])
+  assert.deepEqual(
+    projectMarketplace({ ...catalog, entries: undefined }, { query: 'weather', sort: 'name' }),
+    [],
+  )
 })
 
 test('marketplace input debounces into a local effective query and cancels on unmount', () => {
@@ -46,6 +75,6 @@ test('marketplace input debounces into a local effective query and cancels on un
   assert.match(pageSource, /const marketplaceSearch = ref\(''\)/u)
   assert.match(pageSource, /debounce\(\(value: string\)[\s\S]*?\}, 200\)/u)
   assert.match(pageSource, /commitMarketplaceSearch\.cancel\(\)/u)
-  assert.match(pageSource, /v-for="source in filteredSources"/u)
+  assert.match(pageSource, /v-for="entry in filteredEntries"/u)
   assert.doesNotMatch(pageSource, /popularity|author|download_count/u)
 })

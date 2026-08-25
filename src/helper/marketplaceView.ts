@@ -1,4 +1,4 @@
-import type { FiveGPNCatalogEntry, FiveGPNCatalogSourceView } from '@/api/fivegpn'
+import type { FiveGPNCatalogEntry, FiveGPNCatalogView } from '@/api/fivegpn'
 
 export type MarketplaceSort = 'catalog' | 'name' | 'id' | 'version'
 
@@ -17,28 +17,29 @@ const sortEntries = (entries: FiveGPNCatalogEntry[], sort: MarketplaceSort) => {
   })
 }
 
+/**
+ * Project the one compiled-in index into the visible entry list.
+ *
+ * `entries` is guarded rather than dereferenced directly: with a single index,
+ * a response that omits the array would otherwise blank the whole page with no
+ * error to explain it.
+ */
 export const projectMarketplace = (
-  sources: FiveGPNCatalogSourceView[],
+  catalog: FiveGPNCatalogView | null,
   {
-    sourceID,
     query,
     sort,
   }: {
-    sourceID: string
     query: string
     sort: MarketplaceSort
   },
 ) => {
   const needle = query.trim().toLowerCase()
-  return sources
-    .filter((source) => !sourceID || source.id === sourceID)
-    .map((source) => {
-      const entries = source.entries.filter((entry) => {
-        if (!needle) return true
-        return [entry.name, entry.id, entry.description, ...(entry.tags ?? [])]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(needle))
-      })
-      return { ...source, entries: sortEntries(entries, sort) }
-    })
+  const entries = (catalog?.entries ?? []).filter((entry) => {
+    if (!needle) return true
+    return [entry.name, entry.id, entry.description, ...(entry.tags ?? [])]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(needle))
+  })
+  return sortEntries(entries, sort)
 }

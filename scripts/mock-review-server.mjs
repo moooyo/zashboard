@@ -19,7 +19,7 @@ const summary = {
 }
 const currentDetail = {
   ...summary,
-  review_contract: 7,
+  review_contract: 8,
   description: 'Removes tracking parameters from YouTube requests.',
   source_url: 'https://old.example.com/youtube.yaml',
   source_digest: 'f'.repeat(64),
@@ -51,7 +51,7 @@ const currentDetail = {
 }
 const candidateDetail = {
   ...summary,
-  review_contract: 7,
+  review_contract: 8,
   version: '1.5.0',
   source_url: 'https://example.com/youtube.yaml',
   snapshot_digest: '8f34'.padEnd(64, '0'),
@@ -123,34 +123,33 @@ const snapshot = () => ({
   certificate: { ready: true, loaded: true, covers_all_capture_hosts: true, status: 'ready' },
 })
 const catalog = () => ({
-  sources: [
+  url: 'https://moooyo.github.io/5gpn-extensions/marketplace/v2/index.json',
+  fetched_at: new Date().toISOString(),
+  metadata: {
+    id: 'io.5gpn.official',
+    name: 'Official extensions',
+    description: 'Extensions published for 5GPN gateways.',
+    homepage: 'https://moooyo.github.io/5gpn-extensions/',
+  },
+  entries: [
     {
-      id: 'io.5gpn.official',
-      name: 'Official extensions',
-      url: 'https://example.com/index.json',
-      enabled: true,
-      metadata: { name: 'Official extensions' },
-      entries: [
-        {
-          id: 'youtube.cleaner',
-          name: 'YouTube Cleaner',
-          version: '1.5.0',
-          description: 'Removes tracking parameters and ad routing.',
-          installed_version: '1.4.0',
-          installed_current: false,
-          manifest: { url: 'https://example.com/youtube.yaml', sha256: 'a'.repeat(64) },
-          capabilities: {
-            captureHostCount: 3,
-            actionCount: 2,
-            settingCount: 1,
-            network: true,
-            persistentStorage: true,
-            upstreamMappingCount: 0,
-            egressGroupRequired: false,
-            routingRuleCount: 2,
-          },
-        },
-      ],
+      id: 'youtube.cleaner',
+      name: 'YouTube Cleaner',
+      version: '1.5.0',
+      description: 'Removes tracking parameters and ad routing.',
+      installed_version: '1.4.0',
+      installed_current: false,
+      manifest: { url: 'https://example.com/youtube.yaml', sha256: 'a'.repeat(64) },
+      capabilities: {
+        captureHostCount: 3,
+        actionCount: 2,
+        settingCount: 1,
+        network: true,
+        persistentStorage: true,
+        upstreamMappingCount: 0,
+        egressGroupRequired: false,
+        routingRuleCount: 2,
+      },
     },
   ],
 })
@@ -172,7 +171,7 @@ const server = http.createServer((request, response) => {
   if (url.pathname === '/capabilities') {
     return send(response, 200, {
       controllerApi: '1',
-      features: { '5gpn-interception': { version: 7, owner: 'mihomo' } },
+      features: { '5gpn-interception': { version: 8, owner: 'mihomo' } },
     })
   }
   if (url.pathname === '/5gpn/interception') {
@@ -197,9 +196,7 @@ const server = http.createServer((request, response) => {
       ],
     })
   }
-  if (
-    url.pathname === '/5gpn/interception/catalog/io.5gpn.official/entries/youtube.cleaner/review'
-  ) {
+  if (url.pathname === '/5gpn/interception/catalog/entries/youtube.cleaner/review') {
     return setTimeout(
       () =>
         send(response, 200, {
@@ -217,7 +214,7 @@ const server = http.createServer((request, response) => {
   }
   if (
     request.method === 'POST' &&
-    url.pathname === '/5gpn/interception/catalog/io.5gpn.official/entries/youtube.cleaner/update'
+    url.pathname === '/5gpn/interception/catalog/entries/youtube.cleaner/update'
   ) {
     if (!conflictReturned) {
       conflictReturned = true

@@ -28,7 +28,7 @@ The full run requires this exact controller contract:
 | --- | --- | --- |
 | `controllerApi` | string `"1"` | Hide 5gpn management surfaces. |
 | `5gpn-dns` | version `2` | Hide DNS and Setup Guide routes. |
-| `5gpn-interception` | version `7` | Hide Extensions, Hosts, Marketplace, and Plugin Logs routes. |
+| `5gpn-interception` | version `8` | Hide Extensions, Hosts, Marketplace, and Plugin Logs routes. |
 | `5gpn-bot` | version `1`, optional | Show bot settings only when advertised. |
 
 Fetch `/capabilities` through the same authenticated origin the browser uses.
@@ -55,7 +55,7 @@ auth_curl --fail --silent --show-error \
 jq -e '
   .controllerApi == "1" and
   .features["5gpn-dns"].version == 2 and
-  .features["5gpn-interception"].version == 7 and
+  .features["5gpn-interception"].version == 8 and
   ((.features["5gpn-bot"] | not) or .features["5gpn-bot"].version == 1)
 ' capabilities.json
 grep -iEq '^cache-control:.*no-store' capabilities.headers
@@ -69,36 +69,21 @@ argument.
 
 ## Fixed acceptance data
 
-This repository owns two test fixtures:
+This repository owns one test fixture:
 
 | Fixture | LF byte size | SHA-256 |
 | --- | ---: | --- |
 | [`fixtures/console-acceptance-extension.yaml`](fixtures/console-acceptance-extension.yaml) | 984 | `4e8949892c81525c9d25fbbe67e8e2e86c38e481d4d94669f40af7d08413b92b` |
-| [`fixtures/marketplace-v2-e5c550c.json`](fixtures/marketplace-v2-e5c550c.json) | 4218 | `ca1f8e3f9115661893e40c7c42577f3f7f61c573d85f57a2058e101f58a568ff` |
-
-Serve the marketplace fixture unchanged from a controlled HTTPS fixture origin
-that the gateway is allowed to fetch. Verify the served bytes before adding the
-source in the Console:
-
-```bash
-FIXTURE_URL='https://fixtures.example.com/marketplace-v2-e5c550c.json'
-curl --fail --silent --show-error "${FIXTURE_URL}" -o marketplace.json
-printf '%s  %s\n' \
-  'ca1f8e3f9115661893e40c7c42577f3f7f61c573d85f57a2058e101f58a568ff' \
-  marketplace.json | sha256sum --check --strict
-```
-
-The marketplace snapshot contains three entries from extension revision
-`e5c550c46e819a06e078751ee9a245dda07bcbe7`. Every manifest URL names that
-40-character revision and every manifest has an explicit digest and size. Do
-not replace the fixture with the current GitHub Pages document, a raw `main`
-URL, or another branch tip. If any fixed URL or digest is unavailable, report
-the acceptance as blocked instead of silently selecting newer data.
 
 The synthetic extension is local-add data. Upload its exact bytes or paste the
 exact LF-normalized content. It has no network grant, no persistent storage,
 one capture host, one action, and a deterministic 204 response. Its only
 purpose is to exercise review layout and the in-memory plugin log view.
+
+The Marketplace has no fixture. There is exactly one marketplace and its URL is
+compiled into the Core, so it cannot be pointed at a controlled fixture origin.
+Section 4 therefore pins the entry version and manifest digest it observes at
+run time instead of pinning index bytes.
 
 ## Environment preparation
 
@@ -109,7 +94,7 @@ Use a clean browser profile and a gateway with no pre-existing instance of
 - the private interception CA trusted by the test client;
 - an HTTPS Console certificate trusted without a browser exception for the PWA
   section; and
-- enough authority to remove the acceptance extension and marketplace source.
+- enough authority to remove the acceptance extension.
 
 Capture the initial controller state without editing host files:
 
@@ -121,14 +106,13 @@ auth_curl --fail --silent --show-error \
 
 jq -S '.document' dns.before.json > dns.document.before.json
 jq -S '{enabled: .snapshot.enabled, http2: .snapshot.http2,
-        modules: .snapshot.modules, catalog_sources: .snapshot.catalog_sources}' \
+        modules: .snapshot.modules}' \
   interception.before.json > interception.operator.before.json
 ```
 
 Require the acceptance extension ID to be absent. Record whether the MITM
-master was initially enabled. If unrelated installed extensions or marketplace
-sources exist, use a different designated gateway instead of assuming cleanup
-can overwrite them.
+master was initially enabled. If unrelated installed extensions exist, use a
+different designated gateway instead of assuming cleanup can overwrite them.
 
 ## Viewport matrix
 
@@ -171,7 +155,7 @@ routes and navigation entries:
 
 - [ ] `/5gpn-dns` and `/5gpn-setup-guide` are present only for DNS v2.
 - [ ] `/extensions`, `/extensions/hosts`, `/marketplace`, and `/plugin-logs`
-      are present only for interception v7.
+      are present only for interception v8.
 - [ ] `/extensions` contains installed-extension management and a Hosts audit
       entry point, but no embedded Marketplace tab or decorative traffic rail.
 - [ ] `/marketplace` owns discovery, while `/plugin-logs` is in the Plugin
@@ -221,27 +205,70 @@ does not replace mihomo's persistence tests.
 
 ## 4. Marketplace interaction
 
-Add the served fixed snapshot with source ID `io.5gpn.acceptance` and local
-display name `Acceptance snapshot`.
+There is exactly one marketplace and its URL is compiled into the Core. It
+cannot be added, aliased, disabled, replaced, or pointed at a fixture origin
+from the Console, so this section reads the live index. Determinism comes from
+pinning what is observed at run time, not from pinning index bytes.
 
-- [ ] The source chip shows both the local display name and the source ID. The
-      alias is not presented as publisher identity.
-- [ ] Exactly Apple WLOC, Bilibili Cleaner, and TestFlight Region Unlock appear.
-- [ ] Search for `location`, `media`, and `region`; each query returns only the
-      matching truthful entry fields. Clearing search restores all three.
+Record the index exactly as the Console sees it and hold those values for the
+rest of the section:
+
+```bash
+auth_curl --fail --silent --show-error \
+  "https://${CONSOLE}/5gpn/interception/catalog?refresh=1" > catalog.observed.json
+
+jq -e '.catalog.url ==
+  "https://moooyo.github.io/5gpn-extensions/marketplace/v2/index.json"' \
+  catalog.observed.json
+jq -e '(.catalog.entries | type) == "array"' catalog.observed.json
+jq -e '.catalog | has("sources") | not' catalog.observed.json
+
+ENTRY="$(jq -r '.catalog.entries[0].id' catalog.observed.json)"
+ENTRY_VERSION="$(jq -r '.catalog.entries[0].version' catalog.observed.json)"
+ENTRY_DIGEST="$(jq -r '.catalog.entries[0].manifest.sha256' catalog.observed.json)"
+test -n "${ENTRY}" && test -n "${ENTRY_VERSION}" && test -n "${ENTRY_DIGEST}"
+```
+
+Keep `catalog.observed.json` in the evidence archive. If the published index
+changes mid-run, a recorded version or digest stops matching; restart the run
+rather than continuing against mixed data.
+
+- [ ] The page shows exactly one marketplace section. There is no source chip
+      row, no "All" filter, no add-source form, and no enable, disable, remove,
+      or rename control for a marketplace anywhere in the Console.
+- [ ] The section header shows the compiled-in index URL, the index document's
+      own name and description, and the fetched time. There is no local alias,
+      and the index's self-reported name is not presented as operator-chosen
+      identity.
+- [ ] Every entry in `catalog.observed.json` is listed with the same IDs and
+      versions, and the count badge equals the number of entries.
+- [ ] Search each recorded entry's name, ID, and one of its tags. Each query
+      returns only the matching truthful entry fields, and clearing the search
+      restores the full list.
 - [ ] Exercise catalog, name, ID, and version sort. The UI does not invent
       popularity, author, health, download, or update-date metadata.
-- [ ] Refresh retains one complete snapshot. A controlled HTTP failure from the
-      same fixture endpoint preserves the prior entries and fetched time while
-      displaying the source error.
-- [ ] Review Apple WLOC. The cached entry summary is followed by the actual
-      digest-verified manifest review, and the review identifies immutable
-      revision `e5c550c46e819a06e078751ee9a245dda07bcbe7` resources.
+- [ ] Refresh retains one complete snapshot.
+- [ ] Break reachability of the index host from the gateway only — a temporary
+      egress or resolver block, not a controller edit — then Refresh. The prior
+      entries and the previous fetched time stay visible and the fetch error is
+      displayed beside them. Restore reachability and Refresh; the error clears
+      and the fetched time advances.
+- [ ] Review `${ENTRY}`. The cached entry summary is followed by the actual
+      digest-verified manifest review, and the review reports version
+      `${ENTRY_VERSION}` and manifest digest `${ENTRY_DIGEST}` as recorded above.
 - [ ] Cancel review without installing. No installed-extension revision changes,
       and the installed page exposes no check-update action.
+- [ ] The retired whole-list write is gone. The following prints `404` or `405`,
+      and a following `GET /5gpn/interception` returns the same revision:
 
-Do not use the public mutable Marketplace pointer for this section. Remove the
-acceptance source during cleanup.
+```bash
+auth_curl --silent --output /dev/null --write-out '%{http_code}\n' \
+  -X PUT -H 'Content-Type: application/json' \
+  --data-binary '{"revision":"none","sources":[]}' \
+  "https://${CONSOLE}/5gpn/interception/catalog/sources"
+```
+
+Nothing in this section installs, enables, or removes an extension.
 
 ## 5. Extension review and Plugin Logs
 
@@ -346,9 +373,8 @@ shipped themes, starting from `light`.
 
 ## Cleanup and pass criteria
 
-Remove `io.5gpn.console-acceptance`, remove source
-`io.5gpn.acceptance`, and restore the MITM master if this run changed it. Fetch
-fresh state and compare operator-owned projections:
+Remove `io.5gpn.console-acceptance` and restore the MITM master if this run
+changed it. Fetch fresh state and compare operator-owned projections:
 
 ```bash
 auth_curl --fail --silent --show-error \
@@ -358,7 +384,7 @@ auth_curl --fail --silent --show-error \
 
 jq -S '.document' dns.after.json > dns.document.after.json
 jq -S '{enabled: .snapshot.enabled, http2: .snapshot.http2,
-        modules: .snapshot.modules, catalog_sources: .snapshot.catalog_sources}' \
+        modules: .snapshot.modules}' \
   interception.after.json > interception.operator.after.json
 
 cmp dns.document.before.json dns.document.after.json
